@@ -1,0 +1,113 @@
+js_import /etc/nginx/include/s3gateway.js;
+
+# We include only the variables needed for the authentication signatures that
+# we plan to use.
+include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_js_vars.conf;
+
+# This creates the HTTP authentication header to be sent to S3
+js_set $s3auth s3gateway.s3auth;
+
+# Extracts only the path from the requested URI. This strips out all query
+# parameters and anchors in order to prevent extranous data from being sent to
+# S3.
+map $request_uri $uri_path {
+    "~^(?P<path>.*?)(\?.*)*$"  $path;
+}
+
+server {
+    # Don't display the NGINX version number because we don't want to reveal
+    # information that could be used to find an exploit.
+    server_tokens off;
+
+    # Uncomment this for a HTTP header that will let you know the cache status
+    # of an object.
+    # add_header X-Cache-Status $upstream_cache_status;
+
+    # Proxy caching configuration. Customize this for your needs.
+    proxy_cache s3_cache;
+    proxy_cache_valid 200 302 1h;
+    proxy_cache_valid 404 1m;
+    proxy_cache_valid 403 30s;
+    proxy_cache_methods GET HEAD;
+    proxy_cache_convert_head off;
+    proxy_cache_revalidate on;
+    proxy_cache_background_update on;
+    proxy_cache_lock on;
+    proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504;
+    proxy_cache_key "$request_method$host$uri";
+
+    # If you need to support proxying range request, refer to this article:
+    # https://www.nginx.com/blog/smart-efficient-byte-range-caching-nginx/
+
+    # Do not proxy for the site root because we do not want to make a proxy
+    # request to the root of the S3 API.
+    location = / {
+        return 404;
+    }
+
+    # Do not proxy requests for directories because we are not providing
+    # directory listings nor do we want to reveal the application/x-directory
+    # content type which will leak to the requester that we are proxying S3.
+    location ~ ^\/(.*)\/$ {
+        return 404;
+    }
+
+    # Do not proxy the S3 SOAP API. The S3 API has a less-documented feature
+    # where the object name "soap" is used for the SOAP API. We don't allow
+    # access to it.
+    location /soap {
+        return 404;
+    }
+
+    location / {
+        # Redirect to the proper location based on the client request - either
+        # @s3 or @error405.
+        js_content s3gateway.redirectToS3;
+    }
+
+    location @s3 {
+        # We include only the headers needed for the authentication signatures that
+        # we plan to use.
+        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+
+        # Don't allow any headers from the client - we don't want them messing
+        # with S3 at all.
+        proxy_pass_request_headers off;
+
+        # Set the Authorization header to the AWS Signatures credentials
+        proxy_set_header Authorization $s3auth;
+
+        # We set the host as the bucket name to inform the S3 API of the bucket
+        proxy_set_header Host '${S3_BUCKET_NAME}.${S3_SERVER}';
+
+        # Use keep alive connections in order to improve performance
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+
+        # We strip off all of the AWS specific headers from the server so that
+        # there is nothing identifying the object as having originated in an
+        # object store.
+        more_clear_headers 'x-amz-*';
+
+        # Catch all errors from S3 and sanitize them so that the user can't
+        # gain intelligence about the S3 bucket being proxied.
+        proxy_intercept_errors on;
+
+        # Comment out this line to receive the error messages returned by S3
+        error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+
+        # Change this to 'http' if you want to connect to the S3 API insecurely
+        proxy_pass ${S3_SERVER_PROTO}://storage_urls$uri_path;
+    }
+
+    location @error404 {
+        return 404;
+    }
+
+    # Provide a hint to the client on 405 errors of the acceptable request methods
+    error_page 405 @error405;
+    location @error405 {
+        add_header Allow "GET, HEAD" always;
+        return 405;
+    }
+}

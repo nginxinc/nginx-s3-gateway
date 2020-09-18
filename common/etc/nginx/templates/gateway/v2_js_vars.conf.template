@@ -1,0 +1,4 @@
+# This header is needed when doing v2 signature authentication. It
+# specifies the timestamp in which the signature was generated and is used with
+# the HTTP Date header.
+js_set $httpDate s3gateway.s3date;

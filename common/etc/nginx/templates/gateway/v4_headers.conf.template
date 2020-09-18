@@ -1,0 +1,7 @@
+# This header is needed when doing v4 signature authentication. It
+# specifies the timestamp in which the signature was generated.
+proxy_set_header x-amz-date $awsDate;
+
+# All HTTP bodies are empty because we are only doing GET/HEAD requests,
+# so we can hardcode the body checksum.
+proxy_set_header x-amz-content-sha256 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
