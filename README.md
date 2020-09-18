@@ -52,15 +52,15 @@ docker build -f Dockerfile.plus -t nginx-plus-s3-gateway --build-arg NGINX_GPGKE
 
 Environment variables are used to configure this project.  
 
-* `S3_BUCKET_NAME` - Name of S3 bucket to proxy requests to
-* `S3_SERVER` - S3 host to connect to 
-* `S3_SERVER_PORT` - SSL/TLS port to connect to
-* `S3_SERVER_PROTO` - Protocol to used connect to S3 server - `http` or `https` 
 * `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4 (4 is default) 
 * `S3_ACCESS_KEY_ID` - Access key 
-* `S3_SECRET_KEY` - Secret access key
-* `S3_REGION` - Region associated with API
+* `S3_BUCKET_NAME` - Name of S3 bucket to proxy requests to
 * `S3_DEBUG` - Flag (true/false) enabling AWS signatures debug output (default: false)
+* `S3_REGION` - Region associated with API
+* `S3_SECRET_KEY` - Secret access key
+* `S3_SERVER_PORT` - SSL/TLS port to connect to
+* `S3_SERVER_PROTO` - Protocol to used connect to S3 server - `http` or `https` 
+* `S3_SERVER` - S3 host to connect to 
 
 The above environment variables can be set in a file that is passed to docker
 with the `--env-file` flag. The file would look something like 
