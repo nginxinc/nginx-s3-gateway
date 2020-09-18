@@ -29,6 +29,10 @@ server {
     proxy_cache_valid 404 1m;
     proxy_cache_valid 403 30s;
     proxy_cache_methods GET HEAD;
+    # When this is enabled a HEAD request to NGINX will result in a GET
+    # request upstream. Unfortunately, proxy_cache_convert_head has to be
+    # disabled because there is no way for the signatures generation code to
+    # get access to the metadata in the GET request that is sent upstream.
     proxy_cache_convert_head off;
     proxy_cache_revalidate on;
     proxy_cache_background_update on;
