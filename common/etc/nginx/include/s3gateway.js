@@ -203,7 +203,40 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
         r.log('AWS v4 Auth Signing String: [' + stringToSign + ']');
     }
 
-    var kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
+    var kSigningHash;
+
+    /* If we have a keyval zone and key defined for caching the signing key hash,
+     * then signing key caching will be enabled. By caching signing keys we can
+     * accelerate the signing process because we will have four less HMAC
+     * operations that have to be performed per incoming request. The signing
+     * key expires every day, so our cache key can persist for 24 hours safely.
+     */
+    if ("variables" in r && r.variables.cache_signing_key_enabled == 1) {
+        // cached value is in the format: [eightDigitDate]:[signingKeyHash]
+        var cached = "signing_key_hash" in r.variables ? r.variables.signing_key_hash : "";
+        var fields = cached.split(":", 2);
+        var cachedEightDigitDate = fields[0];
+        var cacheIsValid = fields.length === 2 && eightDigitDate === cachedEightDigitDate;
+
+        // If true, use cached value
+        if (cacheIsValid) {
+            r.log("AWS v4 Using cached Signing Key Hash");
+            /* We are forced to JSON encode the string returned from the HMAC
+             * operation because it is in a very specific format that include
+             * binary data and in order to preserve that data when persisting
+             * we encode it as JSON. By doing so we can gracefully decode it
+             * when reading from the cache. */
+            kSigningHash = JSON.parse(fields[1]);
+        // Otherwise, generate a new signing key hash and store it in the cache
+        } else {
+            kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
+            r.log("Writing key: " + eightDigitDate + ':' + kSigningHash.toString('hex'));
+            r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
+        }
+    // Otherwise, don't use caching at all (like when we are using NGINX OSS)
+    } else {
+        kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
+    }
 
     if (debug) {
         r.log('AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
