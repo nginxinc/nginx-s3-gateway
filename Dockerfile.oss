@@ -7,6 +7,8 @@ ENV HEADERS_MORE_VERSION "v0.33"
 # 1. Installing the headers-more module
 # 2. Adding configuration files needed for proxying private S3 buckets
 # 3. Adding a directory for proxied objects to be stored
+# 4. Replacing the entrypoint script with a modified version that explicitly
+#    sets resolvers.
 
 RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive; \
@@ -43,6 +45,7 @@ RUN set -eux \
     rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
 COPY common/etc /etc
+COPY common/docker-entrypoint.sh /docker-entrypoint.sh
 COPY common/docker-entrypoint.d/00-check-for-required-env.sh /docker-entrypoint.d/00-check-for-required-env.sh
 COPY oss/etc /etc
 
@@ -50,4 +53,4 @@ RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive; \
     mkdir -p /var/cache/nginx/s3_proxy; \
     chown nginx:nginx /var/cache/nginx/s3_proxy; \
-    chmod -R +x /docker-entrypoint.d/*
+    chmod -R -v +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh

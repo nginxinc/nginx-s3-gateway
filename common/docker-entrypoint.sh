@@ -19,6 +19,13 @@
 
 set -e
 
+# This line is an addition to the NGINX Docker image's entrypoint script.
+if [ -z ${DNS_RESOLVERS+x} ]; then
+  export DNS_RESOLVERS="$(cat /etc/resolv.conf | grep nameserver | cut -d' ' -f2 | xargs)"
+fi
+
+# Nothing is modified under this line
+
 if [ -z "${NGINX_ENTRYPOINT_QUIET_LOGS:-}" ]; then
     exec 3>&1
 else

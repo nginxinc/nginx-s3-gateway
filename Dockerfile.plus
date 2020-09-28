@@ -14,7 +14,7 @@ COPY plus/usr /usr
 # Copy files from the OSS NGINX Docker container such that the container
 # startup is the same.
 # Source: https://github.com/nginxinc/docker-nginx/tree/1.19.2/stable/buster
-COPY plus/docker-entrypoint.sh /docker-entrypoint.sh
+COPY common/docker-entrypoint.sh /docker-entrypoint.sh
 COPY plus/docker-entrypoint.d /docker-entrypoint.d
 
 RUN set -eux \

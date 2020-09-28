@@ -52,7 +52,8 @@ docker build -f Dockerfile.plus -t nginx-plus-s3-gateway --build-arg NGINX_GPGKE
 
 Environment variables are used to configure this project.  
 
-* `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4 (4 is default) 
+* `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4 (4 is default)
+* `DNS_RESOLVERS` - (optional) DNS resolvers (separated by single spaces) to configure NGINX with 
 * `S3_ACCESS_KEY_ID` - Access key 
 * `S3_BUCKET_NAME` - Name of S3 bucket to proxy requests to
 * `S3_DEBUG` - Flag (true/false) enabling AWS signatures debug output (default: false)

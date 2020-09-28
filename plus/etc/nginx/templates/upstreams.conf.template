@@ -1,11 +1,8 @@
 # This configuration with NGINX Plus should dynamically reload S3 backends
 # as they change in DNS.
 
-# Docker DNS server IP
-resolver 127.0.0.11;
-
-# Public DNS
-#resolver 1.1.1.1 8.8.8.8;
+# Use NGINX's non-blocking DNS resolution
+resolver ${DNS_RESOLVERS};
 
 upstream storage_urls {
     zone s3_backends 64k;
