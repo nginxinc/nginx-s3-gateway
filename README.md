@@ -12,7 +12,7 @@ and caching gateway for read-only requests (GET/HEAD) to the S3 API.
  * For internal/micro services that can't authenticate against the S3 API
    (e.g. don't have libraries available) the gateway can provide a means
    to accessing S3 objects without authentication 
- * Compressing objects (gzip, brotli) from gateway to end user
+ * Compressing objects ([gzip](examples/gzip-compression), [brotli](examples/brotli-compression)) from gateway to end user
  * Protecting S3 bucket from arbitrary public access and traversal
  * Rate limiting S3 objects
  * Protecting S3 bucket with a WAF in order to prevent asset discovery attacks
