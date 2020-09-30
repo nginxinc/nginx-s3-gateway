@@ -39,7 +39,7 @@ RUN set -eux \
                 --with-threads \
                 --with-cc-opt="-g -O2 -fdebug-prefix-map=/data/builder/debuild/nginx-${NGINX_VERSION}/debian/debuild-base/nginx-${NGINX_VERSION}=. -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC" \
                 --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie'; \
-    make -j $(nproc); \
+    make -j $(nproc) modules; \
     cp /tmp/nginx/objs/ngx_http_headers_more_filter_module.so /usr/lib/nginx/modules; \
     apt-get purge -y --auto-remove build-essential libpcre3-dev git; \
     rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
