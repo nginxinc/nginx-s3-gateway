@@ -15,7 +15,7 @@ and caching gateway for read-only requests (GET/HEAD) to the S3 API.
  * Compressing objects ([gzip](examples/gzip-compression), [brotli](examples/brotli-compression)) from gateway to end user
  * Protecting S3 bucket from arbitrary public access and traversal
  * Rate limiting S3 objects
- * Protecting S3 bucket with a [WAF](examples/modsecurity)
+ * Protecting a S3 bucket with a [WAF](examples/modsecurity)
  * Serving static assets from a S3 bucket alongside a dynamic application 
    endpoints all in a single RESTful directory structure
 
@@ -76,7 +76,9 @@ docker run --env-file ./settings -p80:80 --name nginx-oss-s3-gateway nginx-s3-ga
 ## Directory Structure and File Descriptions
  
 ```
-etc/             contains files used in both NGINX Plus and OSS configurations
+common/          contains files used by both NGINX OSS and Plus configurations
+examples/        contains additional `Dockerfile` examples that extend the base 
+                 configuration
 oss/             contains files used solely in NGINX OSS configurations
 plus/            contains files used solely in NGINX Plus configurations
 test/            contains automated tests for validang that the examples work
