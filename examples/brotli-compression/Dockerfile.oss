@@ -40,6 +40,6 @@ RUN set -eux \
     rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
 # Update configuration to load module
-RUN sed -i '1s;^;load_module modules/ngx_http_brotli_filter_module.so\;\n\n;' /etc/nginx/nginx.conf
+RUN sed -i '1s#^#load_module modules/ngx_http_brotli_filter_module.so;\n\n#' /etc/nginx/nginx.conf
 
 COPY etc/nginx/conf.d /etc/nginx/conf.d
