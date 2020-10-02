@@ -15,7 +15,7 @@ and caching gateway for read-only requests (GET/HEAD) to the S3 API.
  * Compressing objects ([gzip](examples/gzip-compression), [brotli](examples/brotli-compression)) from gateway to end user
  * Protecting S3 bucket from arbitrary public access and traversal
  * Rate limiting S3 objects
- * Protecting S3 bucket with a WAF in order to prevent asset discovery attacks
+ * Protecting S3 bucket with a [WAF](examples/modsecurity)
  * Serving static assets from a S3 bucket alongside a dynamic application 
    endpoints all in a single RESTful directory structure
 
