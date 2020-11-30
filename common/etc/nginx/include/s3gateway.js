@@ -23,6 +23,8 @@ var mod_hmac = require('crypto');
  */
 var debug = _parseBoolean(process.env['S3_DEBUG']);
 
+var s3_style = process.env['S3_STYLE'];
+
 /**
  * The current moment as a timestamp. This timestamp will be used across
  * functions in order for there to be no variations in signatures.
@@ -91,6 +93,27 @@ function s3auth(r) {
         return signatureV2(r, bucket, accessId, secret);
     } else {
         return signatureV4(r, now, bucket, accessId, secret, region, server);
+    }
+}
+
+/**
+ * Returns the s3 path given the incoming request
+ *
+ * @param r HTTP request
+ * @returns {string} uri for s3 request
+ */
+function s3uri(r) {
+    var bucket = process.env['S3_BUCKET_NAME'];
+    if (s3_style == 'path') {
+        if (debug) {
+            r.log('Using path style uri : ' + '/' + bucket + r.variables.uri_path);
+        }
+        return '/' + bucket + r.variables.uri_path;
+    } else {
+        if (debug) {
+            r.log('Using bucket style uri : ' + r.variables.uri_path);
+        }
+        return r.variables.uri_path;
     }
 }
 
@@ -180,9 +203,12 @@ function signatureV4(r, timestamp, bucket, accessId, secret, region, server) {
  * @private
  */
 function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server) {
-    var host = bucket + '.' + server;
+    var host = server;
+    if (s3_style == 'virtual') {
+        host = bucket + '.' + host;
+    }
     var method = r.method;
-    var uri = _escapeURIPath(r.uri);
+    var uri = _escapeURIPath(s3uri(r));
     var canonicalRequest = _buildCanonicalRequest(method, uri, host, amzDatetime);
 
     if (debug) {
@@ -421,6 +447,7 @@ export default {
     awsHeaderDate,
     s3date,
     s3auth,
+    s3uri,
     redirectToS3,
 
     // These functions do not need to be exposed, but they are exposed so that

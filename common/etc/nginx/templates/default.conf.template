@@ -4,15 +4,22 @@ js_import /etc/nginx/include/s3gateway.js;
 # we plan to use.
 include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_js_vars.conf;
 
-# This creates the HTTP authentication header to be sent to S3
-js_set $s3auth s3gateway.s3auth;
-
 # Extracts only the path from the requested URI. This strips out all query
 # parameters and anchors in order to prevent extranous data from being sent to
 # S3.
 map $request_uri $uri_path {
     "~^(?P<path>.*?)(\?.*)*$"  $path;
 }
+
+map $S3_STYLE $s3_host_hdr {
+    virtual "${S3_BUCKET_NAME}.${S3_SERVER}";
+    path    "${S3_SERVER}";
+    default "${S3_BUCKET_NAME}.${S3_SERVER}";
+}
+
+# This creates the HTTP authentication header to be sent to S3
+js_set $s3auth s3gateway.s3auth;
+js_set $s3uri s3gateway.s3uri;
 
 server {
     include /etc/nginx/conf.d/gateway/server_variables.conf;
@@ -84,7 +91,7 @@ server {
         proxy_set_header Authorization $s3auth;
 
         # We set the host as the bucket name to inform the S3 API of the bucket
-        proxy_set_header Host '${S3_BUCKET_NAME}.${S3_SERVER}';
+        proxy_set_header Host $s3_host_hdr;
 
         # Use keep alive connections in order to improve performance
         proxy_http_version 1.1;
@@ -103,7 +110,7 @@ server {
         error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
 
         # Change this to 'http' if you want to connect to the S3 API insecurely
-        proxy_pass ${S3_SERVER_PROTO}://storage_urls$uri_path;
+        proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
     }
 
     location @error404 {
