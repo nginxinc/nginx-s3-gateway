@@ -214,7 +214,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
     if ("variables" in r && r.variables.cache_signing_key_enabled == 1) {
         // cached value is in the format: [eightDigitDate]:[signingKeyHash]
         var cached = "signing_key_hash" in r.variables ? r.variables.signing_key_hash : "";
-        var fields = cached.split(":", 2);
+        var fields = _splitCachedValues(cached);
         var cachedEightDigitDate = fields[0];
         var cacheIsValid = fields.length === 2 && eightDigitDate === cachedEightDigitDate;
 
@@ -226,7 +226,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
              * binary data and in order to preserve that data when persisting
              * we encode it as JSON. By doing so we can gracefully decode it
              * when reading from the cache. */
-            kSigningHash = JSON.parse(fields[1]);
+            kSigningHash = Buffer.from(JSON.parse(fields[1]));
         // Otherwise, generate a new signing key hash and store it in the cache
         } else {
             kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
@@ -250,6 +250,30 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
     }
 
     return signature;
+}
+
+/**
+ * Splits the cached values into an array with two elements or returns an
+ * empty array if the input string is invalid. The first element contains
+ * the eight digit date string and the second element contains a JSON string
+ * of the kSigningHash.
+ *
+ * @param cached input string to parse
+ * @returns {string[]|*[]} array containing eight digit date and kSigningHash or empty
+ * @private
+ */
+function _splitCachedValues(cached) {
+    var matchedPos = cached.indexOf(':', 0)
+    // Do a sanity check on the position returned, if it isn't sane, return
+    // an empty array and let the caller logic process it.
+    if (matchedPos < 0 || matchedPos + 1 > cached.length) {
+        return []
+    }
+
+    var eightDigitDate = cached.substring(0, matchedPos)
+    var kSigningHash = cached.substring(matchedPos + 1)
+
+    return [eightDigitDate, kSigningHash]
 }
 
 /**
@@ -428,6 +452,7 @@ export default {
     _padWithLeadingZeros,
     _eightDigitDate,
     _amzDatetime,
+    _splitCachedValues,
     _buildSigningKeyHash,
     _buildSignatureV4,
 };

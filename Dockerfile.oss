@@ -1,6 +1,6 @@
-FROM nginx:1.19.2
+FROM nginx:1.19.5
 
-ENV NGINX_VERSION "1.19.2"
+ENV NGINX_VERSION "1.19.5"
 ENV HEADERS_MORE_VERSION "v0.33"
 
 # We modify the nginx base image by:

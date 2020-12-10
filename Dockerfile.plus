@@ -2,10 +2,10 @@ FROM debian:buster-slim
 
 ARG NGINX_GPGKEY
 
-ENV NGINX_VERSION        22
+ENV NGINX_VERSION        23
 ENV PKG_RELEASE          1~buster
 
-ENV NJS_VERSION          0.4.3
+ENV NJS_VERSION          0.5.0
 ENV HEADERS_MORE_VERSION 0.33
 
 COPY plus/etc/ssl /etc/ssl

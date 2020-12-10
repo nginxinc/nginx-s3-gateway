@@ -81,6 +81,31 @@ function testAmzDatetime() {
     }
 }
 
+function testSplitCachedValues() {
+    var eightDigitDate = "20200811"
+    var kSigningHash = "{\"type\":\"Buffer\",\"data\":[164,135,1,191,232,3,16,62,137,5,31,85,175,34,151,221,118,120,59,188,235,94,180,22,218,183,30,14,173,203,196,246]}"
+    var cached = eightDigitDate + ":" + kSigningHash;
+    var fields = s3gateway._splitCachedValues(cached);
+
+    if (fields.length !== 2) {
+        throw 'Unexpected array length returned.\n' +
+        'Actual:   [' + fields.length + ']\n' +
+        'Expected: [2]';
+    }
+
+    if (fields[0] !== eightDigitDate) {
+        throw 'Eight digit date field not extracted correctly.\n' +
+        'Actual:   [' + fields[0] + ']\n' +
+        'Expected: [' + eightDigitDate + ']';
+    }
+
+    if (fields[1] !== kSigningHash) {
+        throw 'kSigningHash field not extracted correctly.\n' +
+        'Actual:   [' + fields[1] + ']\n' +
+        'Expected: [' + kSigningHash + ']';
+    }
+}
+
 function testBuildSigningKeyHashWithReferenceInputs() {
     var kSecret = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY';
     var date = '20150830';
@@ -204,6 +229,7 @@ function test() {
     testPad();
     testEightDigitDate();
     testAmzDatetime();
+    testSplitCachedValues();
     testBuildSigningKeyHashWithReferenceInputs();
     testBuildSigningKeyHashWithTestSuiteInputs();
     testSignatureV4();
