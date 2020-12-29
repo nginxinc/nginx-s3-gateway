@@ -13,7 +13,7 @@ map $request_uri $uri_path {
 
 map $S3_STYLE $s3_host_hdr {
     virtual "${S3_BUCKET_NAME}.${S3_SERVER}";
-    path    "${S3_SERVER}";
+    path    "${S3_SERVER}:${S3_SERVER_PORT}";
     default "${S3_BUCKET_NAME}.${S3_SERVER}";
 }
 

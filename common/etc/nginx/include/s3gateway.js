@@ -87,6 +87,9 @@ function s3auth(r) {
     var bucket = process.env['S3_BUCKET_NAME'];
     var region = process.env['S3_REGION'];
     var server = process.env['S3_SERVER'];
+    if (s3_style == 'path') {
+	server = server + ':' + process.env['S3_SERVER_PORT'];
+    }
     var sigver = process.env['AWS_SIGS_VERSION'];
 
     if (sigver == '2') {
