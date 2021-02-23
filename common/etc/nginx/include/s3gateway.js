@@ -100,9 +100,11 @@ function s3auth(r) {
     var secret = process.env['S3_SECRET_KEY'];
     var bucket = process.env['S3_BUCKET_NAME'];
     var region = process.env['S3_REGION'];
-    var server = process.env['S3_SERVER'];
-    if (s3_style == 'path') {
-	server = server + ':' + process.env['S3_SERVER_PORT'];
+    var server;
+    if (s3_style === 'path') {
+	    server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
+    } else {
+        server = process.env['S3_SERVER'];
     }
     var sigver = process.env['AWS_SIGS_VERSION'];
 
@@ -121,7 +123,7 @@ function s3auth(r) {
  */
 function s3uri(r) {
     var bucket = process.env['S3_BUCKET_NAME'];
-    if (s3_style == 'path') {
+    if (s3_style === 'path') {
         if (debug) {
             r.log('Using path style uri : ' + '/' + bucket + r.variables.uri_path);
         }
@@ -221,7 +223,7 @@ function signatureV4(r, timestamp, bucket, accessId, secret, region, server) {
  */
 function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server) {
     var host = server;
-    if (s3_style == 'virtual') {
+    if (s3_style === 'virtual' || s3_style === 'default' || s3_style === undefined) {
         host = bucket + '.' + host;
     }
     var method = r.method;
