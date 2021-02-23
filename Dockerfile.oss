@@ -1,48 +1,12 @@
-FROM nginx:1.19.5
+FROM nginx:1.19.7
 
-ENV NGINX_VERSION "1.19.5"
-ENV HEADERS_MORE_VERSION "v0.33"
+ENV NGINX_VERSION "1.19.7"
 
 # We modify the nginx base image by:
-# 1. Installing the headers-more module
-# 2. Adding configuration files needed for proxying private S3 buckets
-# 3. Adding a directory for proxied objects to be stored
-# 4. Replacing the entrypoint script with a modified version that explicitly
+# 1. Adding configuration files needed for proxying private S3 buckets
+# 2. Adding a directory for proxied objects to be stored
+# 3. Replacing the entrypoint script with a modified version that explicitly
 #    sets resolvers.
-
-RUN set -eux \
-    export DEBIAN_FRONTEND=noninteractive; \
-    apt-get update -qq; \
-    apt-get install -y -qq build-essential libpcre3-dev git; \
-    curl -o /tmp/nginx.tar.gz --retry 6 -Ls "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
-    mkdir /tmp/nginx /tmp/headers-more; \
-    tar -C /tmp/nginx --strip-components 1 -xzf /tmp/nginx.tar.gz; \
-    curl -o /tmp/headers-more.tar.gz --retry 6 -Ls "https://github.com/openresty/headers-more-nginx-module/archive/${HEADERS_MORE_VERSION}.tar.gz"; \
-    tar -C "/tmp/headers-more" --strip-components 1 -xzf /tmp/headers-more.tar.gz; \
-    cd /tmp/nginx; \
-    ./configure --add-dynamic-module=/tmp/headers-more \
-                --without-http_gzip_module \
-                --prefix=/etc/nginx \
-                --sbin-path=/usr/sbin/nginx \
-                --modules-path=/usr/lib/nginx/modules \
-                --conf-path=/etc/nginx/nginx.conf \
-                --error-log-path=/var/log/nginx/error.log \
-                --http-log-path=/var/log/nginx/access.log \
-                --pid-path=/var/run/nginx.pid \
-                --lock-path=/var/run/nginx.lock \
-                --http-client-body-temp-path=/var/cache/nginx/client_temp \
-                --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
-                --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
-                --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
-                --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
-                --user=nginx --group=nginx --with-compat --with-file-aio \
-                --with-threads \
-                --with-cc-opt="-g -O2 -fdebug-prefix-map=/data/builder/debuild/nginx-${NGINX_VERSION}/debian/debuild-base/nginx-${NGINX_VERSION}=. -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC" \
-                --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie'; \
-    make -j $(nproc) modules; \
-    cp /tmp/nginx/objs/ngx_http_headers_more_filter_module.so /usr/lib/nginx/modules; \
-    apt-get purge -y --auto-remove build-essential libpcre3-dev git; \
-    rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
 
 COPY common/etc /etc
 COPY common/docker-entrypoint.sh /docker-entrypoint.sh

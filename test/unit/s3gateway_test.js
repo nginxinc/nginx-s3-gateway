@@ -225,6 +225,32 @@ function testSignatureV4Cache() {
     _runSignatureV4(r);
 }
 
+function testFilterOutAmzHeaders() {
+    var r = {
+        "headersOut" : {
+            "Accept-Ranges": "bytes",
+            "Content-Length": 42,
+            "Content-Security-Policy": "block-all-mixed-content",
+            "Content-Type": "text/plain",
+            "X-Amz-Bucket-Region": "us-east-1",
+            "X-Amz-Request-Id": "166539E18A46500A",
+            "X-Xss-Protection": "1; mode=block"
+        }
+    }
+
+    r.log = function(msg) {
+        console.log(msg);
+    }
+
+    s3gateway.filterOutAmzHeaders(r);
+
+    for (var key in r.headersOut) {
+        if (key.toLowerCase().indexOf("x-amz", 0) >= 0) {
+            throw "x-amz header not stripped from headers correctly";
+        }
+    }
+}
+
 function test() {
     testPad();
     testEightDigitDate();
@@ -234,6 +260,7 @@ function test() {
     testBuildSigningKeyHashWithTestSuiteInputs();
     testSignatureV4();
     testSignatureV4Cache();
+    testFilterOutAmzHeaders();
 }
 
 test();

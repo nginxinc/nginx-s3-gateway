@@ -34,6 +34,8 @@ fi
 
 apt-get -qq install --no-install-recommends --no-install-suggests -y apt-transport-https gnupg1 ca-certificates
 
+version_codename="$(grep '^VERSION_CODENAME=' /etc/os-release | awk -v FS='=' '{print $2}')"
+
 found=''
 for server in \
     ha.pool.sks-keyservers.net \
@@ -50,4 +52,4 @@ done
     echo "Acquire::https::plus-pkgs.nginx.com::Verify-Host \"true\";" >> /etc/apt/apt.conf.d/90nginx
     echo "Acquire::https::plus-pkgs.nginx.com::SslCert     \"/etc/ssl/nginx/nginx-repo.crt\";" >> /etc/apt/apt.conf.d/90nginx
     echo "Acquire::https::plus-pkgs.nginx.com::SslKey      \"/etc/ssl/nginx/nginx-repo.key\";" >> /etc/apt/apt.conf.d/90nginx
-    echo "deb https://plus-pkgs.nginx.com/debian buster nginx-plus" >> /etc/apt/sources.list.d/nginx-plus.list
+    echo "deb https://plus-pkgs.nginx.com/debian ${version_codename} nginx-plus" >> /etc/apt/sources.list.d/nginx-plus.list

@@ -49,6 +49,20 @@ var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b
 var signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
 /**
+ * Strips all x-amz- headers from the output HTTP headers.
+ * @param r HTTP request
+ */
+function filterOutAmzHeaders(r) {
+    if ('headersOut' in r) {
+        for (var key in r.headersOut) {
+            if (key.toLowerCase().indexOf("x-amz-", 0) >= 0) {
+                delete r.headersOut[key];
+            }
+        }
+    }
+}
+
+/**
  * Outputs the timestamp used to sign the request, so that it can be added to
  * the 'Date' header and sent by NGINX.
  *
@@ -446,6 +460,7 @@ export default {
     s3date,
     s3auth,
     redirectToS3,
+    filterOutAmzHeaders,
 
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
