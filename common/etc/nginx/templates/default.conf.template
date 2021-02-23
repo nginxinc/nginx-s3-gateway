@@ -93,7 +93,7 @@ server {
         # We strip off all of the AWS specific headers from the server so that
         # there is nothing identifying the object as having originated in an
         # object store.
-        more_clear_headers 'x-amz-*';
+        js_header_filter s3gateway.filterOutAmzHeaders;
 
         # Catch all errors from S3 and sanitize them so that the user can't
         # gain intelligence about the S3 bucket being proxied.
