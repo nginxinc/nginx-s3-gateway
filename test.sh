@@ -183,6 +183,7 @@ ${docker_cmd} run \
   -v "$(pwd)/test/unit:/var/tmp" \
   --workdir /var/tmp \
   -e "S3_DEBUG=true" \
+  -e "S3_STYLE=virtual" \
   --entrypoint /usr/bin/njs \
   nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/s3gateway_test.js
 
