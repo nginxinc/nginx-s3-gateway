@@ -181,6 +181,9 @@ function testSignatureV4() {
         "args" : {
             "foo" : "bar"
         },
+        "variables" : {
+            "uri_path": "/a/c/ramen.jpg"
+        },
         "status" : 0
     };
 
@@ -211,7 +214,8 @@ function testSignatureV4Cache() {
             "foo" : "bar"
         },
         "variables": {
-            "cache_signing_key_enabled": 1
+            "cache_signing_key_enabled": 1,
+            "uri_path": "/a/c/ramen.jpg"
         },
         "status" : 0
     };

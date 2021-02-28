@@ -61,7 +61,14 @@ Environment variables are used to configure this project.
 * `S3_SECRET_KEY` - Secret access key
 * `S3_SERVER_PORT` - SSL/TLS port to connect to
 * `S3_SERVER_PROTO` - Protocol to used connect to S3 server - `http` or `https` 
-* `S3_SERVER` - S3 host to connect to 
+* `S3_SERVER` - S3 host to connect to
+* `S3_STYLE` - The S3 host/path method - `virtual`, `path` or `default`. `virtual` is
+  the method that that uses DNS-style bucket+hostname:port.
+  This is the `default` value. `path` is a method that appends the bucket name 
+  as the first directory in the URI's path. This method is used by many S3 
+  compatible services. See this 
+  [AWS blog article](https://aws.amazon.com/blogs/aws/amazon-s3-path-deprecation-plan-the-rest-of-the-story/)
+  for further information. 
 
 The above environment variables can be set in a file that is passed to docker
 with the `--env-file` flag. The file would look something like 

@@ -62,6 +62,11 @@ if [ -z ${S3_REGION+x} ]; then
     failed=1
 fi
 
+if [ -z ${S3_STYLE+x} ]; then
+    >&2 echo "Required S3_STYLE environment variable missing"
+    failed=1
+fi
+
 if [ -z ${AWS_SIGS_VERSION+x} ]; then
     >&2 echo "Required AWS_SIGS_VERSION environment variable missing"
     failed=1
@@ -80,5 +85,6 @@ echo "S3 Backend Environment"
 echo "Access Key ID: ${S3_ACCESS_KEY_ID}"
 echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
 echo "Region: ${S3_REGION}"
+echo "Addressing Style: ${S3_STYLE}"
 echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
 echo "DNS Resolvers: ${DNS_RESOLVERS}"
