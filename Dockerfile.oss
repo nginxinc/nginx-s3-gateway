@@ -1,6 +1,6 @@
-FROM nginx:1.19.8
+FROM nginx:1.19.10
 
-ENV NGINX_VERSION "1.17.9"
+ENV NGINX_VERSION "1.19.10"
 
 # We modify the nginx base image by:
 # 1. Adding configuration files needed for proxying private S3 buckets

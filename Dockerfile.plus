@@ -2,10 +2,9 @@ FROM debian:buster-slim
 
 ARG NGINX_GPGKEY
 
-ENV NGINX_VERSION        23
-ENV PKG_RELEASE          1~buster
-
-ENV NJS_VERSION          0.5.1
+ENV DISTRO_VERSION       buster
+ENV NGINX_VERSION        24-2
+ENV NJS_VERSION          24+0.5.3-1
 
 COPY plus/etc/ssl /etc/ssl
 COPY plus/usr /usr
@@ -27,8 +26,8 @@ RUN set -eux \
     rm /usr/local/bin/add_nginx_plus_repo.sh; \
     apt-get -qq update; \
     apt-get -qq install --no-install-recommends --no-install-suggests -y \
-        nginx-plus=${NGINX_VERSION}-${PKG_RELEASE} \
-        nginx-plus-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE} \
+        nginx-plus=${NGINX_VERSION}~${DISTRO_VERSION} \
+        nginx-plus-module-njs=${NJS_VERSION}~${DISTRO_VERSION} \
         gettext-base; \
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
     rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*; \
