@@ -69,7 +69,7 @@ if ! [ -x "${curl_cmd}" ]; then
   exit ${no_dep_exit_code}
 fi
 
-wait_for_it_cmd="$(command -v wait-for-it)"
+wait_for_it_cmd="$(command -v wait-for-it || true)"
 if [ -x "${wait_for_it_cmd}" ]; then
   wait_for_it_installed=1
 else
