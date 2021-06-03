@@ -22,6 +22,8 @@ set -o pipefail  # don't hide errors within pipes
 
 test_server=$1
 test_dir=$2
+signature_version=$3
+allow_directory_list=$4
 test_fail_exit_code=2
 no_dep_exit_code=3
 checksum_length=32
@@ -53,7 +55,12 @@ fi
 assertHttpRequestEquals() {
   method="$1"
   path="$2"
-  uri="${test_server}/${path}"
+
+  if [[ $path == /* ]]; then
+    uri="${test_server}${path}"
+  else
+    uri="${test_server}/${path}"
+  fi
 
   printf "  \033[36;1m▲\033[0m "
   echo "Testing object: ${method} ${path}"
@@ -68,15 +75,26 @@ assertHttpRequestEquals() {
     fi
   elif [ "${method}" = "GET" ]; then
     body_data_path="${test_dir}/$3"
-    checksum_output="$(${checksum_cmd} "${body_data_path}")"
-    expected_checksum="${checksum_output:0:${checksum_length}}"
 
-    curl_checksum_output="$(${curl_cmd} -s -X "${method}" "${uri}" | ${checksum_cmd})"
-    s3_file_checksum="${curl_checksum_output:0:${checksum_length}}"
+    if [ -f "$body_data_path" ]; then
+      checksum_output="$(${checksum_cmd} "${body_data_path}")"
+      expected_checksum="${checksum_output:0:${checksum_length}}"
 
-    if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
-      e "Checksum doesn't match expectation. Request [${method} ${uri}] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
-      exit ${test_fail_exit_code}
+      curl_checksum_output="$(${curl_cmd} -s -X "${method}" "${uri}" | ${checksum_cmd})"
+      s3_file_checksum="${curl_checksum_output:0:${checksum_length}}"
+
+      if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
+        e "Checksum doesn't match expectation. Request [${method} ${uri}] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
+        exit ${test_fail_exit_code}
+      fi
+    else
+      expected_response_code="$3"
+      actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' "${uri}")"
+
+      if [ "${expected_response_code}" != "${actual_response_code}" ]; then
+        e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
+        exit ${test_fail_exit_code}
+      fi
     fi
   else
     e "Method unsupported: [${method}]"
@@ -99,11 +117,23 @@ assertHttpRequestEquals "HEAD" "b/c/@" "200"
 
 # Expected 404s
 assertHttpRequestEquals "HEAD" "not found" "404"
-assertHttpRequestEquals "HEAD" "b/" "404"
 assertHttpRequestEquals "HEAD" "b/c" "404"
+
+# Directory HEAD 404s
+# Unfortunately, the logic here can't be properly encoded into the test.
+# With minio, we can't return anything *but* a 404 for HEAD requests to a directory.
+# With AWS S3, HEAD requests to a directory will return 200 *only* when we are
+# running with v4 signatures.
+# Now, both of these cases have the exception of HEAD returning 200 on the root
+# directory.
+if [ "${allow_directory_list}" == "1" ]; then
+  assertHttpRequestEquals "HEAD" "/" "200"
+else
+  assertHttpRequestEquals "HEAD" "/" "404"
+fi
+assertHttpRequestEquals "HEAD" "b/" "404"
 assertHttpRequestEquals "HEAD" "/b/c/" "404"
 assertHttpRequestEquals "HEAD" "b//c" "404"
-assertHttpRequestEquals "HEAD" "/" "404"
 assertHttpRequestEquals "HEAD" "/soap" "404"
 
 # Verify GET is working
@@ -113,3 +143,11 @@ assertHttpRequestEquals "GET" "b/c/d.txt" "data/bucket-1/b/c/d.txt"
 assertHttpRequestEquals "GET" "b/c/=" "data/bucket-1/b/c/="
 assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
 assertHttpRequestEquals "GET" "b/ブツブツ.txt" "data/bucket-1/b/ブツブツ.txt"
+
+if [ "${allow_directory_list}" == "1" ]; then
+  assertHttpRequestEquals "GET" "/" "200"
+  assertHttpRequestEquals "GET" "b/" "200"
+  assertHttpRequestEquals "GET" "/b/c/" "200"
+else
+  assertHttpRequestEquals "GET" "/" "404"
+fi

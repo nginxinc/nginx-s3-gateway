@@ -67,6 +67,11 @@ if [ -z ${S3_STYLE+x} ]; then
     failed=1
 fi
 
+if [ -z ${ALLOW_DIRECTORY_LIST+x} ]; then
+    >&2 echo "Required ALLOW_DIRECTORY_LIST environment variable missing"
+    failed=1
+fi
+
 if [ -z ${AWS_SIGS_VERSION+x} ]; then
     >&2 echo "Required AWS_SIGS_VERSION environment variable missing"
     failed=1
@@ -88,3 +93,4 @@ echo "Region: ${S3_REGION}"
 echo "Addressing Style: ${S3_STYLE}"
 echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
 echo "DNS Resolvers: ${DNS_RESOLVERS}"
+echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"

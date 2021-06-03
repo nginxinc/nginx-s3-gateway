@@ -52,7 +52,8 @@ docker build -f Dockerfile.plus -t nginx-plus-s3-gateway --build-arg NGINX_GPGKE
 
 Environment variables are used to configure this project.  
 
-* `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4 (4 is default)
+* `ALLOW_DIRECTORY_LIST` - Enable directory listing - either 0 or 1
+* `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4
 * `DNS_RESOLVERS` - (optional) DNS resolvers (separated by single spaces) to configure NGINX with 
 * `S3_ACCESS_KEY_ID` - Access key 
 * `S3_BUCKET_NAME` - Name of S3 bucket to proxy requests to
@@ -96,6 +97,21 @@ Dockerfile.plus  Dockerfile that builds a NGINX Plus instance that is configured
 settings.example Docker env file example
 test.sh          test launcher
 ```
+
+## Directory Listing
+
+Listing of S3 directories ([folders](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html)) is supported when the `ALLOW_DIRECTORY_LIST` environment variable is set
+to `1`. Directory listing output can be customized by changing the [XSL stylesheet](https://www.w3schools.com/xml/xsl_intro.asp): [`common/etc/nginx/include/listing.xsl`](./common/etc/nginx/include/listing.xsl).
+If you are not using AWS S3 as your backend, you may see some inconsistency in the
+behavior with how directory listing works with HEAD requests. Additionally, due
+to limitations in proxy response processing, invalid S3 folder requests will result
+in log messages like:
+```
+ libxml2 error: "Extra content at the end of the document"
+```
+
+Another limitation is that when using v2 signatures with HEAD requests, the 
+gateway will not return 200 for valid folders. 
 
 ## Testing
 
