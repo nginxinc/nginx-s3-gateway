@@ -22,6 +22,7 @@ var mod_hmac = require('crypto');
  * @type {boolean}
  */
 var debug = _parseBoolean(process.env['S3_DEBUG']);
+var allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST'])
 
 var s3_style = process.env['S3_STYLE'];
 
@@ -51,15 +52,35 @@ var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b
 var signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
 /**
- * Strips all x-amz- headers from the output HTTP headers.
+ * Transform the headers returned from S3 such that there isn't information
+ * leakage about S3 and do other tasks needed for appropriate gateway output.
  * @param r HTTP request
  */
-function filterOutAmzHeaders(r) {
+function editAmzHeaders(r) {
+    var isDirectoryHeadRequest =
+        allow_listing &&
+        r.method === 'HEAD' &&
+        _isDirectory(r.variables.uri_path);
+
+    /* Strips all x-amz- headers from the output HTTP headers so that the
+     * requesters to the gateway will not know you are proxying S3. */
     if ('headersOut' in r) {
         for (var key in r.headersOut) {
-            if (key.toLowerCase().indexOf("x-amz-", 0) >= 0) {
+            /* We delete all headers when it is a directory head request because
+             * none of the information is relevant for passing on via a gateway. */
+            if (isDirectoryHeadRequest) {
+                delete r.headersOut[key];
+            } else if (key.toLowerCase().indexOf("x-amz-", 0) >= 0) {
                 delete r.headersOut[key];
             }
+        }
+
+        /* Transform content type returned on HEAD requests for directories
+         * if directory listing is enabled. If you change the output format
+         * for the XSL stylesheet from HTML to something else, you will
+         * want to change the content type below. */
+        if (isDirectoryHeadRequest) {
+            r.headersOut['Content-Type'] = 'text/html; charset=utf-8'
         }
     }
 }
@@ -108,11 +129,29 @@ function s3auth(r) {
     }
     var sigver = process.env['AWS_SIGS_VERSION'];
 
+    var signature;
+
     if (sigver == '2') {
-        return signatureV2(r, bucket, accessId, secret);
+        signature = signatureV2(r, bucket, accessId, secret);
     } else {
-        return signatureV4(r, now, bucket, accessId, secret, region, server);
+        signature = signatureV4(r, now, bucket, accessId, secret, region, server);
     }
+
+    return signature;
+}
+
+function s3BaseUri(r) {
+    var bucket = process.env['S3_BUCKET_NAME'];
+    var basePath;
+
+    if (s3_style === 'path') {
+        _debug_log(r, 'Using path style uri : ' + '/' + bucket);
+        basePath = '/' + bucket;
+    } else {
+        basePath = '';
+    }
+
+    return basePath;
 }
 
 /**
@@ -122,18 +161,40 @@ function s3auth(r) {
  * @returns {string} uri for s3 request
  */
 function s3uri(r) {
-    var bucket = process.env['S3_BUCKET_NAME'];
-    if (s3_style === 'path') {
-        if (debug) {
-            r.log('Using path style uri : ' + '/' + bucket + r.variables.uri_path);
+    var uriPath = r.variables.uri_path;
+    var basePath = s3BaseUri(r);
+    var path;
+
+    // Create query parameters only if directory listing is enabled.
+    if (allow_listing) {
+        var queryParams = _s3DirQueryParams(uriPath, r.method);
+        if (queryParams.length > 0) {
+            path = basePath + '/?' + queryParams;
+        } else {
+            path = basePath + uriPath;
         }
-        return '/' + bucket + r.variables.uri_path;
     } else {
-        if (debug) {
-            r.log('Using bucket style uri : ' + r.variables.uri_path);
-        }
-        return r.variables.uri_path;
+        path = basePath + uriPath;
     }
+
+    _debug_log(r, 'S3 Request URI: ' + r.method + ' ' + path);
+    return path;
+}
+
+function _s3DirQueryParams(uriPath, method) {
+    if (!_isDirectory(uriPath) || method !== 'GET') {
+        return '';
+    }
+
+    var path = 'delimiter=%2F'
+
+    if (uriPath !== '/') {
+        var without_leading_slash = uriPath.charAt(0) === '/' ?
+            uriPath.substring(1, uriPath.length) : uriPath;
+        path += '&prefix=' + encodeURIComponent(without_leading_slash);
+    }
+
+    return path;
 }
 
 /**
@@ -146,10 +207,18 @@ function s3uri(r) {
 function redirectToS3(r) {
     // This is a read-only S3 gateway, so we do not support any other methods
     if ( !(r.method === 'GET' || r.method === 'HEAD')) {
-        if (debug) {
-            r.log('Invalid method requested: ' + r.method);
-        }
+        _debug_log(r, 'Invalid method requested: ' + r.method);
         r.internalRedirect("@error405");
+        return;
+    }
+
+    var uriPath = r.variables.uri_path;
+    var isDirectoryListing = allow_listing && _isDirectory(uriPath);
+
+    if (isDirectoryListing && r.method === 'GET') {
+        r.internalRedirect("@s3Listing");
+    } else if (!isDirectoryListing && uriPath === '/') {
+        r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
     }
@@ -167,18 +236,52 @@ function redirectToS3(r) {
  */
 function signatureV2(r, bucket, accessId, secret) {
     var method = r.method;
-    var uri = r.uri;
+    /* If the source URI is a directory, we are sending to S3 a query string
+     * local to the root URI, so this is what we need to encode within the
+     * string to sign. For example, if we are requesting /bucket/dir1/ from
+     * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
+     * Thus, we can't put the path /dir1/ in the string to sign. */
+    var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
     var hmac = mod_hmac.createHmac('sha1', secret);
     var httpDate = s3date(r);
     var stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
 
-    if (debug) {
-        r.log('AWS v2 Auth Signing String: [' + stringToSign + ']');
-    }
+    _debug_log(r, 'AWS v2 Auth Signing String: [' + stringToSign + ']');
 
     var s3signature = hmac.update(stringToSign).digest('base64');
 
     return 'AWS '+accessId+':'+s3signature;
+}
+
+/**
+ * Processes the directory listing output as returned from S3 and corrupts the
+ * XML output by inserting 'junk' into causing nginx to return a 404 for empty
+ * directory listings.
+ *
+ * If anyone finds a better way to do this, please submit a PR.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param data chunked data buffer
+ * @param flags contains field that indicates that a chunk is last
+ */
+function filterListResponse(r, data, flags) {
+    var indexIsEmpty = _parseBoolean(r.variables.indexIsEmpty);
+
+    if (indexIsEmpty && data.indexOf('<Contents') >= 0) {
+        r.variables.indexIsEmpty = false;
+        indexIsEmpty = false;
+    }
+
+    if (indexIsEmpty && data.indexOf('<CommonPrefixes') >= 0) {
+        r.variables.indexIsEmpty = false;
+        indexIsEmpty = false;
+    }
+
+    if (flags.last && indexIsEmpty) {
+        r.sendBuffer('junk', flags);
+    } else {
+        r.sendBuffer(data, flags);
+    }
 }
 
 /**
@@ -201,9 +304,7 @@ function signatureV4(r, timestamp, bucket, accessId, secret, region, server) {
             .concat(accessId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
                 'SignedHeaders=', signedHeaders, ',Signature=', signature);
 
-    if (debug) {
-        r.log('AWS v4 Auth header: [' + authHeader + ']')
-    }
+    _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
 
     return authHeader;
 }
@@ -227,26 +328,31 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
         host = bucket + '.' + host;
     }
     var method = r.method;
-    var uri = _escapeURIPath(s3uri(r));
-    var canonicalRequest = _buildCanonicalRequest(method, uri, host, amzDatetime);
-
-    if (debug) {
-        r.log('AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
+    var baseUri = s3BaseUri(r);
+    var queryParams = _s3DirQueryParams(r.variables.uri_path, method);
+    var uri;
+    if (queryParams.length > 0) {
+        if (baseUri.length > 0) {
+            uri = baseUri;
+        } else {
+            uri = '/';
+        }
+    } else {
+        uri = _escapeURIPath(s3uri(r));
     }
+    var canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime);
+
+    _debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
 
     var canonicalRequestHash = mod_hmac.createHash('sha256')
         .update(canonicalRequest)
         .digest('hex');
 
-    if (debug) {
-        r.log('AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
-    }
+    _debug_log(r, 'AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
 
     var stringToSign = _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash)
 
-    if (debug) {
-        r.log('AWS v4 Auth Signing String: [' + stringToSign + ']');
-    }
+    _debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
 
     var kSigningHash;
 
@@ -265,7 +371,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
 
         // If true, use cached value
         if (cacheIsValid) {
-            r.log("AWS v4 Using cached Signing Key Hash");
+            _debug_log(r, 'AWS v4 Using cached Signing Key Hash');
             /* We are forced to JSON encode the string returned from the HMAC
              * operation because it is in a very specific format that include
              * binary data and in order to preserve that data when persisting
@@ -275,7 +381,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
         // Otherwise, generate a new signing key hash and store it in the cache
         } else {
             kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
-            r.log("Writing key: " + eightDigitDate + ':' + kSigningHash.toString('hex'));
+            _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
     // Otherwise, don't use caching at all (like when we are using NGINX OSS)
@@ -283,16 +389,12 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
         kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
     }
 
-    if (debug) {
-        r.log('AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
-    }
+    _debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
 
     var signature = mod_hmac.createHmac('sha256', kSigningHash)
         .update(stringToSign).digest('hex');
 
-    if (debug) {
-        r.log('AWS v4 Authorization Header: [' + signature + ']');
-    }
+    _debug_log(r, 'AWS v4 Authorization Header: [' + signature + ']');
 
     return signature;
 }
@@ -346,23 +448,20 @@ function _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalReques
  * @see {@link https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html | Creating a Canonical Request}
  * @param method {string} HTTP method
  * @param uri {string} URI associated with request
+ * @param queryParams {string} query parameters associated with request
  * @param host {string} HTTP Host header value
  * @param amzDatetime {string} ISO8601 timestamp string to sign request with
  * @returns {string} string with concatenated request parameters
  * @private
  */
-function _buildCanonicalRequest(method, uri, host, amzDatetime) {
+function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime) {
     var canonicalHeaders = 'host:' + host + '\n' +
         'x-amz-content-sha256:' + emptyPayloadHash + '\n' +
         'x-amz-date:' + amzDatetime + '\n';
 
-    // We hard code query parameters as empty because we don't want to forward
-    // query parameters to S3 proxied requests.
-    var emptyQueryParams = '';
-
     var canonicalRequest = method+'\n';
     canonicalRequest += uri+'\n';
-    canonicalRequest += emptyQueryParams+'\n';
+    canonicalRequest += queryParams+'\n';
     canonicalRequest += canonicalHeaders+'\n';
     canonicalRequest += signedHeaders+'\n';
     canonicalRequest += emptyPayloadHash;
@@ -464,11 +563,32 @@ function _escapeURIPath(uri) {
 }
 
 /**
+ * Determines if a given path is a directory based on whether or not the last
+ * character in the path is a forward slash (/).
+ *
+ * @param path {string} path to parse
+ * @returns {boolean} true if path is a directory
+ * @private
+ */
+function _isDirectory(path) {
+    if (path === undefined) {
+        return false;
+    }
+    var len = path.length;
+
+    if (len < 1) {
+        return false;
+    }
+
+    return path.charAt(len - 1) === '/';
+}
+
+/**
  * Parses a string to and returns a boolean value based on its value. If the
  * string can't be parsed, this method returns null.
  *
  * @param string {*} value representing a boolean
- * @returns {boolean}
+ * @returns {boolean} boolean value of string
  * @private
  */
 function _parseBoolean(string) {
@@ -486,14 +606,27 @@ function _parseBoolean(string) {
     }
 }
 
+/**
+ * Outputs a log message to the request logger if debug messages are enabled.
+ *
+ * @param r {Request} HTTP request object
+ * @param msg {string} message to log
+ * @private
+ */
+function _debug_log(r, msg) {
+    if (debug && "log" in r) {
+        r.log(msg);
+    }
+}
+
 export default {
     awsHeaderDate,
     s3date,
     s3auth,
     s3uri,
     redirectToS3,
-    filterOutAmzHeaders,
-
+    editAmzHeaders,
+    filterListResponse,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
     _padWithLeadingZeros,
@@ -502,4 +635,5 @@ export default {
     _splitCachedValues,
     _buildSigningKeyHash,
     _buildSignatureV4,
+    _escapeURIPath
 };
