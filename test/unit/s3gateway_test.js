@@ -229,7 +229,7 @@ function testSignatureV4Cache() {
     _runSignatureV4(r);
 }
 
-function testFilterOutAmzHeaders() {
+function testEditAmzHeaders() {
     var r = {
         "headersOut" : {
             "Accept-Ranges": "bytes",
@@ -246,12 +246,22 @@ function testFilterOutAmzHeaders() {
         console.log(msg);
     }
 
-    s3gateway.filterOutAmzHeaders(r);
+    s3gateway.editAmzHeaders(r);
 
     for (var key in r.headersOut) {
         if (key.toLowerCase().indexOf("x-amz", 0) >= 0) {
             throw "x-amz header not stripped from headers correctly";
         }
+    }
+}
+
+function testEscapeURIPathPreservesDoubleSlashes() {
+    var doubleSlashed = '/testbucketer2/foo3//bar3/somedir/license';
+    var actual = s3gateway._escapeURIPath(doubleSlashed);
+    var expected = '/testbucketer2/foo3//bar3/somedir/license';
+
+    if (actual !== expected) {
+        throw 'URI Path escaping is stripping slashes'
     }
 }
 
@@ -264,7 +274,8 @@ function test() {
     testBuildSigningKeyHashWithTestSuiteInputs();
     testSignatureV4();
     testSignatureV4Cache();
-    testFilterOutAmzHeaders();
+    testEditAmzHeaders();
+    testEscapeURIPathPreservesDoubleSlashes();
 }
 
 test();

@@ -27,7 +27,8 @@ minio_server="http://localhost:9090"
 test_server="${nginx_server_proto}://${nginx_server_host}:${nginx_server_port}"
 test_fail_exit_code=2
 no_dep_exit_code=3
-test_dir="$(pwd)/test"
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+test_dir="${script_dir}/test"
 test_compose_config="${test_dir}/docker-compose.yaml"
 test_compose_project="ngt"
 
@@ -106,11 +107,13 @@ compose() {
 integration_test() {
   printf "\033[34;1m▶\033[0m"
   printf "\e[1m Integration test suite for v%s signatures\e[22m\n" "$1"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with ALLOW_DIRECTORY_LIST=%s\e[22m\n" "$2"
 
   # See if Minio is already running, if it isn't then we don't need to build it
   if [ -z "$(docker ps -q -f name=${test_compose_project}_minio_1)" ]; then
     p "Building Docker Compose environment"
-    AWS_SIGS_VERSION=$1 compose up --no-start
+    AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 compose up --no-start
 
     p "Adding test data to container"
     echo "Copying contents of ${test_dir}/data to Docker container ${test_compose_project}_minio_1:/"
@@ -120,7 +123,7 @@ integration_test() {
   fi
 
   p "Starting Docker Compose Environment"
-  AWS_SIGS_VERSION=$1 compose up -d
+  AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 compose up -d
 
   if [ ${wait_for_it_installed} ]; then
     # Hit minio's health check end point to see if it has started up
@@ -139,7 +142,7 @@ integration_test() {
   fi
 
   p "Starting HTTP API tests (v$1 signatures)"
-  bash "${test_dir}/integration/test_api.sh" "$test_server" "$test_dir"
+  bash "${test_dir}/integration/test_api.sh" "$test_server" "$test_dir" "$1" "$2"
 
   # We check to see if NGINX is in fact using the correct version of AWS
   # signatures as it was configured to do.
@@ -189,14 +192,22 @@ ${docker_cmd} run \
 
 ### INTEGRATION TESTS
 
-# Test API with AWS Signature V2
-integration_test 2
+# Test API with AWS Signature V2 and allow directory listing off
+integration_test 2 0
 
-# Stop NGINX container, so it can be restarted with a different AWS
-# signatures version
-compose stop nginx-s3-gateway
+compose stop nginx-s3-gateway # Restart with new config
 
-# Test API with AWS Signature V4
-integration_test 4
+# Test API with AWS Signature V2 and allow directory listing on
+integration_test 2 1
+
+compose stop nginx-s3-gateway # Restart with new config
+
+# Test API with AWS Signature V4 and allow directory listing off
+integration_test 4 0
+
+compose stop nginx-s3-gateway # Restart with new config
+
+# Test API with AWS Signature V4 and allow directory listing on
+integration_test 4 1
 
 p "All tests complete"
