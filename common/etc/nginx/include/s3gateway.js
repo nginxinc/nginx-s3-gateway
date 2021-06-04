@@ -14,6 +14,16 @@
  *  limitations under the License.
  */
 
+_require_env_var('S3_ACCESS_KEY_ID');
+_require_env_var('S3_SECRET_KEY');
+_require_env_var('S3_BUCKET_NAME');
+_require_env_var('S3_SERVER');
+_require_env_var('S3_SERVER_PROTO');
+_require_env_var('S3_SERVER_PORT');
+_require_env_var('S3_REGION');
+_require_env_var('AWS_SIGS_VERSION');
+_require_env_var('S3_STYLE');
+
 var mod_hmac = require('crypto');
 
 /**
@@ -616,6 +626,20 @@ function _parseBoolean(string) {
 function _debug_log(r, msg) {
     if (debug && "log" in r) {
         r.log(msg);
+    }
+}
+
+/**
+ * Checks to see if the given environment variable is present. If not, an error
+ * is thrown.
+ * @param envVarName {string} environment variable to check for
+ * @private
+ */
+function _require_env_var(envVarName) {
+    var isSet = envVarName in process.env;
+
+    if (!isSet) {
+        throw('Required environment variable ' + envVarName + ' is missing');
     }
 }
 
