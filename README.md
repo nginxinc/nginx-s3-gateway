@@ -52,7 +52,7 @@ docker build -f Dockerfile.plus -t nginx-plus-s3-gateway --build-arg NGINX_GPGKE
 
 Environment variables are used to configure this project.  
 
-* `ALLOW_DIRECTORY_LIST` - Enable directory listing - either 0 or 1
+* `ALLOW_DIRECTORY_LIST` - Enable directory listing - either true or false
 * `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4
 * `DNS_RESOLVERS` - (optional) DNS resolvers (separated by single spaces) to configure NGINX with 
 * `S3_ACCESS_KEY_ID` - Access key 
