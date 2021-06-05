@@ -187,6 +187,14 @@ ${docker_cmd} run \
   --workdir /var/tmp \
   -e "S3_DEBUG=true" \
   -e "S3_STYLE=virtual" \
+  -e "S3_ACCESS_KEY_ID=unit_test" \
+  -e "S3_SECRET_KEY=unit_test" \
+  -e "S3_BUCKET_NAME=unit_test" \
+  -e "S3_SERVER=unit_test" \
+  -e "S3_SERVER_PROTO=https" \
+  -e "S3_SERVER_PORT=443" \
+  -e "S3_REGION=test-1" \
+  -e "AWS_SIGS_VERSION=4" \
   --entrypoint /usr/bin/njs \
   nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/s3gateway_test.js
 
