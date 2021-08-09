@@ -25,7 +25,17 @@ Few users will find this project as-is to be sufficient for their use cases. As
 such, it is best to borrow from the patterns in this project and build your
 own configuration. For example, if you want enable SSL/TLS and compression
 in your NGINX S3 gateway configuration, you will need to look at other 
-resources because this project does not enable those features of NGINX.   
+documentation because this project does not enable those features of NGINX.
+
+## Examples
+
+In this project, we provide a few configuration examples that extend the 
+base functionality of the NGINX S3 Gateway.
+
+ * [Enabling Brotli Compression in Docker](examples/brotli-compression)
+ * [Enabling GZip Compression in Docker](examples/gzip-compression)
+ * [Installing Modsecurity in Docker](examples/modsecurity)
+ * [Stand-alone Configuration on Ubuntu](examples/ubuntu_install)
 
 ### Building the Docker Image
 
