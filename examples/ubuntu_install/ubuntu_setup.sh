@@ -34,7 +34,7 @@ if [ -z "${S3_ACCESS_KEY_ID}" ]; then
 fi
 
 if [ -z "${S3_SECRET_KEY}" ]; then
-  >&2 echo "S3_ACCESS_KEY_ID must be set"
+  >&2 echo "S3_SECRET_KEY must be set"
   exit 1
 fi
 
