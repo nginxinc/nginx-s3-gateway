@@ -71,6 +71,7 @@ assertHttpRequestEquals() {
 
     if [ "${expected_response_code}" != "${actual_response_code}" ]; then
       e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
+      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}'"
       exit ${test_fail_exit_code}
     fi
   elif [ "${method}" = "GET" ]; then
@@ -85,6 +86,7 @@ assertHttpRequestEquals() {
 
       if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
         e "Checksum doesn't match expectation. Request [${method} ${uri}] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
+        e "curl command: ${curl_cmd} -s -X '${method}' '${uri}' | ${checksum_cmd}"
         exit ${test_fail_exit_code}
       fi
     else
@@ -93,6 +95,7 @@ assertHttpRequestEquals() {
 
       if [ "${expected_response_code}" != "${actual_response_code}" ]; then
         e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
+        e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}'"
         exit ${test_fail_exit_code}
       fi
     fi
@@ -115,8 +118,11 @@ assertHttpRequestEquals "HEAD" "b/ブツブツ.txt" "200"
 assertHttpRequestEquals "HEAD" "b/c/=" "200"
 assertHttpRequestEquals "HEAD" "b/c/@" "200"
 
+# Expected 400s
+assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
+
 # Expected 404s
-assertHttpRequestEquals "HEAD" "not found" "404"
+assertHttpRequestEquals "HEAD" "not%20found" "404"
 assertHttpRequestEquals "HEAD" "b/c" "404"
 
 # Directory HEAD 404s
