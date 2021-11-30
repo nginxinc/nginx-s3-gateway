@@ -163,7 +163,16 @@ trap finish EXIT ERR SIGTERM SIGINT
 
 p "Building NGINX S3 gateway Docker image"
 if [ "${nginx_type}" = "plus" ]; then
-  docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway .
+  if docker info 2> /dev/null | grep --quiet 'Build with BuildKit'; then
+    p "Building using BuildKit"
+    export DOCKER_BUILDKIT=1
+    docker build -f Dockerfile.buildkit.${nginx_type} -t nginx-s3-gateway \
+      --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
+      --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
+      --no-cache --squash .
+  else
+    docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway .
+  fi
 else
   docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway .
 fi

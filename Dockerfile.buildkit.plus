@@ -1,0 +1,65 @@
+FROM debian:buster-slim
+
+ARG NGINX_GPGKEY=573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62
+
+ENV DISTRO_VERSION       buster
+ENV NGINX_VERSION        25-1
+ENV NJS_VERSION          25+0.7.0-1
+ENV XSLT_VERSION         25-1
+
+COPY plus/usr /usr
+
+# Copy files from the OSS NGINX Docker container such that the container
+# startup is the same.
+# Source: https://github.com/nginxinc/docker-nginx/tree/1.19.2/stable/buster
+COPY common/docker-entrypoint.sh /docker-entrypoint.sh
+COPY plus/docker-entrypoint.d /docker-entrypoint.d
+
+RUN --mount=type=secret,id=nginx-crt --mount=type=secret,id=nginx-key \
+    set -eux \
+    export DEBIAN_FRONTEND=noninteractive; \
+    mkdir -p /etc/ssl/nginx; \
+    cp /run/secrets/nginx-crt /etc/ssl/nginx/nginx-repo.crt; \
+    chmod 0664 /etc/ssl/nginx/nginx-repo.crt; \
+    cp /run/secrets/nginx-key /etc/ssl/nginx/nginx-repo.key; \
+    chmod 0664 /etc/ssl/nginx/nginx-repo.key; \
+    # create nginx user/group first, to be consistent throughout docker variants
+    addgroup --system --gid 101 nginx; \
+    adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 101 nginx; \
+    apt-get -qq update; \
+    apt-get -qq upgrade -y; \
+    sh -a /usr/local/bin/add_nginx_plus_repo.sh; \
+    rm /usr/local/bin/add_nginx_plus_repo.sh; \
+    apt-get -qq update; \
+    apt-get -qq install --no-install-recommends --no-install-suggests -y \
+        nginx-plus=${NGINX_VERSION}~${DISTRO_VERSION} \
+        nginx-plus-module-njs=${NJS_VERSION}~${DISTRO_VERSION} \
+        nginx-plus-module-xslt=${XSLT_VERSION}~${DISTRO_VERSION} \
+        gettext-base; \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+    rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* /etc/ssl/nginx; \
+    # forward request and error logs to docker log collector
+    ln -sf /dev/stdout /var/log/nginx/access.log; \
+    ln -sf /dev/stderr /var/log/nginx/error.log; \
+    chmod -R -v +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+EXPOSE 80
+
+STOPSIGNAL SIGTERM
+
+CMD ["nginx", "-g", "daemon off;"]
+
+# NGINX Docker image setup complete, everything below is specific for
+# the S3 Gateway use case.
+
+COPY plus/etc/nginx /etc/nginx
+COPY common/etc /etc
+COPY common/docker-entrypoint.d/00-check-for-required-env.sh /docker-entrypoint.d/00-check-for-required-env.sh
+
+RUN set -eux \
+    export DEBIAN_FRONTEND=noninteractive; \
+    mkdir -p /var/cache/nginx/s3_proxy; \
+    chown nginx:nginx /var/cache/nginx/s3_proxy; \
+    chmod -R +x /docker-entrypoint.d/*
