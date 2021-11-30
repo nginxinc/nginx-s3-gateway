@@ -79,16 +79,6 @@ else
 fi
 
 if [ "${nginx_type}" = "plus" ]; then
-  if [ -z "${NGINX_GPGKEY+x}" ] && [ -z "$1" ]; then
-    e "NGINX_GPGKEY environment variable containing NGINX+ GPG key was not found"
-    exit ${no_dep_exit_code}
-  fi
-
-  if [ -z "${NGINX_GPGKEY+x}" ] && [ -n "$1" ]; then
-    p "Using GPG key from script parameter"
-    export NGINX_GPGKEY="$2"
-  fi
-
   if [ ! -f "./plus/etc/ssl/nginx/nginx-repo.crt" ]; then
     e "NGINX Plus certificate file not found: $(pwd)/plus/etc/ssl/nginx/nginx-repo.crt"
     exit ${no_dep_exit_code}
@@ -173,7 +163,7 @@ trap finish EXIT ERR SIGTERM SIGINT
 
 p "Building NGINX S3 gateway Docker image"
 if [ "${nginx_type}" = "plus" ]; then
-  docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway --build-arg NGINX_GPGKEY .
+  docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway .
 else
   docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway .
 fi

@@ -50,12 +50,10 @@ docker build -f Dockerfile.oss -t nginx-oss-s3-gateway  .
 
 In order to build the NGINX Plus Docker image, copy your NGINX Plus repository 
 keys (`nginx-repo.crt` and `nginx-repo.key`) into the `plus/etc/ssl/nginx` 
-directory and set the environment variable `NGINX_GPGKEY` with the contents of
-your NGINX GPG key. Then build the container image as follows:
+directory. Then build the container image as follows:
 
 ```
-export NGINX_GPGKEY=<INSERT GPGKEY HERE>
-docker build -f Dockerfile.plus -t nginx-plus-s3-gateway --build-arg NGINX_GPGKEY .
+docker build -f Dockerfile.plus -t nginx-plus-s3-gateway .
 ``` 
 
 ### Configuration
@@ -128,9 +126,7 @@ gateway will not return 200 for valid folders.
 Automated tests require `docker`, `docker-compose`, `curl` and `md5sum` to be
 installed. To run all unit tests and integration tests, run the following command.
 If you invoke the test script with the plus parameter, you will need to add your
-NGINX repository keys to the `plus/etc/ssl/nginx` directory. You will also need
-to pass an additional parameter or set the environment variable `NGINX_GPGKEY`
-with your NGINX Plus GPG key. 
+NGINX repository keys to the `plus/etc/ssl/nginx` directory 
 
 ```
 $ ./test.sh <nginx type - 'oss' or 'plus'>
