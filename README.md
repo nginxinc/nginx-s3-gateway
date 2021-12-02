@@ -50,7 +50,25 @@ docker build -f Dockerfile.oss -t nginx-oss-s3-gateway  .
 
 In order to build the NGINX Plus Docker image, copy your NGINX Plus repository 
 keys (`nginx-repo.crt` and `nginx-repo.key`) into the `plus/etc/ssl/nginx` 
-directory. Then build the container image as follows:
+directory. Then build the container image.
+
+If you are using a version of Docker that supports Buildkit, then you can
+build the image as follows in order to prevent your private keys from
+being stored in the container image.
+
+```
+DOCKER_BUILDKIT=1 docker build \
+    -f Dockerfile.buildkit.plus \
+    -t nginx-plus-s3-gateway \
+    --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
+    --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
+    --squash .
+```
+
+Otherwise, if you don't have Buildkit available, then build as follows. If you
+want to remove the private keys from the image, then you may need to do a
+post-build squash operation using a utility like 
+[docker-squash](https://pypi.org/project/docker-squash/).
 
 ```
 docker build -f Dockerfile.plus -t nginx-plus-s3-gateway .
