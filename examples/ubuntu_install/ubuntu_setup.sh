@@ -28,59 +28,7 @@ if ! dpkg --status wget 2>/dev/null | grep --quiet Status > /dev/null; then
   exit 1
 fi
 
-if [ -z "${S3_ACCESS_KEY_ID}" ]; then
-  >&2 echo "S3_ACCESS_KEY_ID must be set"
-  exit 1
-fi
-
-if [ -z "${S3_SECRET_KEY}" ]; then
-  >&2 echo "S3_SECRET_KEY must be set"
-  exit 1
-fi
-
-if [ -z "${S3_BUCKET_NAME}" ]; then
-  >&2 echo "S3_BUCKET_NAME must be set"
-  exit 1
-fi
-
-if [ -z "${S3_SERVER}" ]; then
-  >&2 echo "S3_SERVER must be set"
-  exit 1
-fi
-
-if [ -z "${S3_SERVER_PROTO}" ]; then
-  >&2 echo "S3_SERVER_PROTO must be set"
-  exit 1
-fi
-
-if [ -z "${S3_SERVER_PORT}" ]; then
-  >&2 echo "S3_SERVER_PORT must be set"
-  exit 1
-fi
-
-if [ -z "${S3_REGION}" ]; then
-  >&2 echo "S3_REGION must be set"
-  exit 1
-fi
-
-if [ -z "${AWS_SIGS_VERSION}" ]; then
-  >&2 echo "AWS_SIGS_VERSION must be set"
-  exit 1
-fi
-
-if [ -z "${ALLOW_DIRECTORY_LIST}" ]; then
-  >&2 echo "ALLOW_DIRECTORY_LIST must be set"
-  exit 1
-fi
-
-if [ -z "${S3_STYLE}" ]; then
-  >&2 echo "S3_STYLE must be set"
-  exit 1
-fi
-
-if [ -z "${S3_DEBUG}" ]; then
-  S3_DEBUG=false
-fi
+source ../../common/check_env.sh
 
 set -o nounset   # abort on unbound variable
 
