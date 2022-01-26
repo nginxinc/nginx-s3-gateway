@@ -149,7 +149,7 @@ function _runSignatureV4(r) {
     var server = 's3-us-west-2.amazonaws.com';
 
     var expected = 'cf4dd9e1d28c74e2284f938011efc8230d0c20704f56f67e4a3bfc2212026bec';
-    var signature = s3gateway._buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server);
+    var signature = s3gateway._buildSignatureV4(r, amzDatetime, eightDigitDate, {secretAccessKey: secret}, bucket, region, server);
 
     if (signature !== expected) {
         throw 'V4 signature hash was not created correctly.\n' +
@@ -265,6 +265,32 @@ function testEscapeURIPathPreservesDoubleSlashes() {
     }
 }
 
+function testEcsCredentialRetrieval() {
+    process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI'] = 'http://localhost/example';
+    var recordedUrl;
+    ngx.fetch = function (url) {
+        recordedUrl = url;
+
+        return Promise.resolve({
+            json: function () {
+                return Promise.resolve({
+                    AccessKeyId: 'AN_ACCESS_KEY_ID',
+                    Expiration: '2017-05-17T15:09:54Z',
+                    RoleArn: 'TASK_ROLE_ARN',
+                    SecretAccessKey: 'A_SECRET_ACCESS_KEY',
+                    Token: 'A_SECURITY_TOKEN',
+                });
+            }
+        });
+    };
+
+    s3gateway.fetchCredentials();
+
+    if (recordedUrl !== 'http://localhost/example') {
+        throw 'Failed';
+    }
+}
+
 function test() {
     testPad();
     testEightDigitDate();
@@ -276,6 +302,7 @@ function test() {
     testSignatureV4Cache();
     testEditAmzHeaders();
     testEscapeURIPathPreservesDoubleSlashes();
+    testEcsCredentialRetrieval();
 }
 
 test();

@@ -61,6 +61,8 @@ var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b
  */
 var signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
+var credentials = undefined;
+
 /**
  * Transform the headers returned from S3 such that there isn't information
  * leakage about S3 and do other tasks needed for appropriate gateway output.
@@ -119,6 +121,36 @@ function awsHeaderDate(r) {
     return _amzDatetime(now, _eightDigitDate(now));
 }
 
+function fetchCredentials() {
+    if (process.env['S3_ACCESS_KEY_ID']) {
+        credentials = {
+            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
+            secretAccessKey: process.env['S3_SECRET_KEY'],
+            sessionToken: null,
+        };
+    } else if (process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI']) {
+        _fetchEcsRoleCredentials();
+    } else if (process.env['AWS_EC2_METADATA_SERVICE_ENDPOINT']) {
+
+    } else {
+        ngx.log(ngx.ERR, 'No available credential provider found.');
+    }
+}
+
+function _fetchEcsRoleCredentials() {
+    ngx.fetch(process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI'])
+        .then(reply => reply.json())
+        .then(body => {
+            ngx.log(JSON.stringify(body));
+            credentials = {
+                accessKeyId: body.AccessKeyId,
+                secretAccessKey: body.SecretAccessKey,
+                sessionToken: body.Token,
+            };
+        })
+        .catch(e => ngx.log(ngx.ERR, 'Could not load ECS task role credentials: ' + e))
+}
+
 /**
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
@@ -127,8 +159,6 @@ function awsHeaderDate(r) {
  * @returns {string} AWS authentication signature
  */
 function s3auth(r) {
-    var accessId = process.env['S3_ACCESS_KEY_ID'];
-    var secret = process.env['S3_SECRET_KEY'];
     var bucket = process.env['S3_BUCKET_NAME'];
     var region = process.env['S3_REGION'];
     var server;
@@ -142,9 +172,9 @@ function s3auth(r) {
     var signature;
 
     if (sigver == '2') {
-        signature = signatureV2(r, bucket, accessId, secret);
+        signature = signatureV2(r, bucket, credentials.accessKeyId, credentials.secretAccessKey);
     } else {
-        signature = signatureV4(r, now, bucket, accessId, secret, region, server);
+        signature = signatureV4(r, now, bucket, region, server);
     }
 
     return signature;
@@ -306,12 +336,12 @@ function filterListResponse(r, data, flags) {
  * @param region {string} API region associated with request
  * @returns {string} HTTP Authorization header value
  */
-function signatureV4(r, timestamp, bucket, accessId, secret, region, server) {
+function signatureV4(r, timestamp, bucket, region, server) {
     var eightDigitDate = _eightDigitDate(timestamp);
     var amzDatetime = _amzDatetime(timestamp, eightDigitDate);
-    var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server);
+    var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
     var authHeader = 'AWS4-HMAC-SHA256 Credential='
-            .concat(accessId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
+            .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
                 'SignedHeaders=', signedHeaders, ',Signature=', signature);
 
     _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
@@ -327,12 +357,11 @@ function signatureV4(r, timestamp, bucket, accessId, secret, region, server) {
  * @param amzDatetime {string} ISO8601 timestamp string to sign request with
  * @param eightDigitDate {string} date in the form of 'YYYYMMDD'
  * @param bucket {string} S3 bucket associated with request
- * @param secret {string} Secret access key
  * @param region {string} API region associated with request
  * @returns {string} hex encoded hash of signature HMAC value
  * @private
  */
-function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server) {
+function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region, server) {
     var host = server;
     if (s3_style === 'virtual' || s3_style === 'default' || s3_style === undefined) {
         host = bucket + '.' + host;
@@ -390,7 +419,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
             kSigningHash = Buffer.from(JSON.parse(fields[1]));
         // Otherwise, generate a new signing key hash and store it in the cache
         } else {
-            kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
+            kSigningHash = _buildSigningKeyHash(creds.secetAccessKey, eightDigitDate, service, region);
             _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
@@ -468,6 +497,10 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime) {
     var canonicalHeaders = 'host:' + host + '\n' +
         'x-amz-content-sha256:' + emptyPayloadHash + '\n' +
         'x-amz-date:' + amzDatetime + '\n';
+
+    if (credentials.sessionToken) {
+        canonicalHeaders += 'x-amz-security-token:' + credentials.sessionToken + '\n'
+    }
 
     var canonicalRequest = method+'\n';
     canonicalRequest += uri+'\n';
