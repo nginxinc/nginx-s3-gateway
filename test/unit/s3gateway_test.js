@@ -18,6 +18,8 @@
 
 import s3gateway from "include/s3gateway.js";
 
+globalThis.ngx = {};
+
 var fakeRequest = {
     "remoteAddress" : "172.17.0.1",
     "headersIn" : {
@@ -149,7 +151,7 @@ function _runSignatureV4(r) {
     var server = 's3-us-west-2.amazonaws.com';
 
     var expected = 'cf4dd9e1d28c74e2284f938011efc8230d0c20704f56f67e4a3bfc2212026bec';
-    var signature = s3gateway._buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server);
+    var signature = s3gateway._buildSignatureV4(r, amzDatetime, eightDigitDate, {secretAccessKey: secret}, bucket, region, server);
 
     if (signature !== expected) {
         throw 'V4 signature hash was not created correctly.\n' +
@@ -295,7 +297,124 @@ function testEscapeURIPathPreservesDoubleSlashes() {
     }
 }
 
-function test() {
+async function testEcsCredentialRetrieval() {
+    process.env['S3_ACCESS_KEY_ID'] = undefined;
+    process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = '/example';
+    globalThis.ngx.fetch = function (url) {
+        globalThis.recordedUrl = url;
+
+        return Promise.resolve({
+            ok: true,
+            json: function () {
+                return Promise.resolve({
+                    AccessKeyId: 'AN_ACCESS_KEY_ID',
+                    Expiration: '2017-05-17T15:09:54Z',
+                    RoleArn: 'TASK_ROLE_ARN',
+                    SecretAccessKey: 'A_SECRET_ACCESS_KEY',
+                    Token: 'A_SECURITY_TOKEN',
+                });
+            }
+        });
+    };
+    var r = {
+        "headersOut" : {
+            "Accept-Ranges": "bytes",
+            "Content-Length": 42,
+            "Content-Security-Policy": "block-all-mixed-content",
+            "Content-Type": "text/plain",
+            "X-Amz-Bucket-Region": "us-east-1",
+            "X-Amz-Request-Id": "166539E18A46500A",
+            "X-Xss-Protection": "1; mode=block"
+        },
+        log: function(msg) {
+            console.log(msg);
+        },
+        return: function(code) {
+            if (code !== 200) {
+                throw 'Expected 200 status code, got: ' + code;
+            }
+        },
+    };
+
+    await s3gateway.fetchCredentials(r);
+
+    if (globalThis.recordedUrl !== 'http://169.254.170.2/example') {
+        throw 'No or wrong ECS credentials fetch URL recorded: ' + globalThis.recordedUrl;
+    }
+}
+
+async function testEc2CredentialRetrieval() {
+    process.env['S3_ACCESS_KEY_ID'] = undefined;
+    process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = undefined;
+    globalThis.ngx.fetch = function (url, options) {
+        if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {
+            return Promise.resolve({
+                ok: true,
+                text: function () {
+                    return Promise.resolve('A_TOKEN');
+                },
+            });
+        } else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/') {
+            if (options && options.headers && options.headers['x-aws-ec2-metadata-token'] === 'A_TOKEN') {
+                return Promise.resolve({
+                    ok: true,
+                    text: function () {
+                        return Promise.resolve('A_ROLE_NAME');
+                    },
+                });
+            } else {
+                throw 'Invalid token passed: ' + options.headers['x-aws-ec2-metadata-token'];
+            }
+        }  else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/A_ROLE_NAME') {
+            if (options && options.headers && options.headers['x-aws-ec2-metadata-token'] === 'A_TOKEN') {
+                return Promise.resolve({
+                    ok: true,
+                    json: function () {
+                        globalThis.credentialsIssued = true;
+                        return Promise.resolve({
+                            AccessKeyId: 'AN_ACCESS_KEY_ID',
+                            Expiration: '2017-05-17T15:09:54Z',
+                            RoleArn: 'TASK_ROLE_ARN',
+                            SecretAccessKey: 'A_SECRET_ACCESS_KEY',
+                            Token: 'A_SECURITY_TOKEN',
+                        });
+                    },
+                });
+            } else {
+                throw 'Invalid token passed: ' + options.headers['x-aws-ec2-metadata-token'];
+            }
+        } else {
+            throw 'Invalid request URL: ' + url;
+        }
+    };
+    var r = {
+        "headersOut" : {
+            "Accept-Ranges": "bytes",
+            "Content-Length": 42,
+            "Content-Security-Policy": "block-all-mixed-content",
+            "Content-Type": "text/plain",
+            "X-Amz-Bucket-Region": "us-east-1",
+            "X-Amz-Request-Id": "166539E18A46500A",
+            "X-Xss-Protection": "1; mode=block"
+        },
+        log: function(msg) {
+            console.log(msg);
+        },
+        return: function(code) {
+            if (code !== 200) {
+                throw 'Expected 200 status code, got: ' + code;
+            }
+        },
+    };
+
+    await s3gateway.fetchCredentials(r);
+
+    if (!globalThis.credentialsIssued) {
+        throw 'Did not reach the point where EC2 credentials were issues.';
+    }
+}
+
+async function test() {
     testPad();
     testEightDigitDate();
     testAmzDatetime();
@@ -307,6 +426,8 @@ function test() {
     testEditAmzHeaders();
     testEditAmzHeadersHeadDirectory();
     testEscapeURIPathPreservesDoubleSlashes();
+    await testEcsCredentialRetrieval();
+    await testEc2CredentialRetrieval();
 }
 
 test();

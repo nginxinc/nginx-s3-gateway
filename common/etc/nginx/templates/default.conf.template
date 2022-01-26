@@ -20,6 +20,7 @@ map $S3_STYLE $s3_host_hdr {
 js_var $indexIsEmpty true;
 # This creates the HTTP authentication header to be sent to S3
 js_set $s3auth s3gateway.s3auth;
+js_set $s3SecurityToken s3gateway.s3SecurityToken;
 js_set $s3uri s3gateway.s3uri;
 
 server {
@@ -60,11 +61,22 @@ server {
         return 404;
     }
 
+    location /health {
+        return 200;
+    }
+
     location / {
+        auth_request /aws/credentials/retrieve;
+
         # Redirect to the proper location based on the client request - either
         # @s3, @s3Listing or @error405.
 
         js_content s3gateway.redirectToS3;
+    }
+
+    location /aws/credentials/retrieve {
+        internal;
+        js_content s3gateway.fetchCredentials;
     }
 
     location @s3 {
@@ -78,6 +90,7 @@ server {
 
         # Set the Authorization header to the AWS Signatures credentials
         proxy_set_header Authorization $s3auth;
+        proxy_set_header X-Amz-Security-Token $s3SecurityToken;
 
         # We set the host as the bucket name to inform the S3 API of the bucket
         proxy_set_header Host $s3_host_hdr;
@@ -112,6 +125,7 @@ server {
 
         # Set the Authorization header to the AWS Signatures credentials
         proxy_set_header Authorization $s3auth;
+        proxy_set_header X-Amz-Security-Token $s3SecurityToken;
 
         # We set the host as the bucket name to inform the S3 API of the bucket
         proxy_set_header Host $s3_host_hdr;
