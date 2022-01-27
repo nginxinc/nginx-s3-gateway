@@ -22,10 +22,10 @@ set -e
 
 failed=0
 
-if [ -v ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
+if [ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]; then
   echo "Running inside an ECS task, using container credentials"
   export AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI="http://169.254.170.2${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI}"
-else if [ -v ${AWS_EC2_METADATA_SERVICE_ENDPOINT+x} ]; then
+elif [ curl --output /dev/null --silent --head --fail "http://169.254.169.254" ]; then
   echo "Running inside an EC2 instance, using IMDS for credentials"
 else
   if [ -z ${S3_ACCESS_KEY_ID+x} ]; then

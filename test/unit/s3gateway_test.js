@@ -18,6 +18,12 @@
 
 import s3gateway from "include/s3gateway.js";
 
+globalThis.ngx = {
+    log: function (msg) {
+        console.log(msg);
+    },
+};
+
 var fakeRequest = {
     "remoteAddress" : "172.17.0.1",
     "headersIn" : {
@@ -265,11 +271,11 @@ function testEscapeURIPathPreservesDoubleSlashes() {
     }
 }
 
-function testEcsCredentialRetrieval() {
+async function testEcsCredentialRetrieval() {
+    process.env['S3_ACCESS_KEY_ID'] = undefined;
     process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI'] = 'http://localhost/example';
-    var recordedUrl;
-    ngx.fetch = function (url) {
-        recordedUrl = url;
+    globalThis.ngx.fetch = function (url) {
+        globalThis.recordedUrl = url;
 
         return Promise.resolve({
             json: function () {
@@ -284,14 +290,53 @@ function testEcsCredentialRetrieval() {
         });
     };
 
-    s3gateway.fetchCredentials();
+    await s3gateway.fetchCredentials();
 
-    if (recordedUrl !== 'http://localhost/example') {
-        throw 'Failed';
+    if (globalThis.recordedUrl !== 'http://localhost/example') {
+        throw 'No or wrong ECS credentials fetch URL recorded: ' + globalThis.recordedUrl;
     }
 }
 
-function test() {
+async function testEc2CredentialRetrieval() {
+    process.env['S3_ACCESS_KEY_ID'] = undefined;
+    process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI'] = undefined;
+    globalThis.ngx.fetch = function (url, options) {
+        if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {
+            return Promise.resolve({
+                text: function () {
+                    return Promise.resolve('A_TOKEN');
+                },
+            });
+        } else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/s3access') {
+            if (options && options.headers && options.headers['x-aws-ec2-metadata-token'] === 'A_TOKEN') {
+                return Promise.resolve({
+                    json: function () {
+                        globalThis.credentialsIssues = true;
+                        return Promise.resolve({
+                            AccessKeyId: 'AN_ACCESS_KEY_ID',
+                            Expiration: '2017-05-17T15:09:54Z',
+                            RoleArn: 'TASK_ROLE_ARN',
+                            SecretAccessKey: 'A_SECRET_ACCESS_KEY',
+                            Token: 'A_SECURITY_TOKEN',
+                        });
+                    },
+                });
+            } else {
+                throw 'Invalid token passed: ' + options.headers['x-aws-ec2-metadata-token'];
+            }
+        } else {
+            throw 'Invalid request URL: ' + url;
+        }
+    };
+
+    await s3gateway.fetchCredentials();
+
+    if (!globalThis.credentialsIssues) {
+        throw 'Did not reach the point where EC2 credentials were issues.';
+    }
+}
+
+async function test() {
     testPad();
     testEightDigitDate();
     testAmzDatetime();
@@ -302,7 +347,8 @@ function test() {
     testSignatureV4Cache();
     testEditAmzHeaders();
     testEscapeURIPathPreservesDoubleSlashes();
-    testEcsCredentialRetrieval();
+    await testEcsCredentialRetrieval();
+    await testEc2CredentialRetrieval();
 }
 
 test();

@@ -14,8 +14,6 @@
  *  limitations under the License.
  */
 
-_require_env_var('S3_ACCESS_KEY_ID');
-_require_env_var('S3_SECRET_KEY');
 _require_env_var('S3_BUCKET_NAME');
 _require_env_var('S3_SERVER');
 _require_env_var('S3_SERVER_PROTO');
@@ -61,7 +59,9 @@ var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b
  */
 var signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
-var credentials = undefined;
+var credentials = {};
+
+fetchCredentials();
 
 /**
  * Transform the headers returned from S3 such that there isn't information
@@ -121,7 +121,7 @@ function awsHeaderDate(r) {
     return _amzDatetime(now, _eightDigitDate(now));
 }
 
-function fetchCredentials() {
+async function fetchCredentials() {
     if (process.env['S3_ACCESS_KEY_ID']) {
         credentials = {
             accessKeyId: process.env['S3_ACCESS_KEY_ID'],
@@ -129,26 +129,51 @@ function fetchCredentials() {
             sessionToken: null,
         };
     } else if (process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI']) {
-        _fetchEcsRoleCredentials();
-    } else if (process.env['AWS_EC2_METADATA_SERVICE_ENDPOINT']) {
-
+        await _fetchEcsRoleCredentials(process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI']).catch(function (e) {
+            ngx.log(ngx.ERR, 'Could not load ECS task role credentials: ' + e)
+        });
     } else {
-        ngx.log(ngx.ERR, 'No available credential provider found.');
+        await _fetchEC2RoleCredentials().catch(function (e) {
+            ngx.log(ngx.ERR, 'Could not load EC2 task role credentials: ' + e)
+        });
     }
 }
 
-function _fetchEcsRoleCredentials() {
-    ngx.fetch(process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI'])
-        .then(reply => reply.json())
-        .then(body => {
-            ngx.log(JSON.stringify(body));
-            credentials = {
-                accessKeyId: body.AccessKeyId,
-                secretAccessKey: body.SecretAccessKey,
-                sessionToken: body.Token,
-            };
-        })
-        .catch(e => ngx.log(ngx.ERR, 'Could not load ECS task role credentials: ' + e))
+async function _fetchEcsRoleCredentials(credentialsUri) {
+    var resp = await ngx.fetch(credentialsUri);
+    var creds = await resp.json();
+
+    // TODO: just for debugging purposes for now
+    ngx.log(JSON.stringify(creds));
+    credentials = {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+    };
+}
+
+async function _fetchEC2RoleCredentials() {
+    var tokenResp = await ngx.fetch('http://169.254.169.254/latest/api/token', {
+        headers: {
+            'x-aws-ec2-metadata-token-ttl-seconds': '21600',
+        },
+        method: 'PUT',
+    });
+    var token = await tokenResp.text();
+    var resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/s3access', {
+        headers: {
+            'x-aws-ec2-metadata-token': token,
+        },
+    });
+    var creds = resp.json();
+
+    // TODO: just for debugging purposes for now
+    ngx.log(JSON.stringify(creds));
+    credentials = {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+    };
 }
 
 /**
@@ -163,7 +188,7 @@ function s3auth(r) {
     var region = process.env['S3_REGION'];
     var server;
     if (s3_style === 'path') {
-	    server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
+        server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
     } else {
         server = process.env['S3_SERVER'];
     }
@@ -246,7 +271,7 @@ function _s3DirQueryParams(uriPath, method) {
  */
 function redirectToS3(r) {
     // This is a read-only S3 gateway, so we do not support any other methods
-    if ( !(r.method === 'GET' || r.method === 'HEAD')) {
+    if (!(r.method === 'GET' || r.method === 'HEAD')) {
         _debug_log(r, 'Invalid method requested: ' + r.method);
         r.internalRedirect("@error405");
         return;
@@ -290,7 +315,7 @@ function signatureV2(r, bucket, accessId, secret) {
 
     var s3signature = hmac.update(stringToSign).digest('base64');
 
-    return 'AWS '+accessId+':'+s3signature;
+    return 'AWS ' + accessId + ':' + s3signature;
 }
 
 /**
@@ -341,8 +366,8 @@ function signatureV4(r, timestamp, bucket, region, server) {
     var amzDatetime = _amzDatetime(timestamp, eightDigitDate);
     var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
     var authHeader = 'AWS4-HMAC-SHA256 Credential='
-            .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
-                'SignedHeaders=', signedHeaders, ',Signature=', signature);
+        .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
+            'SignedHeaders=', signedHeaders, ',Signature=', signature);
 
     _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
 
@@ -417,15 +442,15 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
              * we encode it as JSON. By doing so we can gracefully decode it
              * when reading from the cache. */
             kSigningHash = Buffer.from(JSON.parse(fields[1]));
-        // Otherwise, generate a new signing key hash and store it in the cache
+            // Otherwise, generate a new signing key hash and store it in the cache
         } else {
-            kSigningHash = _buildSigningKeyHash(creds.secetAccessKey, eightDigitDate, service, region);
+            kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
             _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
-    // Otherwise, don't use caching at all (like when we are using NGINX OSS)
+        // Otherwise, don't use caching at all (like when we are using NGINX OSS)
     } else {
-        kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
+        kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
     }
 
     _debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
@@ -502,11 +527,11 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime) {
         canonicalHeaders += 'x-amz-security-token:' + credentials.sessionToken + '\n'
     }
 
-    var canonicalRequest = method+'\n';
-    canonicalRequest += uri+'\n';
-    canonicalRequest += queryParams+'\n';
-    canonicalRequest += canonicalHeaders+'\n';
-    canonicalRequest += signedHeaders+'\n';
+    var canonicalRequest = method + '\n';
+    canonicalRequest += uri + '\n';
+    canonicalRequest += queryParams + '\n';
+    canonicalRequest += canonicalHeaders + '\n';
+    canonicalRequest += signedHeaders + '\n';
     canonicalRequest += emptyPayloadHash;
 
     return canonicalRequest;
@@ -548,7 +573,7 @@ function _eightDigitDate(timestamp) {
     var month = timestamp.getUTCMonth() + 1;
     var day = timestamp.getUTCDate();
 
-    return ''.concat(_padWithLeadingZeros(year, 4), _padWithLeadingZeros(month,2), _padWithLeadingZeros(day,2));
+    return ''.concat(_padWithLeadingZeros(year, 4), _padWithLeadingZeros(month, 2), _padWithLeadingZeros(day, 2));
 }
 
 /**
@@ -584,7 +609,7 @@ function _amzDatetime(timestamp, eightDigitDate) {
  */
 function _padWithLeadingZeros(num, size) {
     var s = "0" + num;
-    return s.substr(s.length-size);
+    return s.substr(s.length - size);
 }
 
 /**
@@ -635,7 +660,7 @@ function _isDirectory(path) {
  * @private
  */
 function _parseBoolean(string) {
-    switch(string) {
+    switch (string) {
         case "TRUE":
         case "true":
         case "True":
@@ -683,6 +708,7 @@ export default {
     s3uri,
     redirectToS3,
     editAmzHeaders,
+    fetchCredentials,
     filterListResponse,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
