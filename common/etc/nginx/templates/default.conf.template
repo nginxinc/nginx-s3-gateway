@@ -18,6 +18,7 @@ map $S3_STYLE $s3_host_hdr {
 }
 
 js_var $indexIsEmpty true;
+js_set $credentials s3gateway.fetchCredentials;
 # This creates the HTTP authentication header to be sent to S3
 js_set $s3auth s3gateway.s3auth;
 js_set $s3uri s3gateway.s3uri;
