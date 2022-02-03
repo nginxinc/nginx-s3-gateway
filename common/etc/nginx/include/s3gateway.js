@@ -23,6 +23,7 @@ _require_env_var('AWS_SIGS_VERSION');
 _require_env_var('S3_STYLE');
 
 var mod_hmac = require('crypto');
+var fs = require('fs');
 
 /**
  * Flag indicating debug mode operation. If true, additional information
@@ -57,7 +58,7 @@ var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b
  * Constant defining the headers being signed.
  * @type {string}
  */
-var signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+var defaultSignedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
 /**
  * Transform the headers returned from S3 such that there isn't information
@@ -117,67 +118,9 @@ function awsHeaderDate(r) {
     return _amzDatetime(now, _eightDigitDate(now));
 }
 
-async function fetchCredentials(r) {
-    var credentials;
-    if (process.env['S3_ACCESS_KEY_ID']) {
-        credentials = {
-            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
-            secretAccessKey: process.env['S3_SECRET_KEY'],
-            sessionToken: null,
-        };
-    } else if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
-        var uri = "http://169.254.170.2" + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
-        credentials = await _fetchEcsRoleCredentials(r, uri).catch(function (e) {
-            _debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
-        });
-    } else {
-        credentials = await _fetchEC2RoleCredentials(r).catch(function (e) {
-            _debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
-        });
-    }
-    _debug_log(r, JSON.stringify(credentials));
-    r.setReturnValue(JSON.stringify(credentials));
-}
-
-async function _fetchEcsRoleCredentials(r, credentialsUri) {
-    var resp = await ngx.fetch(credentialsUri);
-    _debug_log(r, 'Got response code: ' + resp.status);
-    if (!resp.ok) {
-        throw 'Credentials endpoint response was not ok.';
-    }
-    var creds = await resp.json();
-
-    // TODO: just for debugging purposes for now
-    _debug_log(r, JSON.stringify(creds));
-    return {
-        accessKeyId: creds.AccessKeyId,
-        secretAccessKey: creds.SecretAccessKey,
-        sessionToken: creds.Token,
-    };
-}
-
-async function _fetchEC2RoleCredentials(r) {
-    var tokenResp = await ngx.fetch('http://169.254.169.254/latest/api/token', {
-        headers: {
-            'x-aws-ec2-metadata-token-ttl-seconds': '21600',
-        },
-        method: 'PUT',
-    });
-    var token = await tokenResp.text();
-    var resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/s3access', {
-        headers: {
-            'x-aws-ec2-metadata-token': token,
-        },
-    });
-    var creds = resp.json();
-
-    // TODO: just for debugging purposes for now
-    _debug_log(r, JSON.stringify(creds));
-    return {
-        accessKeyId: creds.AccessKeyId,
-        secretAccessKey: creds.SecretAccessKey,
-        sessionToken: creds.Token,
-    };
+function readCredentials() {
+    var creds = fs.readFileSync('/tmp/credentials.json');
+    return JSON.parse(creds);
 }
 
 /**
@@ -200,14 +143,22 @@ function s3auth(r) {
 
     var signature;
 
+    var credentials = readCredentials();
     if (sigver == '2') {
-        var credentials = JSON.parse(r.variables.credentials);
-        signature = signatureV2(r, bucket, credentials.accessKeyId, credentials.secretAccessKey);
+        signature = signatureV2(r, bucket, credentials);
     } else {
-        signature = signatureV4(r, now, bucket, region, server);
+        signature = signatureV4(r, now, bucket, region, server, credentials);
     }
 
     return signature;
+}
+
+function s3SecurityToken() {
+    var credentials = readCredentials();
+    if (credentials.sessionToken) {
+        return credentials.sessionToken;
+    }
+    return '';
 }
 
 function s3BaseUri(r) {
@@ -304,7 +255,7 @@ function redirectToS3(r) {
  * @param secret {string} Secret access key
  * @returns {string} HTTP Authorization header value
  */
-function signatureV2(r, bucket, accessId, secret) {
+function signatureV2(r, bucket, credentials) {
     var method = r.method;
     /* If the source URI is a directory, we are sending to S3 a query string
      * local to the root URI, so this is what we need to encode within the
@@ -312,7 +263,7 @@ function signatureV2(r, bucket, accessId, secret) {
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
     var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
-    var hmac = mod_hmac.createHmac('sha1', secret);
+    var hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
     var httpDate = s3date(r);
     var stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
 
@@ -320,7 +271,7 @@ function signatureV2(r, bucket, accessId, secret) {
 
     var s3signature = hmac.update(stringToSign).digest('base64');
 
-    return 'AWS ' + accessId + ':' + s3signature;
+    return 'AWS ' + credentials.accessKeyId + ':' + s3signature;
 }
 
 /**
@@ -354,6 +305,14 @@ function filterListResponse(r, data, flags) {
     }
 }
 
+function signedHeaders(sessionToken) {
+    var headers = defaultSignedHeaders;
+    if (sessionToken) {
+        headers += ';x-amz-security-token';
+    }
+    return headers;
+}
+
 /**
  * Create HTTP Authorization header for authenticating with an AWS compatible
  * v4 API.
@@ -362,17 +321,18 @@ function filterListResponse(r, data, flags) {
  * @param timestamp {Date} timestamp associated with request (must fall within a skew)
  * @param bucket {string} S3 bucket associated with request
  * @param region {string} API region associated with request
+ * @param server {string}
+ * @param credentials {object} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
  * @returns {string} HTTP Authorization header value
  */
-function signatureV4(r, timestamp, bucket, region, server) {
-    var credentials = JSON.parse(r.variables.credentials);
+function signatureV4(r, timestamp, bucket, region, server, credentials) {
     _debug_log(r, 'Using these credentials for S3 fetch: ' + JSON.stringify(credentials.accessKeyId));
     var eightDigitDate = _eightDigitDate(timestamp);
     var amzDatetime = _amzDatetime(timestamp, eightDigitDate);
     var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
     var authHeader = 'AWS4-HMAC-SHA256 Credential='
         .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
-            'SignedHeaders=', signedHeaders, ',Signature=', signature);
+            'SignedHeaders=', signedHeaders(credentials.sessionToken), ',Signature=', signature);
 
     _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
 
@@ -536,7 +496,7 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
     canonicalRequest += uri + '\n';
     canonicalRequest += queryParams + '\n';
     canonicalRequest += canonicalHeaders + '\n';
-    canonicalRequest += signedHeaders + '\n';
+    canonicalRequest += signedHeaders(sessionToken) + '\n';
     canonicalRequest += emptyPayloadHash;
 
     return canonicalRequest;
@@ -706,14 +666,85 @@ function _require_env_var(envVarName) {
     }
 }
 
+async function fetchCredentials(r) {
+    var credentials;
+    if (process.env['S3_ACCESS_KEY_ID']) {
+        credentials = {
+            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
+            secretAccessKey: process.env['S3_SECRET_KEY'],
+            sessionToken: null,
+        };
+    } else if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
+        var uri = "http://169.254.170.2" + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
+        credentials = await _fetchEcsRoleCredentials(r, uri).catch(function (e) {
+            _debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
+        });
+    } else {
+        credentials = await _fetchEC2RoleCredentials(r).catch(function (e) {
+            _debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
+        });
+    }
+    _debug_log(r, JSON.stringify(credentials));
+    try {
+        fs.writeFileSync('/tmp/credentials.json', JSON.stringify(credentials));
+    } catch (e) {
+        _debug_log(r, 'Could not write credentials file: ' + JSON.stringify(e));
+        r.return(500);
+        return;
+    }
+    r.return(200);
+}
+
+async function _fetchEcsRoleCredentials(r, credentialsUri) {
+    var resp = await ngx.fetch(credentialsUri);
+    _debug_log(r, 'Got response code: ' + resp.status);
+    if (!resp.ok) {
+        throw 'Credentials endpoint response was not ok.';
+    }
+    var creds = await resp.json();
+
+    // TODO: just for debugging purposes for now
+    _debug_log(r, JSON.stringify(creds));
+    return {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+    };
+}
+
+async function _fetchEC2RoleCredentials(r) {
+    var tokenResp = await ngx.fetch('http://169.254.169.254/latest/api/token', {
+        headers: {
+            'x-aws-ec2-metadata-token-ttl-seconds': '21600',
+        },
+        method: 'PUT',
+    });
+    var token = await tokenResp.text();
+    var resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/s3access', {
+        headers: {
+            'x-aws-ec2-metadata-token': token,
+        },
+    });
+    var creds = resp.json();
+
+    // TODO: just for debugging purposes for now
+    _debug_log(r, JSON.stringify(creds));
+    return {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+    };
+}
+
 export default {
     awsHeaderDate,
+    fetchCredentials,
     s3date,
     s3auth,
+    s3SecurityToken,
     s3uri,
     redirectToS3,
     editAmzHeaders,
-    fetchCredentials,
     filterListResponse,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
