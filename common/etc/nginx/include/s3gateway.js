@@ -720,7 +720,17 @@ async function _fetchEC2RoleCredentials(r) {
         method: 'PUT',
     });
     var token = await tokenResp.text();
-    var resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/s3access', {
+    var resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/', {
+        headers: {
+            'x-aws-ec2-metadata-token': token,
+        },
+    });
+    // TODO: I'm lazy, but this can be a list of roles, however, for sake of simplicity, let's assume it's just one
+    var credName = resp.text();
+    if (credName === "") {
+        throw 'No credentials available for EC2 instance';
+    }
+    resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/' + credName, {
         headers: {
             'x-aws-ec2-metadata-token': token,
         },
