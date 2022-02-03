@@ -119,8 +119,12 @@ function awsHeaderDate(r) {
 }
 
 function readCredentials() {
-    var creds = fs.readFileSync('/tmp/credentials.json');
-    return JSON.parse(creds);
+    try {
+        var creds = fs.readFileSync('/tmp/credentials.json');
+        return JSON.parse(creds);
+    } catch (e) {
+        return undefined;
+    }
 }
 
 /**
@@ -666,7 +670,18 @@ function _require_env_var(envVarName) {
     }
 }
 
+var maxValidityOffset = 270000;
+
 async function fetchCredentials(r) {
+    var current = readCredentials();
+    if (current) {
+        var exp = new Date(current.expiration).getTime() - maxValidityOffset;
+        if (now.getTime() < exp) {
+            r.return(200);
+            return;
+        }
+    }
+
     var credentials;
     if (process.env['S3_ACCESS_KEY_ID']) {
         credentials = {
@@ -709,6 +724,7 @@ async function _fetchEcsRoleCredentials(r, credentialsUri) {
         accessKeyId: creds.AccessKeyId,
         secretAccessKey: creds.SecretAccessKey,
         sessionToken: creds.Token,
+        expiration: creds.Expiration,
     };
 }
 
@@ -743,6 +759,7 @@ async function _fetchEC2RoleCredentials(r) {
         accessKeyId: creds.AccessKeyId,
         secretAccessKey: creds.SecretAccessKey,
         sessionToken: creds.Token,
+        expiration: creds.Expiration,
     };
 }
 
