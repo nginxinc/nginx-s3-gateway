@@ -681,6 +681,7 @@ async function fetchCredentials(r) {
             return;
         }
     }
+    _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
     var credentials;
     if (process.env['S3_ACCESS_KEY_ID']) {
@@ -691,15 +692,22 @@ async function fetchCredentials(r) {
         };
     } else if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
         var uri = "http://169.254.170.2" + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
-        credentials = await _fetchEcsRoleCredentials(r, uri).catch(function (e) {
+        try {
+            credentials = await _fetchEcsRoleCredentials(r, uri);
+        } catch (e) {
             _debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
-        });
+            r.return(500);
+            return;
+        }
     } else {
-        credentials = await _fetchEC2RoleCredentials(r).catch(function (e) {
+        try {
+            credentials = await _fetchEC2RoleCredentials(r);
+        } catch (e) {
             _debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
-        });
+            r.return(500);
+            return;
+        }
     }
-    _debug_log(r, JSON.stringify(credentials));
     try {
         fs.writeFileSync('/tmp/credentials.json', JSON.stringify(credentials));
     } catch (e) {
@@ -712,14 +720,11 @@ async function fetchCredentials(r) {
 
 async function _fetchEcsRoleCredentials(r, credentialsUri) {
     var resp = await ngx.fetch(credentialsUri);
-    _debug_log(r, 'Got response code: ' + resp.status);
     if (!resp.ok) {
         throw 'Credentials endpoint response was not ok.';
     }
     var creds = await resp.json();
 
-    // TODO: just for debugging purposes for now
-    _debug_log(r, JSON.stringify(creds));
     return {
         accessKeyId: creds.AccessKeyId,
         secretAccessKey: creds.SecretAccessKey,
@@ -753,8 +758,6 @@ async function _fetchEC2RoleCredentials(r) {
     });
     var creds = resp.json();
 
-    // TODO: just for debugging purposes for now
-    _debug_log(r, JSON.stringify(creds));
     return {
         accessKeyId: creds.AccessKeyId,
         secretAccessKey: creds.SecretAccessKey,
