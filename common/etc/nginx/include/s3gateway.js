@@ -61,6 +61,20 @@ var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b
 var defaultSignedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
 /**
+ * Constant base URI to fetch credentials together with the credentials relative URI, see
+ * https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html for more details.
+ * @type {string}
+ */
+var ecsCredentialsBaseUri = 'http://169.254.170.2';
+
+/**
+ * @type {string}
+ */
+var ec2ImdsTokenEndpoint = 'http://169.254.169.254/latest/api/token';
+
+var ec2ImdsSecurityCredentialsEndpoint = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
+
+/**
  * Transform the headers returned from S3 such that there isn't information
  * leakage about S3 and do other tasks needed for appropriate gateway output.
  * @param r HTTP request
@@ -690,9 +704,9 @@ async function fetchCredentials(r) {
             sessionToken: null,
         };
     } else if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
-        var uri = "http://169.254.170.2" + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
+        var uri = ecsCredentialsBaseUri + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
         try {
-            credentials = await _fetchEcsRoleCredentials(r, uri);
+            credentials = await _fetchEcsRoleCredentials(uri);
         } catch (e) {
             _debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
             r.return(500);
@@ -700,7 +714,7 @@ async function fetchCredentials(r) {
         }
     } else {
         try {
-            credentials = await _fetchEC2RoleCredentials(r);
+            credentials = await _fetchEC2RoleCredentials();
         } catch (e) {
             _debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
             r.return(500);
@@ -717,7 +731,7 @@ async function fetchCredentials(r) {
     r.return(200);
 }
 
-async function _fetchEcsRoleCredentials(r, credentialsUri) {
+async function _fetchEcsRoleCredentials(credentialsUri) {
     var resp = await ngx.fetch(credentialsUri);
     if (!resp.ok) {
         throw 'Credentials endpoint response was not ok.';
@@ -732,15 +746,15 @@ async function _fetchEcsRoleCredentials(r, credentialsUri) {
     };
 }
 
-async function _fetchEC2RoleCredentials(r) {
-    var tokenResp = await ngx.fetch('http://169.254.169.254/latest/api/token', {
+async function _fetchEC2RoleCredentials() {
+    var tokenResp = await ngx.fetch(ec2ImdsTokenEndpoint, {
         headers: {
             'x-aws-ec2-metadata-token-ttl-seconds': '21600',
         },
         method: 'PUT',
     });
     var token = await tokenResp.text();
-    var resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/', {
+    var resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint, {
         headers: {
             'x-aws-ec2-metadata-token': token,
         },
@@ -750,7 +764,7 @@ async function _fetchEC2RoleCredentials(r) {
     if (credName === "") {
         throw 'No credentials available for EC2 instance';
     }
-    resp = await ngx.fetch('http://169.254.169.254/latest/meta-data/iam/security-credentials/' + credName, {
+    resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint + credName, {
         headers: {
             'x-aws-ec2-metadata-token': token,
         },
