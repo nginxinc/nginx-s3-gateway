@@ -330,7 +330,6 @@ function signedHeaders(sessionToken) {
  * @returns {string} HTTP Authorization header value
  */
 function signatureV4(r, timestamp, bucket, region, server, credentials) {
-    _debug_log(r, 'Using these credentials for S3 fetch: ' + JSON.stringify(credentials.accessKeyId));
     var eightDigitDate = _eightDigitDate(timestamp);
     var amzDatetime = _amzDatetime(timestamp, eightDigitDate);
     var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);

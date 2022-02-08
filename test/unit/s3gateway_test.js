@@ -18,11 +18,7 @@
 
 import s3gateway from "include/s3gateway.js";
 
-globalThis.ngx = {
-    log: function (msg) {
-        console.log(msg);
-    },
-};
+globalThis.ngx = {};
 
 var fakeRequest = {
     "remoteAddress" : "172.17.0.1",
