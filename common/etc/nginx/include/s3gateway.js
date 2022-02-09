@@ -690,12 +690,22 @@ function _require_env_var(envVarName) {
     }
 }
 
-var maxValidityOffset = 270000;
+/**
+ * Offset to the expiration of credentials, when they should be considered expired and refreshed. The maximum
+ * time here can be 5 minutes, the IMDS and ECS credentials endpoint will make sure that each returned set of credentials
+ * is valid for at least another 5 minutes.
+ *
+ * To make sure we always refresh the credentials instead of retrieving the same again, keep credentials until 4:30 minutes
+ * before they really expire.
+ *
+ * @type {number}
+ */
+var maxValidityOffsetMs = 4.5 * 60 * 100;
 
 async function fetchCredentials(r) {
     var current = readCredentials();
     if (current) {
-        var exp = new Date(current.expiration).getTime() - maxValidityOffset;
+        var exp = new Date(current.expiration).getTime() - maxValidityOffsetMs;
         if (now.getTime() < exp) {
             r.return(200);
             return;
@@ -766,7 +776,9 @@ async function _fetchEC2RoleCredentials() {
             'x-aws-ec2-metadata-token': token,
         },
     });
-    // TODO: I'm lazy, but this can be a list of roles, however, for sake of simplicity, let's assume it's just one
+    // This _might_ get multiple possible roles in other scenarios, however, EC2 supports attaching one role only.
+    // It should therefore be safe to take the whole output, even given IMDS _might_ (?) be able to return multiple
+    // roles.
     var credName = resp.text();
     if (credName === "") {
         throw 'No credentials available for EC2 instance';
