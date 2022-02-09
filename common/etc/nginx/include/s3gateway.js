@@ -132,9 +132,16 @@ function awsHeaderDate(r) {
     return _amzDatetime(now, _eightDigitDate(now));
 }
 
+function _credentialsTempFile() {
+    if (process.env['S3_CREDENTIALS_TEMP_FILE']) {
+        return process.env['S3_CREDENTIALS_TEMP_FILE'];
+    }
+    return '/tmp/credentials.json';
+}
+
 function readCredentials() {
     try {
-        var creds = fs.readFileSync('/tmp/credentials.json');
+        var creds = fs.readFileSync(_credentialsTempFile());
         return JSON.parse(creds);
     } catch (e) {
         return undefined;
@@ -722,7 +729,7 @@ async function fetchCredentials(r) {
         }
     }
     try {
-        fs.writeFileSync('/tmp/credentials.json', JSON.stringify(credentials));
+        fs.writeFileSync(_credentialsTempFile(), JSON.stringify(credentials));
     } catch (e) {
         _debug_log(r, 'Could not write credentials file: ' + JSON.stringify(e));
         r.return(500);
