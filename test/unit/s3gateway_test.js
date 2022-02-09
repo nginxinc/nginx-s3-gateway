@@ -285,8 +285,22 @@ async function testEcsCredentialRetrieval() {
             }
         });
     };
+    var r = {
+        "headersOut" : {
+            "Accept-Ranges": "bytes",
+            "Content-Length": 42,
+            "Content-Security-Policy": "block-all-mixed-content",
+            "Content-Type": "text/plain",
+            "X-Amz-Bucket-Region": "us-east-1",
+            "X-Amz-Request-Id": "166539E18A46500A",
+            "X-Xss-Protection": "1; mode=block"
+        }
+    };
+    r.log = function(msg) {
+        console.log(msg);
+    }
 
-    await s3gateway.fetchCredentials();
+    await s3gateway.fetchCredentials(r);
 
     if (globalThis.recordedUrl !== 'http://localhost/example') {
         throw 'No or wrong ECS credentials fetch URL recorded: ' + globalThis.recordedUrl;
@@ -324,8 +338,22 @@ async function testEc2CredentialRetrieval() {
             throw 'Invalid request URL: ' + url;
         }
     };
+    var r = {
+        "headersOut" : {
+            "Accept-Ranges": "bytes",
+            "Content-Length": 42,
+            "Content-Security-Policy": "block-all-mixed-content",
+            "Content-Type": "text/plain",
+            "X-Amz-Bucket-Region": "us-east-1",
+            "X-Amz-Request-Id": "166539E18A46500A",
+            "X-Xss-Protection": "1; mode=block"
+        }
+    };
+    r.log = function(msg) {
+        console.log(msg);
+    }
 
-    await s3gateway.fetchCredentials();
+    await s3gateway.fetchCredentials(r);
 
     if (!globalThis.credentialsIssues) {
         throw 'Did not reach the point where EC2 credentials were issues.';
