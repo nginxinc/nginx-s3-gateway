@@ -269,7 +269,7 @@ function testEscapeURIPathPreservesDoubleSlashes() {
 
 async function testEcsCredentialRetrieval() {
     process.env['S3_ACCESS_KEY_ID'] = undefined;
-    process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI'] = 'http://localhost/example';
+    process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = 'http://localhost/example';
     globalThis.ngx.fetch = function (url) {
         globalThis.recordedUrl = url;
 
@@ -294,11 +294,16 @@ async function testEcsCredentialRetrieval() {
             "X-Amz-Bucket-Region": "us-east-1",
             "X-Amz-Request-Id": "166539E18A46500A",
             "X-Xss-Protection": "1; mode=block"
-        }
+        },
+        log: function(msg) {
+            console.log(msg);
+        },
+        return: function(code) {
+            if (code !== 200) {
+                throw 'Expected 200 status code, got: ' + code;
+            }
+        },
     };
-    r.log = function(msg) {
-        console.log(msg);
-    }
 
     await s3gateway.fetchCredentials(r);
 
@@ -309,7 +314,7 @@ async function testEcsCredentialRetrieval() {
 
 async function testEc2CredentialRetrieval() {
     process.env['S3_ACCESS_KEY_ID'] = undefined;
-    process.env['AWS_CONTAINER_CREDENTIALS_ABSOLUTE_URI'] = undefined;
+    process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = undefined;
     globalThis.ngx.fetch = function (url, options) {
         if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {
             return Promise.resolve({
@@ -317,11 +322,21 @@ async function testEc2CredentialRetrieval() {
                     return Promise.resolve('A_TOKEN');
                 },
             });
-        } else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/s3access') {
+        } else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/') {
             if (options && options.headers && options.headers['x-aws-ec2-metadata-token'] === 'A_TOKEN') {
                 return Promise.resolve({
                     json: function () {
-                        globalThis.credentialsIssues = true;
+                        return Promise.resolve('A_ROLE_NAME');
+                    },
+                });
+            } else {
+                throw 'Invalid token passed: ' + options.headers['x-aws-ec2-metadata-token'];
+            }
+        }  else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/A_ROLE_NAME') {
+            if (options && options.headers && options.headers['x-aws-ec2-metadata-token'] === 'A_TOKEN') {
+                return Promise.resolve({
+                    json: function () {
+                        globalThis.credentialsIssued = true;
                         return Promise.resolve({
                             AccessKeyId: 'AN_ACCESS_KEY_ID',
                             Expiration: '2017-05-17T15:09:54Z',
@@ -347,15 +362,20 @@ async function testEc2CredentialRetrieval() {
             "X-Amz-Bucket-Region": "us-east-1",
             "X-Amz-Request-Id": "166539E18A46500A",
             "X-Xss-Protection": "1; mode=block"
-        }
+        },
+        log: function(msg) {
+            console.log(msg);
+        },
+        return: function(code) {
+            if (code !== 200) {
+                throw 'Expected 200 status code, got: ' + code;
+            }
+        },
     };
-    r.log = function(msg) {
-        console.log(msg);
-    }
 
     await s3gateway.fetchCredentials(r);
 
-    if (!globalThis.credentialsIssues) {
+    if (!globalThis.credentialsIssued) {
         throw 'Did not reach the point where EC2 credentials were issues.';
     }
 }
