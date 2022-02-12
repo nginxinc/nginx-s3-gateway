@@ -269,11 +269,12 @@ function testEscapeURIPathPreservesDoubleSlashes() {
 
 async function testEcsCredentialRetrieval() {
     process.env['S3_ACCESS_KEY_ID'] = undefined;
-    process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = 'http://localhost/example';
+    process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = '/example';
     globalThis.ngx.fetch = function (url) {
         globalThis.recordedUrl = url;
 
         return Promise.resolve({
+            ok: true,
             json: function () {
                 return Promise.resolve({
                     AccessKeyId: 'AN_ACCESS_KEY_ID',
@@ -307,7 +308,7 @@ async function testEcsCredentialRetrieval() {
 
     await s3gateway.fetchCredentials(r);
 
-    if (globalThis.recordedUrl !== 'http://localhost/example') {
+    if (globalThis.recordedUrl !== 'http://169.254.170.2/example') {
         throw 'No or wrong ECS credentials fetch URL recorded: ' + globalThis.recordedUrl;
     }
 }
@@ -318,6 +319,7 @@ async function testEc2CredentialRetrieval() {
     globalThis.ngx.fetch = function (url, options) {
         if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {
             return Promise.resolve({
+                ok: true,
                 text: function () {
                     return Promise.resolve('A_TOKEN');
                 },
@@ -325,7 +327,8 @@ async function testEc2CredentialRetrieval() {
         } else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/') {
             if (options && options.headers && options.headers['x-aws-ec2-metadata-token'] === 'A_TOKEN') {
                 return Promise.resolve({
-                    json: function () {
+                    ok: true,
+                    text: function () {
                         return Promise.resolve('A_ROLE_NAME');
                     },
                 });
@@ -335,6 +338,7 @@ async function testEc2CredentialRetrieval() {
         }  else if (url === 'http://169.254.169.254/latest/meta-data/iam/security-credentials/A_ROLE_NAME') {
             if (options && options.headers && options.headers['x-aws-ec2-metadata-token'] === 'A_TOKEN') {
                 return Promise.resolve({
+                    ok: true,
                     json: function () {
                         globalThis.credentialsIssued = true;
                         return Promise.resolve({

@@ -140,12 +140,15 @@ function _credentialsTempFile() {
 }
 
 function readCredentials() {
-    try {
-        var creds = fs.readFileSync(_credentialsTempFile());
-        return JSON.parse(creds);
-    } catch (e) {
+    var credsFilePath = _credentialsTempFile();
+    var exists = fs.statSync(credsFilePath, {throwIfNoEntry: false});
+
+    if (exists === undefined) {
         return undefined;
     }
+
+    var creds = fs.readFileSync(credsFilePath);
+    return JSON.parse(creds);
 }
 
 /**
@@ -779,7 +782,7 @@ async function _fetchEC2RoleCredentials() {
     // This _might_ get multiple possible roles in other scenarios, however, EC2 supports attaching one role only.
     // It should therefore be safe to take the whole output, even given IMDS _might_ (?) be able to return multiple
     // roles.
-    var credName = resp.text();
+    var credName = await resp.text();
     if (credName === "") {
         throw 'No credentials available for EC2 instance';
     }
@@ -788,7 +791,7 @@ async function _fetchEC2RoleCredentials() {
             'x-aws-ec2-metadata-token': token,
         },
     });
-    var creds = resp.json();
+    var creds = await resp.json();
 
     return {
         accessKeyId: creds.AccessKeyId,

@@ -20,7 +20,7 @@
 
 set -e
 
-source ../check_env.sh
+. ../check_env.sh
 
 echo "S3 Backend Environment"
 echo "Access Key ID: ${S3_ACCESS_KEY_ID}"

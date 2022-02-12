@@ -125,6 +125,7 @@ server {
 
         # Set the Authorization header to the AWS Signatures credentials
         proxy_set_header Authorization $s3auth;
+        proxy_set_header X-Amz-Security-Token $s3SecurityToken;
 
         # We set the host as the bucket name to inform the S3 API of the bucket
         proxy_set_header Host $s3_host_hdr;
