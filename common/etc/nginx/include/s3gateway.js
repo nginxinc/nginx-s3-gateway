@@ -136,6 +136,10 @@ function _credentialsTempFile() {
     if (process.env['S3_CREDENTIALS_TEMP_FILE']) {
         return process.env['S3_CREDENTIALS_TEMP_FILE'];
     }
+    if (process.env['TMPDIR']) {
+        return `${process.env['TMPDIR']}/credentials.json`
+    }
+
     return '/tmp/credentials.json';
 }
 
