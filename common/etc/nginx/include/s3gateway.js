@@ -132,6 +132,12 @@ function awsHeaderDate(r) {
     return _amzDatetime(now, _eightDigitDate(now));
 }
 
+/**
+ * Returns the path to the credentials temporary cache file.
+ *
+ * @returns {string} path on the file system to credentials cache file
+ * @private
+ */
 function _credentialsTempFile() {
     if (process.env['S3_CREDENTIALS_TEMP_FILE']) {
         return process.env['S3_CREDENTIALS_TEMP_FILE'];
@@ -143,16 +149,27 @@ function _credentialsTempFile() {
     return '/tmp/credentials.json';
 }
 
+/**
+ * Read the contents of the credentials file into memory. If it is not
+ * found, then return undefined.
+ *
+ * @returns {undefined|object} AWS instance profile credentials or undefined
+ */
 function readCredentials() {
     var credsFilePath = _credentialsTempFile();
-    var exists = fs.statSync(credsFilePath, {throwIfNoEntry: false});
 
-    if (exists === undefined) {
-        return undefined;
+    try {
+        var creds = fs.readFileSync(credsFilePath);
+        return JSON.parse(creds);
+    } catch (e) {
+        // Do not throw an exception in the case of when the
+        // credentials file path is invalid in order to signal to
+        // the caller that such a file has not been created yet.
+        if (e.code === 'ENOENT') {
+            return undefined;
+        }
+        throw e;
     }
-
-    var creds = fs.readFileSync(credsFilePath);
-    return JSON.parse(creds);
 }
 
 /**
@@ -808,6 +825,7 @@ async function _fetchEC2RoleCredentials() {
 export default {
     awsHeaderDate,
     fetchCredentials,
+    readCredentials,
     s3date,
     s3auth,
     s3SecurityToken,

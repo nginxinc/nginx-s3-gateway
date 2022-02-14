@@ -154,8 +154,8 @@ finish() {
   fi
 
   p "Cleaning up Docker compose environment"
-  compose stop
-  compose rm -f
+#  compose stop
+#  compose rm -f
 
   exit ${result}
 }
