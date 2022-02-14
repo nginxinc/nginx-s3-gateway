@@ -17,6 +17,7 @@
  */
 
 import s3gateway from "include/s3gateway.js";
+import fs from "fs";
 
 globalThis.ngx = {};
 
@@ -267,6 +268,64 @@ function testEscapeURIPathPreservesDoubleSlashes() {
     }
 }
 
+function testReadCredentials() {
+    var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
+    var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
+    var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
+    var tempFile = `${tempDir}/credentials-unit-test-${uniqId}.json`;
+    var testData = '{"accessKeyId":"A","secretAccessKey":"B",' +
+        '"sessionToken":"C","expiration":"2022-02-15T04:49:08Z"}';
+    fs.writeFileSync(tempFile, testData);
+
+    try {
+        process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
+        var credentials = s3gateway.readCredentials();
+        var testDataAsJSON = JSON.parse(testData);
+        if (credentials.accessKeyId !== testDataAsJSON.accessKeyId) {
+            throw 'JSON test data does not match credentials [accessKeyId]';
+        }
+        if (credentials.secretAccessKey !== testDataAsJSON.secretAccessKey) {
+            throw 'JSON test data does not match credentials [secretAccessKey]';
+        }
+        if (credentials.sessionToken !== testDataAsJSON.sessionToken) {
+            throw 'JSON test data does not match credentials [sessionToken]';
+        }
+        if (credentials.expiration !== testDataAsJSON.expiration) {
+            throw 'JSON test data does not match credentials [expiration]';
+        }
+    } finally {
+        if (originalCredentialPath) {
+            process.env['S3_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
+        }
+        if (fs.statSync(tempFile, {throwIfNoEntry: false})) {
+            fs.unlinkSync(tempFile);
+        }
+    }
+}
+
+function testReadCredentialsFromNonexistentPath() {
+    var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
+    var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
+    var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
+    var tempFile = `${tempDir}/credentials-unit-test-${uniqId}.json`;
+
+    try {
+        process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
+        var credentials = s3gateway.readCredentials();
+        if (credentials !== undefined) {
+            throw 'Credentials returned when no credentials file should be present';
+        }
+
+    } finally {
+        if (originalCredentialPath) {
+            process.env['S3_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
+        }
+        if (fs.statSync(tempFile, {throwIfNoEntry: false})) {
+            fs.unlinkSync(tempFile);
+        }
+    }
+}
+
 async function testEcsCredentialRetrieval() {
     process.env['S3_ACCESS_KEY_ID'] = undefined;
     process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = '/example';
@@ -395,8 +454,11 @@ async function test() {
     testSignatureV4Cache();
     testEditAmzHeaders();
     testEscapeURIPathPreservesDoubleSlashes();
+    testReadCredentialsFromNonexistentPath();
+    testReadCredentials();
     await testEcsCredentialRetrieval();
     await testEc2CredentialRetrieval();
 }
 
 test();
+console.log('Finished unit tests');
