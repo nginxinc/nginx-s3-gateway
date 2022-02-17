@@ -268,6 +268,31 @@ function testEscapeURIPathPreservesDoubleSlashes() {
     }
 }
 
+function testReadCredentialsWithAccessAndSecretKeySet() {
+    process.env['S3_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
+    process.env['S3_SECRET_KEY'] = 'SOME_SECRET_KEY';
+
+    try {
+        var credentials = s3gateway.readCredentials();
+        if (credentials.accessKeyId !== process.env['S3_ACCESS_KEY_ID']) {
+            throw 'static credentials do not match returned value [accessKeyId]';
+        }
+        if (credentials.secretAccessKey !== process.env['S3_SECRET_KEY']) {
+            throw 'static credentials do not match returned value [secretAccessKey]';
+        }
+        if (credentials.sessionToken !== null) {
+            throw 'static credentials do not match returned value [sessionToken]';
+        }
+        if (credentials.expiration !== null) {
+            throw 'static credentials do not match returned value [expiration]';
+        }
+
+    } finally {
+        delete process.env.S3_ACCESS_KEY_ID;
+        delete process.env.S3_SECRET_KEY;
+    }
+}
+
 function testReadCredentials() {
     var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
     var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
@@ -454,8 +479,9 @@ async function test() {
     testSignatureV4Cache();
     testEditAmzHeaders();
     testEscapeURIPathPreservesDoubleSlashes();
-    testReadCredentialsFromNonexistentPath();
+    testReadCredentialsWithAccessAndSecretKeySet();
     testReadCredentials();
+    testReadCredentialsFromNonexistentPath();
     await testEcsCredentialRetrieval();
     await testEc2CredentialRetrieval();
 }
