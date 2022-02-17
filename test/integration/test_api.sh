@@ -71,7 +71,7 @@ assertHttpRequestEquals() {
 
     if [ "${expected_response_code}" != "${actual_response_code}" ]; then
       e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}'"
+      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' --head '${uri}'"
       exit ${test_fail_exit_code}
     fi
   elif [ "${method}" = "GET" ]; then
@@ -103,6 +103,21 @@ assertHttpRequestEquals() {
     e "Method unsupported: [${method}]"
   fi
 }
+
+# Check to see if HTTP server is available
+set +o errexit
+# Allow curl command to fail with a non-zero exit code for this block because
+# we want to use it to test to see if the server is actually up.
+for (( i=1; i<=3; i++ )); do
+  response="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${test_server}")"
+  if [ "${response}" != "000" ]; then
+    break
+  fi
+  wait_time="$((i * 2))"
+  e "Failed to access ${test_server} - trying again in ${wait_time} seconds, try ${i}/3"
+  sleep ${wait_time}
+done
+set -o errexit
 
 # Ordinary filenames
 
