@@ -41,15 +41,26 @@ e() {
   >&2 echo "$1"
 }
 
+
 if [ $# -eq 0 ]; then
   nginx_type="oss"
-  p "No argument specified - defaulting to NGINX OSS. Valid arguments: oss, plus"
-elif [ "$1" = "plus" ]; then
-  nginx_type="plus"
-  p "Testing with NGINX Plus"
+  njs_latest=0
+  p "No argument specified - defaulting to NGINX OSS. Valid arguments: oss, plus, latest-njs-oss, latest-njs-plus"
 else
-  nginx_type="oss"
-  p "Testing with NGINX OSS"
+  if [[ "${1}" == *plus ]]; then
+    nginx_type="plus"
+    p "Testing with NGINX Plus"
+  else
+    nginx_type="oss"
+    p "Testing with NGINX OSS"
+  fi
+
+  if [[ "${1}" == latest-njs-* ]]; then
+    p "Testing with latest development version of NJS"
+    njs_latest=1
+  else
+    njs_latest=0
+  fi
 fi
 
 docker_cmd="$(command -v docker)"
@@ -132,7 +143,8 @@ integration_test() {
   fi
 
   p "Starting HTTP API tests (v$1 signatures)"
-  bash "${test_dir}/integration/test_api.sh" "$test_server" "$test_dir" "$1" "$2"
+  echo "  test/integration/test_api.sh \"$test_server\" \"$test_dir\" $1 $2"
+  bash "${test_dir}/integration/test_api.sh" "$test_server" "$test_dir" "$1" "$2";
 
   # We check to see if NGINX is in fact using the correct version of AWS
   # signatures as it was configured to do.
@@ -154,27 +166,38 @@ finish() {
   fi
 
   p "Cleaning up Docker compose environment"
-#  compose stop
-#  compose rm -f
+  compose stop
+  compose rm -f
 
   exit ${result}
 }
 trap finish EXIT ERR SIGTERM SIGINT
+
+### BUILD
 
 p "Building NGINX S3 gateway Docker image"
 if [ "${nginx_type}" = "plus" ]; then
   if docker info 2> /dev/null | grep --quiet 'Build with BuildKit'; then
     p "Building using BuildKit"
     export DOCKER_BUILDKIT=1
-    docker build -f Dockerfile.buildkit.${nginx_type} -t nginx-s3-gateway \
+    docker build -f Dockerfile.buildkit.${nginx_type} \
       --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
       --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
-      --no-cache --squash .
+      --no-cache --squash \
+      --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
   else
-    docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway .
+    docker build -f Dockerfile.${nginx_type} \
+      --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
   fi
 else
-  docker build -f Dockerfile.${nginx_type} -t nginx-s3-gateway .
+  docker build -f Dockerfile.${nginx_type} \
+    --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
+fi
+
+if [ ${njs_latest} == 1 ]; then
+  p "Layering in latest NJS build"
+  docker build -f Dockerfile.latest-njs \
+    --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-${nginx_type} .
 fi
 
 ### UNIT TESTS
@@ -199,22 +222,22 @@ ${docker_cmd} run \
 
 ### INTEGRATION TESTS
 
-# Test API with AWS Signature V2 and allow directory listing off
+p "Testing API with AWS Signature V2 and allow directory listing off"
 integration_test 2 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
-# Test API with AWS Signature V2 and allow directory listing on
+p "Testing API with AWS Signature V2 and allow directory listing on"
 integration_test 2 1
 
 compose stop nginx-s3-gateway # Restart with new config
 
-# Test API with AWS Signature V4 and allow directory listing off
+p "Test API with AWS Signature V4 and allow directory listing off"
 integration_test 4 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
-# Test API with AWS Signature V4 and allow directory listing on
+p "Test API with AWS Signature V4 and allow directory listing on"
 integration_test 4 1
 
-p "All tests complete"
+p "All integration tests complete"
