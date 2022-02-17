@@ -1,0 +1,49 @@
+# This container image removes the existing njs package from the inherited image
+# (which could be OSS NGINX or NGINX Plus), builds njs from the latest
+# source, and installs it.
+FROM nginx-s3-gateway
+
+RUN set -eux \
+    export DEBIAN_FRONTEND=noninteractive;  \
+    apt-get update -qq; \
+    apt-get install --no-install-recommends --no-install-suggests --yes make gcc libc6-dev curl expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev libpcre2-posix2; \
+    mkdir -p /tmp/nginx /tmp/njs-latest; \
+    curl --retry 6 --location "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" \
+        | gunzip | tar --extract --strip-components=1 --directory /tmp/nginx; \
+    curl --retry 6 --location 'https://hg.nginx.org/njs/archive/tip.tar.gz' \
+        | gunzip | tar --extract --strip-components=1 --directory /tmp/njs-latest; \
+    cd /tmp/njs-latest; \
+    ./configure; \
+    make -j "$(nproc)"; \
+    cp build/njs /usr/bin/njs; \
+    cd /tmp/nginx; \
+    ./configure \
+        --add-dynamic-module=/tmp/njs-latest/nginx \
+        --without-http_gzip_module \
+        --without-http_rewrite_module \
+        --prefix=/etc/nginx \
+        --sbin-path=/usr/sbin/nginx \
+        --modules-path=/usr/lib/nginx/modules \
+        --conf-path=/etc/nginx/nginx.conf \
+        --error-log-path=/var/log/nginx/error.log \
+        --http-log-path=/var/log/nginx/access.log \
+        --pid-path=/var/run/nginx.pid \
+        --lock-path=/var/run/nginx.lock \
+        --http-client-body-temp-path=/var/cache/nginx/client_temp \
+        --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
+        --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
+        --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
+        --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
+        --user=nginx --group=nginx --with-compat --with-file-aio \
+        --with-stream \
+        --with-mail \
+        --with-threads \
+        --with-compat \
+        --with-cc-opt="-g -O2 -fdebug-prefix-map=/data/builder/debuild/nginx-${NGINX_VERSION}/debian/debuild-base/nginx-${NGINX_VERSION}=. -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC"; \
+    make -j "$(nproc)"; \
+    cp objs/ngx_stream_js_module.so /usr/lib/nginx/modules; \
+    cp objs/ngx_http_js_module.so /usr/lib/nginx/modules; \
+    apt-get purge --yes --auto-remove make gcc libc6-dev expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev; \
+    rm -rf \
+      /var/lib/apt/lists/* \
+      /tmp/*
