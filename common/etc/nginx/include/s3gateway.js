@@ -156,6 +156,15 @@ function _credentialsTempFile() {
  * @returns {undefined|object} AWS instance profile credentials or undefined
  */
 function readCredentials() {
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        return {
+            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
+            secretAccessKey: process.env['S3_SECRET_KEY'],
+            sessionToken: null,
+            expiration: null
+        };
+    }
+
     var credsFilePath = _credentialsTempFile();
 
     try {
@@ -735,16 +744,19 @@ async function fetchCredentials(r) {
             return;
         }
     }
-    _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
     var credentials;
-    if (process.env['S3_ACCESS_KEY_ID']) {
-        credentials = {
-            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
-            secretAccessKey: process.env['S3_SECRET_KEY'],
-            sessionToken: null,
-        };
-    } else if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
+
+    // If we are not using an AWS instance profile to set our credentials we
+    // exit quickly and don't write a credentials file.
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        r.return(200);
+        return;
+    }
+
+    _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
+
+    if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
         var uri = ecsCredentialsBaseUri + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
         try {
             credentials = await _fetchEcsRoleCredentials(uri);
