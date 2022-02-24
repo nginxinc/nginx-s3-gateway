@@ -132,6 +132,8 @@ assertHttpRequestEquals "HEAD" "b/ブツブツ.txt" "200"
 # Weird filenames
 assertHttpRequestEquals "HEAD" "b/c/=" "200"
 assertHttpRequestEquals "HEAD" "b/c/@" "200"
+assertHttpRequestEquals "HEAD" "b/クズ箱/ゴミ.txt" "200"
+assertHttpRequestEquals "HEAD" "системы/system.txt" "200"
 
 # Expected 400s
 assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
@@ -164,6 +166,8 @@ assertHttpRequestEquals "GET" "b/c/d.txt" "data/bucket-1/b/c/d.txt"
 assertHttpRequestEquals "GET" "b/c/=" "data/bucket-1/b/c/="
 assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
 assertHttpRequestEquals "GET" "b/ブツブツ.txt" "data/bucket-1/b/ブツブツ.txt"
+assertHttpRequestEquals "GET" "b/クズ箱/ゴミ.txt" "data/bucket-1/b/クズ箱/ゴミ.txt"
+assertHttpRequestEquals "GET" "системы/system.txt" "data/bucket-1/системы/system.txt"
 
 if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "200"
