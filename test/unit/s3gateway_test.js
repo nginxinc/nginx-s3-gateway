@@ -231,7 +231,7 @@ function testSignatureV4Cache() {
 
 function testEditAmzHeaders() {
     var r = {
-        "headersOut" : {
+        "headersOut": {
             "Accept-Ranges": "bytes",
             "Content-Length": 42,
             "Content-Security-Policy": "block-all-mixed-content",
@@ -239,7 +239,10 @@ function testEditAmzHeaders() {
             "X-Amz-Bucket-Region": "us-east-1",
             "X-Amz-Request-Id": "166539E18A46500A",
             "X-Xss-Protection": "1; mode=block"
-        }
+        },
+        "variables": {
+            "uri_path": "/a/c/ramen.jpg"
+        },
     }
 
     r.log = function(msg) {
@@ -254,6 +257,33 @@ function testEditAmzHeaders() {
         }
     }
 }
+
+function testEditAmzHeadersHeadDirectory() {
+        var r = {
+                "method": "HEAD",
+                "headersOut" : {
+                    "Content-Security-Policy": "block-all-mixed-content",
+                        "Content-Type": "application/xml",
+                        "Server": "AmazonS3",
+                        "X-Amz-Bucket-Region": "us-east-1",
+                        "X-Amz-Request-Id": "166539E18A46500A",
+                        "X-Xss-Protection": "1; mode=block"
+                },
+            "variables": {
+                    "uri_path": "/a/c/"
+                },
+        }
+
+            r.log = function(msg) {
+                    console.log(msg);
+                }
+
+            s3gateway.editAmzHeaders(r);
+
+            if (r.headersOut.length > 0) {
+                throw "all headers were not stripped from request";
+            }
+    }
 
 function testEscapeURIPathPreservesDoubleSlashes() {
     var doubleSlashed = '/testbucketer2/foo3//bar3/somedir/license';
@@ -275,6 +305,7 @@ function test() {
     testSignatureV4();
     testSignatureV4Cache();
     testEditAmzHeaders();
+    testEditAmzHeadersHeadDirectory();
     testEscapeURIPathPreservesDoubleSlashes();
 }
 

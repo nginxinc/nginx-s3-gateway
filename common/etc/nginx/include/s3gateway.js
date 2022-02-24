@@ -70,7 +70,7 @@ function editAmzHeaders(r) {
     var isDirectoryHeadRequest =
         allow_listing &&
         r.method === 'HEAD' &&
-        _isDirectory(r.variables.uri_path);
+        _isDirectory(decodeURIComponent(r.variables.uri_path));
 
     /* Strips all x-amz- headers from the output HTTP headers so that the
      * requesters to the gateway will not know you are proxying S3. */
@@ -141,6 +141,8 @@ function s3auth(r) {
 
     var signature;
 
+    r.decodedUriPath = decodeURIComponent(r.variables.uri_path);
+
     if (sigver == '2') {
         signature = signatureV2(r, bucket, accessId, secret);
     } else {
@@ -171,20 +173,20 @@ function s3BaseUri(r) {
  * @returns {string} uri for s3 request
  */
 function s3uri(r) {
-    var uriPath = r.variables.uri_path;
+    r.decodedUriPath = decodeURIComponent(r.variables.uri_path);
     var basePath = s3BaseUri(r);
     var path;
 
     // Create query parameters only if directory listing is enabled.
     if (allow_listing) {
-        var queryParams = _s3DirQueryParams(uriPath, r.method);
+        var queryParams = _s3DirQueryParams(r.decodedUriPath, r.method);
         if (queryParams.length > 0) {
             path = basePath + '/?' + queryParams;
         } else {
-            path = basePath + uriPath;
+            path = basePath + r.decodedUriPath;
         }
     } else {
-        path = basePath + uriPath;
+        path = basePath + r.decodedUriPath;
     }
 
     _debug_log(r, 'S3 Request URI: ' + r.method + ' ' + path);
@@ -222,12 +224,12 @@ function redirectToS3(r) {
         return;
     }
 
-    var uriPath = r.variables.uri_path;
-    var isDirectoryListing = allow_listing && _isDirectory(uriPath);
+    r.decodedUriPath = decodeURIComponent(r.variables.uri_path);
+    var isDirectoryListing = allow_listing && _isDirectory(r.decodedUriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
-    } else if (!isDirectoryListing && uriPath === '/') {
+    } else if (!isDirectoryListing && r.decodedUriPath === '/') {
         r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
@@ -251,7 +253,7 @@ function signatureV2(r, bucket, accessId, secret) {
      * string to sign. For example, if we are requesting /bucket/dir1/ from
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
-    var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    var uri = _isDirectory(r.decodedUriPath) ? '/' : r.decodedUriPath;
     var hmac = mod_hmac.createHmac('sha1', secret);
     var httpDate = s3date(r);
     var stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
@@ -339,7 +341,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
     }
     var method = r.method;
     var baseUri = s3BaseUri(r);
-    var queryParams = _s3DirQueryParams(r.variables.uri_path, method);
+    var queryParams = _s3DirQueryParams(r.decodedUriPath, method);
     var uri;
     if (queryParams.length > 0) {
         if (baseUri.length > 0) {
