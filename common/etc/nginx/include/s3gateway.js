@@ -83,7 +83,7 @@ function editAmzHeaders(r) {
     var isDirectoryHeadRequest =
         allow_listing &&
         r.method === 'HEAD' &&
-        _isDirectory(r.variables.uri_path);
+        _isDirectory(decodeURIComponent(r.variables.uri_path));
 
     /* Strips all x-amz- headers from the output HTTP headers so that the
      * requesters to the gateway will not know you are proxying S3. */
@@ -464,13 +464,13 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
              * we encode it as JSON. By doing so we can gracefully decode it
              * when reading from the cache. */
             kSigningHash = Buffer.from(JSON.parse(fields[1]));
-            // Otherwise, generate a new signing key hash and store it in the cache
+        // Otherwise, generate a new signing key hash and store it in the cache
         } else {
             kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
             _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
-        // Otherwise, don't use caching at all (like when we are using NGINX OSS)
+    // Otherwise, don't use caching at all (like when we are using NGINX OSS)
     } else {
         kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
     }
@@ -631,7 +631,7 @@ function _amzDatetime(timestamp, eightDigitDate) {
  */
 function _padWithLeadingZeros(num, size) {
     var s = "0" + num;
-    return s.substr(s.length - size);
+    return s.substr(s.length-size);
 }
 
 /**
@@ -682,7 +682,7 @@ function _isDirectory(path) {
  * @private
  */
 function _parseBoolean(string) {
-    switch (string) {
+    switch(string) {
         case "TRUE":
         case "true":
         case "True":
