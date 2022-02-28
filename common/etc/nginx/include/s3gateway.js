@@ -265,11 +265,12 @@ function _s3DirQueryParams(uriPath, method) {
         return '';
     }
 
-    var path = 'delimiter=%2F'
+    let path = 'delimiter=%2F'
 
     if (uriPath !== '/') {
-        var without_leading_slash = uriPath.charAt(0) === '/' ?
-            uriPath.substring(1, uriPath.length) : uriPath;
+        let decodedUriPath = decodeURIComponent(uriPath);
+        let without_leading_slash = decodedUriPath.charAt(0) === '/' ?
+            decodedUriPath.substring(1, decodedUriPath.length) : decodedUriPath;
         path += '&prefix=' + encodeURIComponent(without_leading_slash);
     }
 
@@ -329,7 +330,7 @@ function signatureV2(r, bucket, credentials) {
 
     var s3signature = hmac.update(stringToSign).digest('base64');
 
-    return 'AWS ' + credentials.accessKeyId + ':' + s3signature;
+    return `AWS ${credentials.accessKeyId}:${s3signature}`;
 }
 
 /**
@@ -595,7 +596,9 @@ function _eightDigitDate(timestamp) {
     var month = timestamp.getUTCMonth() + 1;
     var day = timestamp.getUTCDate();
 
-    return ''.concat(_padWithLeadingZeros(year, 4), _padWithLeadingZeros(month, 2), _padWithLeadingZeros(day, 2));
+    return ''.concat(_padWithLeadingZeros(year, 4),
+        _padWithLeadingZeros(month,2),
+        _padWithLeadingZeros(day,2));
 }
 
 /**
@@ -643,9 +646,11 @@ function _padWithLeadingZeros(num, size) {
  * @private
  */
 function _escapeURIPath(uri) {
-    var components = [];
+    // Check to see if the URI path was already encoded. If so, we decode it.
+    let decodedUri = (uri.indexOf('%') >= 0) ? decodeURIComponent(uri) : uri;
+    let components = [];
 
-    uri.split('/').forEach(function (item, i) {
+    decodedUri.split('/').forEach(function (item, i) {
         components[i] = encodeURIComponent(item);
     });
 

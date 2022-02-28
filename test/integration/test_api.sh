@@ -135,6 +135,7 @@ assertHttpRequestEquals "HEAD" "b/c/@" "200"
 assertHttpRequestEquals "HEAD" "a/c/あ" "200"
 assertHttpRequestEquals "HEAD" "b/クズ箱/ゴミ.txt" "200"
 assertHttpRequestEquals "HEAD" "системы/system.txt" "200"
+assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "200"
 
 # Expected 400s
 assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
@@ -170,6 +171,7 @@ assertHttpRequestEquals "GET" "a/c/あ" "data/bucket-1/a/c/あ"
 assertHttpRequestEquals "GET" "b/ブツブツ.txt" "data/bucket-1/b/ブツブツ.txt"
 assertHttpRequestEquals "GET" "b/クズ箱/ゴミ.txt" "data/bucket-1/b/クズ箱/ゴミ.txt"
 assertHttpRequestEquals "GET" "системы/system.txt" "data/bucket-1/системы/system.txt"
+assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "data/bucket-1/системы/%bad%file%name%"
 
 if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "200"
