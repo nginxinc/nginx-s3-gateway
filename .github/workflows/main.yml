@@ -4,9 +4,9 @@ name: CI
 # events but only for the master branch
 on:
   push:
-    branches: [ master ]
+    branches: [ master, issue/8 ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, issue/8 ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install -y wait-for-it
       - name: Run tests
-        run: ./test.sh oss
+        run: ./test.sh latest-njs-oss
       - name: Push container image
-        run: docker tag nginx-s3-gateway docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway && docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway
+        run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss && docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
 
