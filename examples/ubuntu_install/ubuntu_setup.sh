@@ -28,7 +28,59 @@ if ! dpkg --status wget 2>/dev/null | grep --quiet Status > /dev/null; then
   exit 1
 fi
 
-source ../../common/check_env.sh
+failed=0
+
+required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
+"S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION")
+
+if [ ! -z ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
+  echo "Running inside an ECS task, using container credentials"
+  uses_iam_creds=1
+elif curl --output /dev/null --silent --head --fail --connect-timeout 2 "http://169.254.169.254"; then
+  echo "Running inside an EC2 instance, using IMDS for credentials"
+  uses_iam_creds=1
+else
+  required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
+  uses_iam_creds=0
+fi
+
+for name in ${required[@]}; do
+  if [ -z ${!name+x} ]; then
+      >&2 echo "Required ${name} environment variable missing"
+      failed=1
+  fi
+done
+
+if [ "${S3_SERVER_PROTO}" != "http" ] && [ "${S3_SERVER_PROTO}" != "https" ]; then
+    >&2 echo "S3_SERVER_PROTO contains an invalid value (${S3_SERVER_PROTO}). Valid values: http, https"
+    failed=1
+fi
+
+if [ "${AWS_SIGS_VERSION}" != "2" ] && [ "${AWS_SIGS_VERSION}" != "4" ]; then
+  >&2 echo "AWS_SIGS_VERSION contains an invalid value (${AWS_SIGS_VERSION}). Valid values: 2, 4"
+  failed=1
+fi
+
+if [ $failed -gt 0 ]; then
+  exit 1
+fi
+
+if [ "${1}" == "" ]; then
+  branch="master"
+else
+  branch="${1}"
+fi
+echo "Installing using github '${branch}' branch"
+
+
+echo "S3 Backend Environment"
+echo "Access Key ID: ${S3_ACCESS_KEY_ID}"
+echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+echo "Region: ${S3_REGION}"
+echo "Addressing Style: ${S3_STYLE}"
+echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
+echo "DNS Resolvers: ${DNS_RESOLVERS}"
+echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
 
 set -o nounset   # abort on unbound variable
 
@@ -75,14 +127,10 @@ cat > "/etc/nginx/environment" << EOF
 ALLOW_DIRECTORY_LIST=${ALLOW_DIRECTORY_LIST}
 # AWS Authentication signature version (2=v2 authentication, 4=v4 authentication)
 AWS_SIGS_VERSION=${AWS_SIGS_VERSION}
-# AWS Access key
-S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
 # Name of S3 bucket to proxy requests to
 S3_BUCKET_NAME=${S3_BUCKET_NAME}
 # Region associated with API
 S3_REGION=${S3_REGION}
-# AWS Secret access key
-S3_SECRET_KEY=${S3_SECRET_KEY}
 # SSL/TLS port to connect to
 S3_SERVER_PORT=${S3_SERVER_PORT}
 # Protocol to used connect to S3 server - 'http' or 'https'
@@ -94,6 +142,17 @@ S3_STYLE=${S3_STYLE}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 S3_DEBUG=${S3_DEBUG}
 EOF
+
+# Only include these env vars if we are not using a instance profile credential
+# to obtain S3 permissions.
+if [ $uses_iam_creds -eq 0 ]; then
+  cat >> "/etc/nginx/environment" << EOF
+# AWS Access key
+S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+# AWS Secret access key
+S3_SECRET_KEY=${S3_SECRET_KEY}
+EOF
+fi
 
 set +o nounset   # don't abort on unbound variable
 if [ -z ${DNS_RESOLVERS+x} ]; then
@@ -159,7 +218,7 @@ mkdir -p /etc/nginx/conf.d/gateway
 mkdir -p /etc/nginx/templates/gateway
 
 function download() {
-  wget --quiet --output-document="$2" "https://raw.githubusercontent.com/nginxinc/nginx-s3-gateway/master/$1"
+  wget --quiet --output-document="$2" "https://raw.githubusercontent.com/nginxinc/nginx-s3-gateway/${branch}/$1"
 }
 
 if [ ! -f /etc/nginx/nginx.conf.orig ]; then
@@ -182,8 +241,18 @@ load_module modules/ngx_http_js_module.so;
 load_module modules/ngx_http_xslt_filter_module.so;
 
 # Preserve S3 environment variables for worker threads
+EOF
+
+# Only include these env vars if we are not using a instance profile credential
+# to obtain S3 permissions.
+if [ $uses_iam_creds -eq 0 ]; then
+  cat >> "/etc/nginx/environment" << EOF
 env S3_ACCESS_KEY_ID;
 env S3_SECRET_KEY;
+EOF
+fi
+
+cat >> /etc/nginx/nginx.conf << 'EOF'
 env S3_BUCKET_NAME;
 env S3_SERVER;
 env S3_SERVER_PORT;
