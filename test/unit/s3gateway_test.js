@@ -49,6 +49,7 @@ fakeRequest.log = function(msg) {
 }
 
 function testPad() {
+    printHeader('testPad');
     var padSingleDigit = s3gateway._padWithLeadingZeros(3, 2);
     var expected = '03';
 
@@ -60,6 +61,7 @@ function testPad() {
 }
 
 function testEightDigitDate() {
+    printHeader('testEightDigitDate');
     var timestamp = new Date('2020-08-03T02:01:09.004Z');
     var eightDigitDate = s3gateway._eightDigitDate(timestamp);
     var expected = '20200803';
@@ -72,6 +74,7 @@ function testEightDigitDate() {
 }
 
 function testAmzDatetime() {
+    printHeader('testAmzDatetime');
     var timestamp = new Date('2020-08-03T02:01:09.004Z');
     var eightDigitDate = s3gateway._eightDigitDate(timestamp);
     var amzDatetime = s3gateway._amzDatetime(timestamp, eightDigitDate);
@@ -85,6 +88,7 @@ function testAmzDatetime() {
 }
 
 function testSplitCachedValues() {
+    printHeader('testSplitCachedValues');
     var eightDigitDate = "20200811"
     var kSigningHash = "{\"type\":\"Buffer\",\"data\":[164,135,1,191,232,3,16,62,137,5,31,85,175,34,151,221,118,120,59,188,235,94,180,22,218,183,30,14,173,203,196,246]}"
     var cached = eightDigitDate + ":" + kSigningHash;
@@ -110,6 +114,7 @@ function testSplitCachedValues() {
 }
 
 function testBuildSigningKeyHashWithReferenceInputs() {
+    printHeader('testBuildSigningKeyHashWithReferenceInputs');
     var kSecret = 'wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY';
     var date = '20150830';
     var service = 'iam';
@@ -125,6 +130,7 @@ function testBuildSigningKeyHashWithReferenceInputs() {
 }
 
 function testBuildSigningKeyHashWithTestSuiteInputs() {
+    printHeader('testBuildSigningKeyHashWithTestSuiteInputs');
     var kSecret = 'pvgoBEA1z7zZKqN9RoKVksKh31AtNou+pspn+iyb';
     var date = '20200811';
     var service = 's3';
@@ -162,6 +168,7 @@ function _runSignatureV4(r) {
 }
 
 function testSignatureV4() {
+    printHeader('testSignatureV4');
     // Note: since this is a read-only gateway, host, query parameters and all
     // client headers will be ignored.
     var r = {
@@ -194,6 +201,7 @@ function testSignatureV4() {
 }
 
 function testSignatureV4Cache() {
+    printHeader('testSignatureV4Cache');
     // Note: since this is a read-only gateway, host, query parameters and all
     // client headers will be ignored.
     var r = {
@@ -233,6 +241,7 @@ function testSignatureV4Cache() {
 }
 
 function testEditAmzHeaders() {
+    printHeader('testEditAmzHeaders');
     var r = {
         "headersOut": {
             "Accept-Ranges": "bytes",
@@ -262,6 +271,7 @@ function testEditAmzHeaders() {
 }
 
 function testEditAmzHeadersHeadDirectory() {
+    printHeader('testEditAmzHeadersHeadDirectory');
     let r = {
         "method": "HEAD",
         "headersOut" : {
@@ -289,6 +299,7 @@ function testEditAmzHeadersHeadDirectory() {
 }
 
 function testEscapeURIPathPreservesDoubleSlashes() {
+    printHeader('testEscapeURIPathPreservesDoubleSlashes');
     var doubleSlashed = '/testbucketer2/foo3//bar3/somedir/license';
     var actual = s3gateway._escapeURIPath(doubleSlashed);
     var expected = '/testbucketer2/foo3//bar3/somedir/license';
@@ -299,6 +310,7 @@ function testEscapeURIPathPreservesDoubleSlashes() {
 }
 
 function testReadCredentialsWithAccessAndSecretKeySet() {
+    printHeader('testReadCredentialsWithAccessAndSecretKeySet');
     process.env['S3_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
     process.env['S3_SECRET_KEY'] = 'SOME_SECRET_KEY';
 
@@ -324,6 +336,7 @@ function testReadCredentialsWithAccessAndSecretKeySet() {
 }
 
 function testReadCredentials() {
+    printHeader('testReadCredentials');
     var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
     var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
     var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
@@ -359,6 +372,7 @@ function testReadCredentials() {
 }
 
 function testReadCredentialsFromNonexistentPath() {
+    printHeader('testReadCredentialsFromNonexistentPath');
     var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
     var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
     var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
@@ -382,6 +396,7 @@ function testReadCredentialsFromNonexistentPath() {
 }
 
 async function testEcsCredentialRetrieval() {
+    printHeader('testEcsCredentialRetrieval');
     process.env['S3_ACCESS_KEY_ID'] = undefined;
     process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = '/example';
     globalThis.ngx.fetch = function (url) {
@@ -428,6 +443,7 @@ async function testEcsCredentialRetrieval() {
 }
 
 async function testEc2CredentialRetrieval() {
+    printHeader('testEc2CredentialRetrieval');
     process.env['S3_ACCESS_KEY_ID'] = undefined;
     process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = undefined;
     globalThis.ngx.fetch = function (url, options) {
@@ -496,6 +512,10 @@ async function testEc2CredentialRetrieval() {
     if (!globalThis.credentialsIssued) {
         throw 'Did not reach the point where EC2 credentials were issues.';
     }
+}
+
+function printHeader(testName) {
+    console.log(`\n## ${testName}`);
 }
 
 async function test() {
