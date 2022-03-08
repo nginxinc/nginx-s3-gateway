@@ -58,7 +58,6 @@ CMD ["nginx", "-g", "daemon off;"]
 
 COPY plus/etc/nginx /etc/nginx
 COPY common/etc /etc
-COPY common/check_env.sh /check_env.sh
 COPY common/docker-entrypoint.d/00-check-for-required-env.sh /docker-entrypoint.d/00-check-for-required-env.sh
 
 RUN set -eux \
