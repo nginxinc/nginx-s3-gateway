@@ -15,7 +15,6 @@ ENV PROXY_CACHE_VALID_FORBIDDEN "30s"
 COPY common/etc /etc
 COPY common/docker-entrypoint.sh /docker-entrypoint.sh
 COPY common/docker-entrypoint.d/00-check-for-required-env.sh /docker-entrypoint.d/00-check-for-required-env.sh
-COPY common/check_env.sh /check_env.sh
 COPY oss/etc /etc
 
 RUN set -eux \
