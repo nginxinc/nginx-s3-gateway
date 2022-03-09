@@ -139,7 +139,9 @@ integration_test() {
       fi
     done
 
-    $wait_for_it_cmd -h ${nginx_server_host} -p ${nginx_server_port}
+    if [ -x "${wait_for_it_cmd}" ]; then
+      $wait_for_it_cmd -h ${nginx_server_host} -p ${nginx_server_port}
+    fi
   fi
 
   p "Starting HTTP API tests (v$1 signatures)"
