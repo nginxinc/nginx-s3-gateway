@@ -185,7 +185,7 @@ function readCredentials() {
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
  *
- * @param r HTTP request
+ * @param r {Request} HTTP request object
  * @returns {string} AWS authentication signature
  */
 function s3auth(r) {
@@ -219,6 +219,14 @@ function s3SecurityToken() {
     return '';
 }
 
+/**
+ * Build the base file path for a S3 request URI. This function allows for
+ * path style S3 URIs to be created that do not use a subdomain to specify
+ * the bucket name.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {string} start of the file path for the S3 object URI
+ */
 function s3BaseUri(r) {
     var bucket = process.env['S3_BUCKET_NAME'];
     var basePath;
@@ -260,6 +268,15 @@ function s3uri(r) {
     return path;
 }
 
+/**
+ * Create and encode the query parameters needed to query S3 for an object
+ * listing.
+ *
+ * @param uriPath request URI path
+ * @param method request HTTP method
+ * @returns {string} query parameters to use with S3 request
+ * @private
+ */
 function _s3DirQueryParams(uriPath, method) {
     if (!_isDirectory(uriPath) || method !== 'GET') {
         return '';
@@ -364,6 +381,13 @@ function filterListResponse(r, data, flags) {
     }
 }
 
+/**
+ * Creates a string containing the headers that need to be signed as part of v4
+ * signature authentication.
+ *
+ * @param sessionToken {string|undefined} AWS session token if present
+ * @returns {string} semicolon delimited string of the headers needed for signing
+ */
 function signedHeaders(sessionToken) {
     var headers = defaultSignedHeaders;
     if (sessionToken) {
@@ -740,6 +764,23 @@ function _require_env_var(envVarName) {
  */
 var maxValidityOffsetMs = 4.5 * 60 * 100;
 
+/**
+ * Get the credentials needed to create AWS signatures in order to authenticate
+ * to S3. If the gateway is being provided credentials via a instance profile
+ * credential as provided over the metadata endpoint, this function will:
+ * 1. Try to read the credentials from cache
+ * 2. Determine if the credentials are stale
+ * 3. If the cached credentials are missing or stale, it gets new credentials
+ *    from the metadata endpoint.
+ * 4. If new credentials were pulled, it writes the credentials back to the
+ *    cache.
+ *
+ * If the gateway is not using instance profile credentials, then this function
+ * quickly exits.
+ *
+ * @param r {Request} HTTP request object
+ * @returns {Promise<void>}
+ */
 async function fetchCredentials(r) {
     var current = readCredentials();
     if (current) {
@@ -789,6 +830,14 @@ async function fetchCredentials(r) {
     r.return(200);
 }
 
+/**
+ * Get the credentials needed to generate AWS signatures from the ECS
+ * (Elastic Container Service) metadata endpoint.
+ *
+ * @param credentialsUri {string} endpoint to get credentials from
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
 async function _fetchEcsRoleCredentials(credentialsUri) {
     var resp = await ngx.fetch(credentialsUri);
     if (!resp.ok) {
@@ -804,6 +853,13 @@ async function _fetchEcsRoleCredentials(credentialsUri) {
     };
 }
 
+/**
+ * Get the credentials needed to generate AWS signatures from the EC2
+ * metadata endpoint.
+ *
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
 async function _fetchEC2RoleCredentials() {
     var tokenResp = await ngx.fetch(ec2ImdsTokenEndpoint, {
         headers: {
