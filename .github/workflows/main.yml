@@ -17,12 +17,20 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y%m%d')"
       - name: Configure Github Package Registry
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
       - name: Install dependencies
         run: sudo apt-get install -y wait-for-it
       - name: Run tests
         run: ./test.sh latest-njs-oss
-      - name: Push container image
-        run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss && docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
-
+      - name: Tag container image for Push [date]
+        run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
+      - name: Tag container image for Push [latest]
+        run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
+      - name: Push container image [date]
+      - run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
+      - name: Push container image [latest]
+      - run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
