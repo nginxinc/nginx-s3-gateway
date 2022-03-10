@@ -150,12 +150,60 @@ function _credentialsTempFile() {
 }
 
 /**
- * Read the contents of the credentials file into memory. If it is not
- * found, then return undefined.
+ * Write the instance profile credentials to a caching backend.
  *
- * @returns {undefined|object} AWS instance profile credentials or undefined
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
  */
-function readCredentials() {
+function writeCredentials(r, credentials) {
+    // Do not bother writing credentials if we are running in a mode where we
+    // do not need instance credentials.
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        return;
+    }
+
+    if (!credentials) {
+        throw `Cannot write invalid credentials: ${JSON.stringify(credentials)}`;
+    }
+
+    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
+        _writeCredentialsToKeyValStore(r, credentials);
+    } else {
+        _writeCredentialsToFile(credentials);
+    }
+}
+
+/**
+ * Write the instance profile credentials to the NGINX Keyval store.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @private
+ */
+function _writeCredentialsToKeyValStore(r, credentials) {
+    r.variables.instance_credential_json = JSON.stringify(credentials);
+}
+
+/**
+ * Write the instance profile credentials to a file on the file system. This
+ * file will be quite small and should end up in the file cache relatively
+ * quickly if it is repeatedly read.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @private
+ */
+function _writeCredentialsToFile(credentials) {
+    fs.writeFileSync(_credentialsTempFile(), JSON.stringify(credentials));
+}
+
+/**
+ * Get the instance profile credentials needed to authenticated against S3 from
+ * a backend cache. If the credentials cannot be found, then return undefined.
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ */
+function readCredentials(r) {
     if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
         return {
             accessKeyId: process.env['S3_ACCESS_KEY_ID'],
@@ -165,6 +213,44 @@ function readCredentials() {
         };
     }
 
+    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
+        return _readCredentialsFromKeyValStore(r);
+    } else {
+        return _readCredentialsFromFile();
+    }
+}
+
+/**
+ * Read credentials from the NGINX Keyval store. If it is not found, then
+ * return undefined.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @private
+ */
+function _readCredentialsFromKeyValStore(r) {
+    var cached = r.variables.instance_credential_json;
+
+    if (!cached) {
+        return undefined;
+    }
+
+    try {
+        return JSON.parse(cached);
+    } catch (e) {
+        _debug_log(r, `Error parsing JSON value from r.variables.instance_credential_json: ${e}`);
+        return undefined;
+    }
+}
+
+/**
+ * Read the contents of the credentials file into memory. If it is not
+ * found, then return undefined.
+ *
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @private
+ */
+function _readCredentialsFromFile() {
     var credsFilePath = _credentialsTempFile();
 
     try {
@@ -201,7 +287,7 @@ function s3auth(r) {
 
     var signature;
 
-    var credentials = readCredentials();
+    var credentials = readCredentials(r);
     if (sigver == '2') {
         signature = signatureV2(r, bucket, credentials);
     } else {
@@ -211,8 +297,14 @@ function s3auth(r) {
     return signature;
 }
 
-function s3SecurityToken() {
-    var credentials = readCredentials();
+/**
+ * Get the current session token from the instance profile credential cache.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {string} current session token or empty string
+ */
+function s3SecurityToken(r) {
+    var credentials = readCredentials(r);
     if (credentials.sessionToken) {
         return credentials.sessionToken;
     }
@@ -782,7 +874,21 @@ var maxValidityOffsetMs = 4.5 * 60 * 100;
  * @returns {Promise<void>}
  */
 async function fetchCredentials(r) {
-    var current = readCredentials();
+    // If we are not using an AWS instance profile to set our credentials we
+    // exit quickly and don't write a credentials file.
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        r.return(200);
+        return;
+    }
+
+    try {
+        var current = readCredentials(r);
+    } catch (e) {
+        _debug_log(r, `Could not read credentials: ${e}`);
+        r.return(500);
+        return;
+    }
+
     if (current) {
         var exp = new Date(current.expiration).getTime() - maxValidityOffsetMs;
         if (now.getTime() < exp) {
@@ -792,13 +898,6 @@ async function fetchCredentials(r) {
     }
 
     var credentials;
-
-    // If we are not using an AWS instance profile to set our credentials we
-    // exit quickly and don't write a credentials file.
-    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
-        r.return(200);
-        return;
-    }
 
     _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
@@ -821,9 +920,9 @@ async function fetchCredentials(r) {
         }
     }
     try {
-        fs.writeFileSync(_credentialsTempFile(), JSON.stringify(credentials));
+        writeCredentials(r, credentials);
     } catch (e) {
-        _debug_log(r, 'Could not write credentials file: ' + JSON.stringify(e));
+        _debug_log(r, `Could not write credentials: ${e}`);
         r.return(500);
         return;
     }
@@ -899,6 +998,7 @@ export default {
     awsHeaderDate,
     fetchCredentials,
     readCredentials,
+    writeCredentials,
     s3date,
     s3auth,
     s3SecurityToken,

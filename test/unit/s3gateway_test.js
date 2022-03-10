@@ -311,11 +311,12 @@ function testEscapeURIPathPreservesDoubleSlashes() {
 
 function testReadCredentialsWithAccessAndSecretKeySet() {
     printHeader('testReadCredentialsWithAccessAndSecretKeySet');
+    let r = {};
     process.env['S3_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
     process.env['S3_SECRET_KEY'] = 'SOME_SECRET_KEY';
 
     try {
-        var credentials = s3gateway.readCredentials();
+        var credentials = s3gateway.readCredentials(r);
         if (credentials.accessKeyId !== process.env['S3_ACCESS_KEY_ID']) {
             throw 'static credentials do not match returned value [accessKeyId]';
         }
@@ -335,8 +336,14 @@ function testReadCredentialsWithAccessAndSecretKeySet() {
     }
 }
 
-function testReadCredentials() {
-    printHeader('testReadCredentials');
+function testReadCredentialsFromFilePath() {
+    printHeader('testReadCredentialsFromFilePath');
+    let r = {
+        variables: {
+            cache_instance_credentials_enabled: 0
+        }
+    };
+
     var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
     var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
     var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
@@ -347,7 +354,7 @@ function testReadCredentials() {
 
     try {
         process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
-        var credentials = s3gateway.readCredentials();
+        var credentials = s3gateway.readCredentials(r);
         var testDataAsJSON = JSON.parse(testData);
         if (credentials.accessKeyId !== testDataAsJSON.accessKeyId) {
             throw 'JSON test data does not match credentials [accessKeyId]';
@@ -373,6 +380,11 @@ function testReadCredentials() {
 
 function testReadCredentialsFromNonexistentPath() {
     printHeader('testReadCredentialsFromNonexistentPath');
+    let r = {
+        variables: {
+            cache_instance_credentials_enabled: 0
+        }
+    };
     var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
     var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
     var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
@@ -380,7 +392,7 @@ function testReadCredentialsFromNonexistentPath() {
 
     try {
         process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
-        var credentials = s3gateway.readCredentials();
+        var credentials = s3gateway.readCredentials(r);
         if (credentials !== undefined) {
             throw 'Credentials returned when no credentials file should be present';
         }
@@ -392,6 +404,43 @@ function testReadCredentialsFromNonexistentPath() {
         if (fs.statSync(tempFile, {throwIfNoEntry: false})) {
             fs.unlinkSync(tempFile);
         }
+    }
+}
+
+function testReadAndWriteCredentialsFromKeyValStore() {
+    printHeader('testReadAndWriteCredentialsFromKeyValStore');
+
+    let accessKeyId = process.env['S3_ACCESS_KEY_ID'];
+    let secretKey = process.env['S3_SECRET_KEY'];
+    delete process.env.S3_ACCESS_KEY_ID;
+    delete process.env.S3_SECRET_KEY;
+
+    try {
+        let r = {
+            variables: {
+                cache_instance_credentials_enabled: 1,
+                instance_credential_json: null
+            }
+        };
+        let expectedCredentials = {
+            AccessKeyId: 'AN_ACCESS_KEY_ID',
+            Expiration: '2017-05-17T15:09:54Z',
+            RoleArn: 'TASK_ROLE_ARN',
+            SecretAccessKey: 'A_SECRET_ACCESS_KEY',
+            Token: 'A_SECURITY_TOKEN',
+        };
+
+        s3gateway.writeCredentials(r, expectedCredentials);
+        let credentials = JSON.stringify(s3gateway.readCredentials(r));
+        let expectedJson = JSON.stringify(expectedCredentials);
+
+        if (credentials !== expectedJson) {
+            console.log(`EXPECTED:\n${expectedJson}\nACTUAL:\n${credentials}`);
+            throw 'Credentials do not match expected value';
+        }
+    } finally {
+        process.env['S3_ACCESS_KEY_ID'] = accessKeyId;
+        process.env['S3_SECRET_KEY'] = secretKey;
     }
 }
 
@@ -531,8 +580,9 @@ async function test() {
     testEditAmzHeadersHeadDirectory();
     testEscapeURIPathPreservesDoubleSlashes();
     testReadCredentialsWithAccessAndSecretKeySet();
-    testReadCredentials();
+    testReadCredentialsFromFilePath();
     testReadCredentialsFromNonexistentPath();
+    testReadAndWriteCredentialsFromKeyValStore();
     await testEcsCredentialRetrieval();
     await testEc2CredentialRetrieval();
 }
