@@ -31,6 +31,6 @@ jobs:
       - name: Tag container image for Push [latest]
         run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
       - name: Push container image [date]
-      - run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
       - name: Push container image [latest]
-      - run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
