@@ -1,0 +1,585 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  ParamCidrRange:
+    Default: '192.168.0.0/20'
+    Description: The CIDR range used to create a new VPC out of. The default value should be enough for most use-cases.
+    Type: String
+    AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
+
+  ParamContainerCpu:
+    Default: '256'
+    Description: The amount of CPU power assigned for the nginx task. The possible values (especially the valid configuration together with the container memory) can be found here: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html#fargate-tasks-size
+    Type: String
+
+  ParamContainerMemory:
+    Default: '1GB'
+    Type: String
+
+  ParamTaskContainerCount:
+    Description: The number of containers to run concurrently. To enable an high-availability deployment, you should consider to run at least 2 instances of nginx.
+    Default: '1'
+    Type: String
+
+  ParamFargatePlatformVersion:
+    Description: The Fargate platform version to use. See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/platform_versions.html for more information and available versions and features.
+    Default: '1.4.0'
+    Type: String
+
+  ParamContainerFamily:
+    Description: Used to instruct CloudFormation to use revision numbers of a single task definition instead of creating new task definitions with each update. See https://docs.aws.amazon.com/de_de/AWSCloudFormation/latest/UserGuide/aws-resource-ecs-taskdefinition.html#cfn-ecs-taskdefinition-family for more information.
+    Default: nginx-s3-gateway
+    Type: String
+
+  ParamContainerPort:
+    Description: The port on which nginx will listen on. This port will be exposed from the ECS task and used to route traffic from the Application Load Balancer
+    Default: '80'
+    Type: String
+
+  ParamBaseName:
+    Type: String
+    Default: s3-test-gateway
+
+  ParamRepository:
+    Description: The name of the AWS ECR repository, where the build image of nginx-s3-gateway is located in.
+    Type: String
+
+Resources:
+
+  # region: content
+
+  ContentBucket:
+    Description: This is the bucket where objects are save which should be served by nginx.
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        # Enabled the use of SSE-S3 encryption. Based on the requirements of the environment where this is deployed to, using SSE-KMS is required.
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      # block all public access
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # endregion
+
+  # region: fargate
+
+  TaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+      Path: /
+    Type: AWS::IAM::Role
+
+  TaskRole:
+    Description: The role the task will be able to assume and use to call AWS services. This role needs to have (readonly) access to the ContentBucket S3 bucket.
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+        # Instead of this managed policy, you can also create a new (inline) to reduce the access scope to the ContentBucket only.
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonS3ReadOnlyAccess'
+      Path: /
+    Type: AWS::IAM::Role
+
+  Cluster:
+    Properties:
+      ClusterName: !Ref ParamBaseName
+      ClusterSettings:
+        # Container Insights would give more in-deapth details about an ECS clusters performance. However, these insights will be collected as AWS CloudWatch custom metrics and billed as such.
+        # Based on that, the default is disabled, you may want to enable it, though, based on your specific use case. See https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights.html
+        # for more details.
+        - Name: containerInsights
+          Value: disabled
+    Type: AWS::ECS::Cluster
+
+  ContainerSecurityGroup:
+    Description: The Security Group that will allow ingress traffic from the VPC CIDR the task is running in on the port where nginx is listening.
+    Properties:
+      GroupDescription: !Sub '${ParamBaseName}-http-proxy'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ParamBaseName}-http-proxy'
+      VpcId: !Ref Vpc
+    Type: AWS::EC2::SecurityGroup
+
+  ContainerSecurityRuleIn:
+    Properties:
+      CidrIp: !Ref ParamCidrRange
+      FromPort: !Ref ParamContainerPort
+      GroupId: !Ref ContainerSecurityGroup
+      IpProtocol: TCP
+      ToPort: !Ref ParamContainerPort
+    Type: AWS::EC2::SecurityGroupIngress
+
+  FargateService:
+    DependsOn:
+      - HttpListener
+      - VpcEndpointEcrApi
+      - VpcEndpointCloudwatchLogs
+      - VpcEndpointEcrDkr
+    Properties:
+      Cluster: !Ref Cluster
+      DesiredCount: !Ref ParamTaskContainerCount
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: !Ref ParamContainerPort
+          TargetGroupArn: !Ref AppTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - !Ref ContainerSecurityGroup
+          Subnets:
+            # When running in a high-availability setup, and given there are multiple app subnets, you may want to add them here as well, to make sure multiple
+            # instances of the containeers are spread accross multiple availability zones.
+            - !Ref AppSubnet1
+      PlatformVersion: !Ref ParamFargatePlatformVersion
+      TaskDefinition: !Ref FargateTaskDefinition
+    Type: AWS::ECS::Service
+
+  FargateLogGroup:
+    Properties:
+      LogGroupName: !Ref ParamBaseName
+      RetentionInDays: 7
+    Type: AWS::Logs::LogGroup
+
+  FargateTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: AWS_SIGS_VERSION
+              Value: "4"
+            - Name: ALLOW_DIRECTORY_LIST
+              Value: "false"
+            - Name: S3_STYLE
+              Value: virtual
+            - Name: S3_DEBUG
+              Value: "true"
+            - Name: S3_REGION
+              Value: !Ref AWS::Region
+            - Name: S3_SERVER_PROTO
+              Value: https
+            - Name: S3_SERVER_PORT
+              Value: 443
+            - Name: S3_SERVER
+              Value: !Sub "s3.${AWS::Region}.amazonaws.com"
+            - Name: S3_BUCKET_NAME
+              Value: !Ref ContentBucket
+            - Name: ALLOW_DIRECTORY_LIST
+              Value: "true"
+          Essential: true
+          Image: !Sub '${ParamRepository}:latest'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref FargateLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: fargate
+          Name: nginx
+          PortMappings:
+            - ContainerPort: !Ref ParamContainerPort
+          Ulimits:
+            - Name: nofile
+              HardLimit: 65536
+              SoftLimit: 65536
+      Cpu: !Ref ParamContainerCpu
+      ExecutionRoleArn: !GetAtt [ TaskExecutionRole, Arn ]
+      Family: !Ref ParamContainerFamily
+      Memory: !Ref ParamContainerMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !GetAtt [ TaskRole, Arn ]
+    Type: AWS::ECS::TaskDefinition
+
+  # endregion
+
+  # region: alb
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: "internet-facing"
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref SecurityGroup
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Order: 1
+          TargetGroupArn: !Ref AppTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to loadbalancer
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  AppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 5
+      HealthCheckPath: '/health'
+      HealthCheckPort: !Ref ParamContainerPort
+      HealthCheckProtocol: 'HTTP'
+      HealthCheckTimeoutSeconds: 2
+      HealthyThresholdCount: 3
+      Port: !Ref ParamContainerPort
+      Protocol: 'HTTP'
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '20'
+      TargetType: ip
+      VpcId: !Ref Vpc
+
+  # endregion
+
+  # region: vpc
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref ParamCidrRange
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-vpc"
+
+  # If you intend to run in a hight-available setup (e.g. running multiple instances of the ECS task), you might want to add additional app subnets in different availability zones as well.
+  AppSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: 'eu-west-1a'
+      CidrBlock: !Select [ 3, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-app-1"
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: 'eu-west-1a'
+      CidrBlock: !Select [ 0, !Cidr [ !Select [ 0, !Cidr [ !Ref ParamCidrRange, 1, 9 ] ], 6, 6 ] ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-public-1"
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: 'eu-west-1b'
+      CidrBlock: !Select [ 1, !Cidr [ !Select [ 0, !Cidr [ !Ref ParamCidrRange, 1, 9 ] ], 6, 6 ] ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-public-1"
+
+  ServiceSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: 'eu-west-1a'
+      CidrBlock: !Select [ 9, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-service-1"
+
+  Igw:
+    Type: AWS::EC2::InternetGateway
+
+  IgwAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref Igw
+      VpcId: !Ref Vpc
+
+  RouteIgw:
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref Igw
+      RouteTableId: !Ref RouteTablePublic
+    Type: AWS::EC2::Route
+
+  RouteTablePublic:
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-rt-public"
+    Type: AWS::EC2::RouteTable
+
+  SubnetRouteTableAssociation1:
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref PublicSubnet1
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  SubnetRouteTableAssociation2:
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref PublicSubnet2
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  RouteTablePrivate:
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-rt-private"
+    Type: AWS::EC2::RouteTable
+
+  PrivateRouteTableAssociationApp1:
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      SubnetId: !Ref AppSubnet1
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  PrivateRouteTableAssociationService1:
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      SubnetId: !Ref ServiceSubnet1
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  # endregion
+
+  # region nacl
+
+  ServiceNacl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref Vpc
+
+  ServiceNaclAssociation1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      SubnetId: !Ref ServiceSubnet1
+
+  ServiceAllowAppIngress1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 100
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 3, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 1024
+        To: 65535
+
+  ServiceAllowAppEgress1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 100
+      Egress: true
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 3, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 1024
+        To: 65535
+
+  ServiceAllowAppIngress2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 101
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 4, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 1024
+        To: 65535
+
+  ServiceAllowAppEgress2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 101
+      Egress: true
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 4, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 1024
+        To: 65535
+
+  ServiceAllowAppIngress3:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 102
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 5, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 1024
+        To: 65535
+
+  ServiceAllowAppEgress3:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 102
+      Egress: true
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 5, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 1024
+        To: 65535
+
+  ServiceAllowAppVPCEIngress1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 106
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 3, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 443
+        To: 443
+
+  ServiceAllowAppVPCEIngress2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 107
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 4, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 443
+        To: 443
+
+  ServiceAllowAppVPCEIngress3:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref ServiceNacl
+      RuleNumber: 108
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: !Select [ 5, !Cidr [ !Ref ParamCidrRange, 16, 8 ] ]
+      PortRange:
+        From: 443
+        To: 443
+
+  # endregion
+
+  # region: vpc endpoints
+
+  # A VPC does not have connectivity to the outside world, like the internet or other AWS services. AWS ECS however will need to have access to multiple services:
+  # - AWS S3: to serve files from S3
+  # - AWS ECR: to fetch the container image when provisioning a new container of a task
+  # - AWS CloudWatch Logs: to write logs from the container to a CloudWatch logs log group
+  #
+  # There are multiple ways how such connectivity can be achieved. In order to keep the communication between the VPC hosted services and AWS services private, this
+  # example template utilises AWS VPC Endpoints (https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints.html) instead of a NAT Gateway which routes internet
+  # traffic to an Internet Gateway.
+  # This, however, only works as long as only AWS services need to be called (or other services available as a VPC endpoint).
+
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref RouteTablePrivate
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      VpcId: !Ref Vpc
+
+  VpcEndpointCloudwatchLogs:
+    Properties:
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref EndpointSecurityGroup
+      SubnetIds:
+        - !Ref ServiceSubnet1
+      VpcId: !Ref Vpc
+    Type: AWS::EC2::VPCEndpoint
+
+  VpcEndpointEcrDkr:
+    Properties:
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref EndpointSecurityGroup
+      SubnetIds:
+        - !Ref ServiceSubnet1
+      VpcId: !Ref Vpc
+    Type: AWS::EC2::VPCEndpoint
+
+  VpcEndpointEcrApi:
+    Properties:
+      PrivateDnsEnabled: true
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcEndpointType: Interface
+      SecurityGroupIds:
+        - !Ref EndpointSecurityGroup
+      SubnetIds:
+        - !Ref ServiceSubnet1
+      VpcId: !Ref Vpc
+    Type: AWS::EC2::VPCEndpoint
+
+  EndpointSecurityGroup:
+    Properties:
+      GroupDescription: !Sub '${AWS::StackName}-endpoint-security'
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-endpoint-security'
+      VpcId: !Ref Vpc
+    Type: AWS::EC2::SecurityGroup
+
+  EndpointHttpsRule:
+    Properties:
+      CidrIp: !Ref ParamCidrRange
+      FromPort: 443
+      GroupId: !Ref EndpointSecurityGroup
+      IpProtocol: TCP
+      ToPort: 443
+    Type: AWS::EC2::SecurityGroupIngress
+
+  # endregion
