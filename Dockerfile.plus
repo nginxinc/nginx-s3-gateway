@@ -1,11 +1,9 @@
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 
-ARG NGINX_GPGKEY=573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62
-
-ENV DISTRO_VERSION       buster
-ENV NGINX_VERSION        25-2
-ENV NJS_VERSION          25+0.7.0-1
-ENV XSLT_VERSION         25-1
+ENV NGINX_PLUS_VERSION   26-1
+ENV NGINX_VERSION        1.21.5
+ENV NJS_VERSION          26+0.7.2-1
+ENV XSLT_VERSION         26-1
 
 COPY plus/etc/ssl /etc/ssl
 COPY plus/usr /usr
@@ -15,6 +13,8 @@ COPY plus/usr /usr
 # Source: https://github.com/nginxinc/docker-nginx/tree/1.19.2/stable/buster
 COPY common/docker-entrypoint.sh /docker-entrypoint.sh
 COPY plus/docker-entrypoint.d /docker-entrypoint.d
+# Add NGINX Plus package repository keyring
+COPY plus/usr/share/keyrings/nginx-archive-keyring.gpg /usr/share/keyrings/nginx-archive-keyring.gpg
 
 RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive; \
@@ -22,12 +22,14 @@ RUN set -eux \
     addgroup --system --gid 101 nginx; \
     adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 101 nginx; \
     apt-get -qq update; \
-    apt-get -qq upgrade -y; \
+    apt-get -qq upgrade --yes; \
+    apt-get -qq install --yes ca-certificates; \
     sh -a /usr/local/bin/add_nginx_plus_repo.sh; \
     rm /usr/local/bin/add_nginx_plus_repo.sh; \
     apt-get -qq update; \
-    apt-get -qq install --no-install-recommends --no-install-suggests -y \
-        nginx-plus=${NGINX_VERSION}~${DISTRO_VERSION} \
+    export DISTRO_VERSION="$(grep '^VERSION_CODENAME=' /etc/os-release | awk -v FS='=' '{print $2}')" && \
+    apt-get -qq install --yes --no-install-recommends --no-install-suggests \
+        nginx-plus=${NGINX_PLUS_VERSION}~${DISTRO_VERSION} \
         nginx-plus-module-njs=${NJS_VERSION}~${DISTRO_VERSION} \
         nginx-plus-module-xslt=${XSLT_VERSION}~${DISTRO_VERSION} \
         gettext-base; \

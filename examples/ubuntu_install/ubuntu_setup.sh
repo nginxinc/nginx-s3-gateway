@@ -30,6 +30,15 @@ fi
 
 source ../../common/check_env.sh
 
+echo "S3 Backend Environment"
+echo "Access Key ID: ${S3_ACCESS_KEY_ID}"
+echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+echo "Region: ${S3_REGION}"
+echo "Addressing Style: ${S3_STYLE}"
+echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
+echo "DNS Resolvers: ${DNS_RESOLVERS}"
+echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
+
 set -o nounset   # abort on unbound variable
 
 if [ ! -f /etc/apt/sources.list.d/nginx.list ]; then
@@ -75,14 +84,10 @@ cat > "/etc/nginx/environment" << EOF
 ALLOW_DIRECTORY_LIST=${ALLOW_DIRECTORY_LIST}
 # AWS Authentication signature version (2=v2 authentication, 4=v4 authentication)
 AWS_SIGS_VERSION=${AWS_SIGS_VERSION}
-# AWS Access key
-S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
 # Name of S3 bucket to proxy requests to
 S3_BUCKET_NAME=${S3_BUCKET_NAME}
 # Region associated with API
 S3_REGION=${S3_REGION}
-# AWS Secret access key
-S3_SECRET_KEY=${S3_SECRET_KEY}
 # SSL/TLS port to connect to
 S3_SERVER_PORT=${S3_SERVER_PORT}
 # Protocol to used connect to S3 server - 'http' or 'https'
@@ -94,6 +99,17 @@ S3_STYLE=${S3_STYLE}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 S3_DEBUG=${S3_DEBUG}
 EOF
+
+# Only include these env vars if we are not using a instance profile credential
+# to obtain S3 permissions.
+if [ $uses_iam_creds -eq 0 ]; then
+  cat >> "/etc/nginx/environment" << EOF
+# AWS Access key
+S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+# AWS Secret access key
+S3_SECRET_KEY=${S3_SECRET_KEY}
+EOF
+fi
 
 set +o nounset   # don't abort on unbound variable
 if [ -z ${DNS_RESOLVERS+x} ]; then
@@ -159,7 +175,7 @@ mkdir -p /etc/nginx/conf.d/gateway
 mkdir -p /etc/nginx/templates/gateway
 
 function download() {
-  wget --quiet --output-document="$2" "https://raw.githubusercontent.com/nginxinc/nginx-s3-gateway/master/$1"
+  wget --quiet --output-document="$2" "https://raw.githubusercontent.com/nginxinc/nginx-s3-gateway/${branch}/$1"
 }
 
 if [ ! -f /etc/nginx/nginx.conf.orig ]; then
@@ -182,8 +198,18 @@ load_module modules/ngx_http_js_module.so;
 load_module modules/ngx_http_xslt_filter_module.so;
 
 # Preserve S3 environment variables for worker threads
+EOF
+
+# Only include these env vars if we are not using a instance profile credential
+# to obtain S3 permissions.
+if [ $uses_iam_creds -eq 0 ]; then
+  cat >> "/etc/nginx/environment" << EOF
 env S3_ACCESS_KEY_ID;
 env S3_SECRET_KEY;
+EOF
+fi
+
+cat >> /etc/nginx/nginx.conf << 'EOF'
 env S3_BUCKET_NAME;
 env S3_SERVER;
 env S3_SERVER_PORT;

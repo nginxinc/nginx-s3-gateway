@@ -150,12 +150,107 @@ function _credentialsTempFile() {
 }
 
 /**
+ * Write the instance profile credentials to a caching backend.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ */
+function writeCredentials(r, credentials) {
+    // Do not bother writing credentials if we are running in a mode where we
+    // do not need instance credentials.
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        return;
+    }
+
+    if (!credentials) {
+        throw `Cannot write invalid credentials: ${JSON.stringify(credentials)}`;
+    }
+
+    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
+        _writeCredentialsToKeyValStore(r, credentials);
+    } else {
+        _writeCredentialsToFile(credentials);
+    }
+}
+
+/**
+ * Write the instance profile credentials to the NGINX Keyval store.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @private
+ */
+function _writeCredentialsToKeyValStore(r, credentials) {
+    r.variables.instance_credential_json = JSON.stringify(credentials);
+}
+
+/**
+ * Write the instance profile credentials to a file on the file system. This
+ * file will be quite small and should end up in the file cache relatively
+ * quickly if it is repeatedly read.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @private
+ */
+function _writeCredentialsToFile(credentials) {
+    fs.writeFileSync(_credentialsTempFile(), JSON.stringify(credentials));
+}
+
+/**
+ * Get the instance profile credentials needed to authenticated against S3 from
+ * a backend cache. If the credentials cannot be found, then return undefined.
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ */
+function readCredentials(r) {
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        return {
+            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
+            secretAccessKey: process.env['S3_SECRET_KEY'],
+            sessionToken: null,
+            expiration: null
+        };
+    }
+
+    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
+        return _readCredentialsFromKeyValStore(r);
+    } else {
+        return _readCredentialsFromFile();
+    }
+}
+
+/**
+ * Read credentials from the NGINX Keyval store. If it is not found, then
+ * return undefined.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @private
+ */
+function _readCredentialsFromKeyValStore(r) {
+    var cached = r.variables.instance_credential_json;
+
+    if (!cached) {
+        return undefined;
+    }
+
+    try {
+        return JSON.parse(cached);
+    } catch (e) {
+        _debug_log(r, `Error parsing JSON value from r.variables.instance_credential_json: ${e}`);
+        return undefined;
+    }
+}
+
+/**
  * Read the contents of the credentials file into memory. If it is not
  * found, then return undefined.
  *
- * @returns {undefined|object} AWS instance profile credentials or undefined
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @private
  */
-function readCredentials() {
+function _readCredentialsFromFile() {
     var credsFilePath = _credentialsTempFile();
 
     try {
@@ -176,7 +271,7 @@ function readCredentials() {
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
  *
- * @param r HTTP request
+ * @param r {Request} HTTP request object
  * @returns {string} AWS authentication signature
  */
 function s3auth(r) {
@@ -195,6 +290,7 @@ function s3auth(r) {
 
     r.decodedUriPath = decodeURIComponent(r.variables.uri_path);
 
+    var credentials = readCredentials(r);
     if (sigver == '2') {
         signature = signatureV2(r, bucket, credentials);
     } else {
@@ -204,14 +300,28 @@ function s3auth(r) {
     return signature;
 }
 
-function s3SecurityToken() {
-    var credentials = readCredentials();
+/**
+ * Get the current session token from the instance profile credential cache.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {string} current session token or empty string
+ */
+function s3SecurityToken(r) {
+    var credentials = readCredentials(r);
     if (credentials.sessionToken) {
         return credentials.sessionToken;
     }
     return '';
 }
 
+/**
+ * Build the base file path for a S3 request URI. This function allows for
+ * path style S3 URIs to be created that do not use a subdomain to specify
+ * the bucket name.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {string} start of the file path for the S3 object URI
+ */
 function s3BaseUri(r) {
     var bucket = process.env['S3_BUCKET_NAME'];
     var basePath;
@@ -253,16 +363,26 @@ function s3uri(r) {
     return path;
 }
 
+/**
+ * Create and encode the query parameters needed to query S3 for an object
+ * listing.
+ *
+ * @param uriPath request URI path
+ * @param method request HTTP method
+ * @returns {string} query parameters to use with S3 request
+ * @private
+ */
 function _s3DirQueryParams(uriPath, method) {
     if (!_isDirectory(uriPath) || method !== 'GET') {
         return '';
     }
 
-    var path = 'delimiter=%2F'
+    let path = 'delimiter=%2F'
 
     if (uriPath !== '/') {
-        var without_leading_slash = uriPath.charAt(0) === '/' ?
-            uriPath.substring(1, uriPath.length) : uriPath;
+        let decodedUriPath = decodeURIComponent(uriPath);
+        let without_leading_slash = decodedUriPath.charAt(0) === '/' ?
+            decodedUriPath.substring(1, decodedUriPath.length) : decodedUriPath;
         path += '&prefix=' + encodeURIComponent(without_leading_slash);
     }
 
@@ -322,7 +442,7 @@ function signatureV2(r, bucket, credentials) {
 
     var s3signature = hmac.update(stringToSign).digest('base64');
 
-    return 'AWS ' + credentials.accessKeyId + ':' + s3signature;
+    return `AWS ${credentials.accessKeyId}:${s3signature}`;
 }
 
 /**
@@ -356,6 +476,21 @@ function filterListResponse(r, data, flags) {
     }
 }
 
+function signedHeaders(sessionToken) {
+    var headers = defaultSignedHeaders;
+    if (sessionToken) {
+        headers += ';x-amz-security-token';
+    }
+    return headers;
+}
+
+/**
+ * Creates a string containing the headers that need to be signed as part of v4
+ * signature authentication.
+ *
+ * @param sessionToken {string|undefined} AWS session token if present
+ * @returns {string} semicolon delimited string of the headers needed for signing
+ */
 function signedHeaders(sessionToken) {
     var headers = defaultSignedHeaders;
     if (sessionToken) {
@@ -588,7 +723,9 @@ function _eightDigitDate(timestamp) {
     var month = timestamp.getUTCMonth() + 1;
     var day = timestamp.getUTCDate();
 
-    return ''.concat(_padWithLeadingZeros(year, 4), _padWithLeadingZeros(month, 2), _padWithLeadingZeros(day, 2));
+    return ''.concat(_padWithLeadingZeros(year, 4),
+        _padWithLeadingZeros(month,2),
+        _padWithLeadingZeros(day,2));
 }
 
 /**
@@ -636,9 +773,11 @@ function _padWithLeadingZeros(num, size) {
  * @private
  */
 function _escapeURIPath(uri) {
-    var components = [];
+    // Check to see if the URI path was already encoded. If so, we decode it.
+    let decodedUri = (uri.indexOf('%') >= 0) ? decodeURIComponent(uri) : uri;
+    let components = [];
 
-    uri.split('/').forEach(function (item, i) {
+    decodedUri.split('/').forEach(function (item, i) {
         components[i] = encodeURIComponent(item);
     });
 
@@ -728,8 +867,39 @@ function _require_env_var(envVarName) {
  */
 var maxValidityOffsetMs = 4.5 * 60 * 100;
 
+/**
+ * Get the credentials needed to create AWS signatures in order to authenticate
+ * to S3. If the gateway is being provided credentials via a instance profile
+ * credential as provided over the metadata endpoint, this function will:
+ * 1. Try to read the credentials from cache
+ * 2. Determine if the credentials are stale
+ * 3. If the cached credentials are missing or stale, it gets new credentials
+ *    from the metadata endpoint.
+ * 4. If new credentials were pulled, it writes the credentials back to the
+ *    cache.
+ *
+ * If the gateway is not using instance profile credentials, then this function
+ * quickly exits.
+ *
+ * @param r {Request} HTTP request object
+ * @returns {Promise<void>}
+ */
 async function fetchCredentials(r) {
-    var current = readCredentials();
+    // If we are not using an AWS instance profile to set our credentials we
+    // exit quickly and don't write a credentials file.
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        r.return(200);
+        return;
+    }
+
+    try {
+        var current = readCredentials(r);
+    } catch (e) {
+        _debug_log(r, `Could not read credentials: ${e}`);
+        r.return(500);
+        return;
+    }
+
     if (current) {
         var exp = new Date(current.expiration).getTime() - maxValidityOffsetMs;
         if (now.getTime() < exp) {
@@ -737,16 +907,12 @@ async function fetchCredentials(r) {
             return;
         }
     }
-    _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
     var credentials;
-    if (process.env['S3_ACCESS_KEY_ID']) {
-        credentials = {
-            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
-            secretAccessKey: process.env['S3_SECRET_KEY'],
-            sessionToken: null,
-        };
-    } else if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
+
+    _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
+
+    if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
         var uri = ecsCredentialsBaseUri + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
         try {
             credentials = await _fetchEcsRoleCredentials(uri);
@@ -765,15 +931,23 @@ async function fetchCredentials(r) {
         }
     }
     try {
-        fs.writeFileSync(_credentialsTempFile(), JSON.stringify(credentials));
+        writeCredentials(r, credentials);
     } catch (e) {
-        _debug_log(r, 'Could not write credentials file: ' + JSON.stringify(e));
+        _debug_log(r, `Could not write credentials: ${e}`);
         r.return(500);
         return;
     }
     r.return(200);
 }
 
+/**
+ * Get the credentials needed to generate AWS signatures from the ECS
+ * (Elastic Container Service) metadata endpoint.
+ *
+ * @param credentialsUri {string} endpoint to get credentials from
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
 async function _fetchEcsRoleCredentials(credentialsUri) {
     var resp = await ngx.fetch(credentialsUri);
     if (!resp.ok) {
@@ -789,6 +963,13 @@ async function _fetchEcsRoleCredentials(credentialsUri) {
     };
 }
 
+/**
+ * Get the credentials needed to generate AWS signatures from the EC2
+ * metadata endpoint.
+ *
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
 async function _fetchEC2RoleCredentials() {
     var tokenResp = await ngx.fetch(ec2ImdsTokenEndpoint, {
         headers: {
@@ -828,6 +1009,7 @@ export default {
     awsHeaderDate,
     fetchCredentials,
     readCredentials,
+    writeCredentials,
     s3date,
     s3auth,
     s3SecurityToken,
