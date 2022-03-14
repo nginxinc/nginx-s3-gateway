@@ -196,7 +196,7 @@ else
     --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
 fi
 
-if [ ${njs_latest} == 1 ]; then
+if [ ${njs_latest} -eq 1 ]; then
   p "Layering in latest NJS build"
   docker build -f Dockerfile.latest-njs \
     --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-${nginx_type} .
