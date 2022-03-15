@@ -200,3 +200,49 @@ aws ec2 modify-instance-metadata-options --instance-id <instance id> \
 After that has been run we can start the container normally and omit the
 `S3_ACCESS_KEY_ID` and `S3_SECRET_KEY` environment variables.
 
+### Running in ECS with an IAM Policy
+
+The commands below all reference the [`deployments/ecs/cloudformation/s3gateway.cf`](/deployments/ecs/cloudformation/s3gateway.yaml) file. This file will need to be
+modified.
+
+- Update the following 4 parameters in the `Parameters` section of the CloudFormation file for your specific AWS account:
+  - `NewBucketName` - any S3 bucket name. Remember that S3 bucket names must be globally unique
+  - `VpcId` - Any VPC ID on your AWS account
+  - `Subnet1` - Any subnet ID that's in the VPC used above
+  - `Subnet2` - Any subnet ID that's in the VPC used above
+- Run the following command to deploy the stack (this assumes you have the AWS CLI & credentials setup correctly on your host machine and you are running in the project root directory):
+
+  ```sh
+  aws cloudformation create-stack \
+    --stack-name nginx-s3-gateway \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --template-body file://deployments/ecs/cloudformation/s3gateway.yaml
+  ```
+
+- Wait for the CloudFormation Stack deployment to complete
+  (can take about 3-5 minutes)
+  - You can query the stack status with this command:
+    ```sh
+    aws cloudformation describe-stacks \
+      --stack-name nginx-s3-gateway \
+      --query "Stacks[0].StackStatus"
+    ```
+- Wait until the query above shows `"CREATE_COMPLETE"`
+- Run the following command to get the URL used to access the service:
+  ```sh
+  aws cloudformation describe-stacks \
+    --stack-name nginx-s3-gateway \
+    --query "Stacks[0].Outputs[0].OutputValue"
+  ```
+  - Upload a file to the bucket first to prevent getting a `404` when visiting 
+    the URL in your browser
+  ```sh
+  # i.e.
+  aws s3 cp README.md s3://<bucket_name>
+  ```
+- View the container logs in CloudWatch from the AWS web console
+- Run the following command to delete the stack and all resources:
+  ```sh
+  aws cloudformation delete-stack \
+    --stack-name nginx-s3-gateway
+  ```
