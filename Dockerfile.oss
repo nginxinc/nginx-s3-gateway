@@ -1,6 +1,7 @@
 FROM nginx:1.21.6
 
 ENV NGINX_VERSION "1.21.6"
+ENV NJS_VERSION   0.7.3
 
 ENV PROXY_CACHE_VALID_OK "1h"
 ENV PROXY_CACHE_VALID_NOTFOUND "1m"
@@ -11,6 +12,8 @@ ENV PROXY_CACHE_VALID_FORBIDDEN "30s"
 # 2. Adding a directory for proxied objects to be stored
 # 3. Replacing the entrypoint script with a modified version that explicitly
 #    sets resolvers.
+# 4. Explicitly install the version of njs coded in the environment variable
+#    above.
 
 COPY common/etc /etc
 COPY common/docker-entrypoint.sh /docker-entrypoint.sh
@@ -21,4 +24,11 @@ RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive; \
     mkdir -p /var/cache/nginx/s3_proxy; \
     chown nginx:nginx /var/cache/nginx/s3_proxy; \
-    chmod -R -v +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh
+    chmod -R -v +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh; \
+    echo "deb https://nginx.org/packages/mainline/debian/ $(echo $PKG_RELEASE | cut -f2 -d~) nginx" >> /etc/apt/sources.list.d/nginx.list; \
+    apt-get update; \
+    apt-get install --no-install-recommends --no-install-suggests --yes \
+      nginx-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE}; \
+    apt-get remove --purge --auto-remove --yes; \
+    rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/nginx.list
+
