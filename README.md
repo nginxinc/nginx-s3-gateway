@@ -96,6 +96,9 @@ Environment variables are used to configure this project.
   compatible services. See this 
   [AWS blog article](https://aws.amazon.com/blogs/aws/amazon-s3-path-deprecation-plan-the-rest-of-the-story/)
   for further information. 
+* `PROXY_CACHE_VALID_OK` - Sets caching time for response code 200 and 302
+* `PROXY_CACHE_VALID_NOTFOUND` - Sets caching time for response code 404
+* `PROXY_CACHE_VALID_FORBIDDEN` - Sets caching time for response code 403
 
 The above environment variables can be set in a file that is passed to docker
 with the `--env-file` flag. The file would look something like 

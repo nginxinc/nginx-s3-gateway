@@ -35,9 +35,9 @@ server {
 
     # Proxy caching configuration. Customize this for your needs.
     proxy_cache s3_cache;
-    proxy_cache_valid 200 302 1h;
-    proxy_cache_valid 404 1m;
-    proxy_cache_valid 403 30s;
+    proxy_cache_valid 200 302 ${PROXY_CACHE_VALID_OK};
+    proxy_cache_valid 404 ${PROXY_CACHE_VALID_NOTFOUND};
+    proxy_cache_valid 403 ${PROXY_CACHE_VALID_FORBIDDEN};
     proxy_cache_methods GET HEAD;
     # When this is enabled a HEAD request to NGINX will result in a GET
     # request upstream. Unfortunately, proxy_cache_convert_head has to be
