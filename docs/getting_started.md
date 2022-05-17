@@ -30,6 +30,9 @@ running as a Container or as a Systemd service.
   compatible services. See this
   [AWS blog article](https://aws.amazon.com/blogs/aws/amazon-s3-path-deprecation-plan-the-rest-of-the-story/)
   for further information.
+* `PROXY_CACHE_VALID_OK` - Sets caching time for response code 200 and 302
+* `PROXY_CACHE_VALID_NOTFOUND` - Sets caching time for response code 404
+* `PROXY_CACHE_VALID_FORBIDDEN` - Sets caching time for response code 403
 
 If you are using [AWS instance profile credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html),
 you will need to omit the `S3_ACCESS_KEY_ID` and `S3_SECRET_KEY` variables from
