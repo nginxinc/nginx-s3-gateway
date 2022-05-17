@@ -1,0 +1,263 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  NewBucketName:
+    Default: <ENTER_RANDOM_BUCKET_NAME_HERE>
+    Description: S3 Bucket Name
+    Type: String
+  Subnet1:
+    Default: <ENTER_YOUR_VALUE_HERE>
+    Description: ID of the first subnet to be used for resources
+    Type: String
+  Subnet2:
+    Default: <ENTER_YOUR_VALUE_HERE>
+    Description: ID of the second subnet to be used for resources
+    Type: String
+  VpcId:
+    Default: <ENTER_YOUR_VALUE_HERE>
+    Description: ID of the VPC to be used for resources
+    Type: String
+  ContainerName:
+    Default: s3gateway
+    Description: Name of the NGINX Container. No need to change this
+    Type: String
+  ResourceNamePrefix:
+    Default: nginx-s3-gateway
+    Description: Common prefix used for resource names. No need to change this
+    Type: String
+Outputs:
+  PublicDNS:
+    Description: DNS name of load balancer
+    Value: !GetAtt 'ALB.DNSName'
+Resources:
+  ALB:
+    Properties:
+      Name: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - alb
+      SecurityGroups:
+        - !GetAtt 'S3GatewaySG.GroupId'
+      SubnetMappings:
+        - SubnetId: !Ref 'Subnet1'
+        - SubnetId: !Ref 'Subnet2'
+      Type: application
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  ALBHttpListener:
+    Properties:
+      DefaultActions:
+        - ForwardConfig:
+            TargetGroups:
+              - TargetGroupArn: !Ref 'ALBTargetGroup'
+          Type: forward
+      LoadBalancerArn: !Ref 'ALB'
+      Port: 80
+      Protocol: HTTP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+  ALBTargetGroup:
+    Properties:
+      Name: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - log-group
+      Port: 80
+      Protocol: HTTP
+      ProtocolVersion: HTTP1
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '150'
+      TargetType: ip
+      VpcId: !Ref 'VpcId'
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  Cluster:
+    Properties:
+      ClusterName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - cluster
+    Type: AWS::ECS::Cluster
+  ECSLogGroup:
+    Properties:
+      LogGroupName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - logs
+      RetentionInDays: 14
+    Type: AWS::Logs::LogGroup
+  ECSTaskExecutionPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:CreateLogGroup
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - '*'
+        Version: '2012-10-17'
+      PolicyName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - ecs-task-execution-policy
+      Roles:
+        - !Ref 'ECSTaskExecutionRole'
+    Type: AWS::IAM::Policy
+  ECSTaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+        Version: '2012-10-17'
+      Description: An IAM role to enable ECS agents to perform AWS operations such as creating CloudWatch logs.
+      RoleName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - ecs-task-execution-role
+    Type: AWS::IAM::Role
+  ECSTaskPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+              - s3:ListBucket
+            Effect: Allow
+            Resource:
+              - !Sub
+                - arn:aws:s3:::${bucketName}/*
+                - bucketName: !Ref 'NewBucketName'
+              - !Sub
+                - arn:aws:s3:::${bucketName}
+                - bucketName: !Ref 'NewBucketName'
+        Version: '2012-10-17'
+      PolicyName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - ecs-task-policy
+      Roles:
+        - !Ref 'ECSTaskRole'
+    Type: AWS::IAM::Policy
+  ECSTaskRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+        Version: '2012-10-17'
+      Description: An IAM role to enable ECS containers to perform AWS operations such as accessing S3 buckets.
+      RoleName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - ecs-task-role
+    Type: AWS::IAM::Role
+  S3Bucket:
+    Properties:
+      BucketName: !Ref 'NewBucketName'
+    Type: AWS::S3::Bucket
+  S3GatewaySG:
+    Properties:
+      GroupDescription: Security group for NGINX S3 Gateway Infra
+      GroupName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - sg
+      SecurityGroupEgress:
+        - CidrIp: '0.0.0.0/0'
+          Description: Allow all outbound IPv4 traffic
+          IpProtocol: '-1'
+        - CidrIpv6: ::/0
+          Description: Allow all outbound IPv6 traffic
+          IpProtocol: '-1'
+      SecurityGroupIngress:
+        - CidrIp: '0.0.0.0/0'
+          Description: Allow HTTP Traffic on 80
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: '0.0.0.0/0'
+          Description: Allow HTTPS Traffic on 443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      VpcId: !Ref 'VpcId'
+    Type: AWS::EC2::SecurityGroup
+  S3GatewayService:
+    DependsOn: ALBHttpListener
+    Properties:
+      Cluster: !Ref 'Cluster'
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: !Ref 'ContainerName'
+          ContainerPort: 80
+          TargetGroupArn: !Ref 'ALBTargetGroup'
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !GetAtt 'S3GatewaySG.GroupId'
+          Subnets:
+            - !Ref 'Subnet1'
+            - !Ref 'Subnet2'
+      ServiceName: !Join
+        - '-'
+        - - !Ref 'ResourceNamePrefix'
+          - service
+      TaskDefinition: !Ref 'TaskDefinition'
+    Type: AWS::ECS::Service
+  TaskDefinition:
+    DependsOn: S3Bucket
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: ALLOW_DIRECTORY_LIST
+              Value: 'true'
+            - Name: AWS_SIGS_VERSION
+              Value: '4'
+            - Name: S3_BUCKET_NAME
+              Value: !Ref 'S3Bucket'
+            - Name: S3_REGION
+              Value: !Ref 'AWS::Region'
+            - Name: S3_SERVER_PORT
+              Value: '443'
+            - Name: S3_SERVER_PROTO
+              Value: https
+            - Name: S3_SERVER
+              Value: !Join
+                - .
+                - - s3
+                  - !Ref 'AWS::Region'
+                  - amazonaws.com
+            - Name: S3_STYLE
+              Value: default
+            - Name: S3_DEBUG
+              Value: 'false'
+          Image: ghcr.io/nginxinc/nginx-s3-gateway/nginx-oss-s3-gateway:latest-njs-oss
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'ECSLogGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          Name: !Ref 'ContainerName'
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+      Cpu: '1024'
+      ExecutionRoleArn: !GetAtt 'ECSTaskExecutionRole.Arn'
+      Family: !Ref 'ContainerName'
+      Memory: '2048'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn: !GetAtt 'ECSTaskRole.Arn'
+    Type: AWS::ECS::TaskDefinition

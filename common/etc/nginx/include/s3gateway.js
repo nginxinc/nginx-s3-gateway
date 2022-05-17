@@ -14,8 +14,6 @@
  *  limitations under the License.
  */
 
-_require_env_var('S3_ACCESS_KEY_ID');
-_require_env_var('S3_SECRET_KEY');
 _require_env_var('S3_BUCKET_NAME');
 _require_env_var('S3_SERVER');
 _require_env_var('S3_SERVER_PROTO');
@@ -25,6 +23,7 @@ _require_env_var('AWS_SIGS_VERSION');
 _require_env_var('S3_STYLE');
 
 var mod_hmac = require('crypto');
+var fs = require('fs');
 
 /**
  * Flag indicating debug mode operation. If true, additional information
@@ -59,7 +58,21 @@ var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b
  * Constant defining the headers being signed.
  * @type {string}
  */
-var signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+var defaultSignedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+
+/**
+ * Constant base URI to fetch credentials together with the credentials relative URI, see
+ * https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html for more details.
+ * @type {string}
+ */
+var ecsCredentialsBaseUri = 'http://169.254.170.2';
+
+/**
+ * @type {string}
+ */
+var ec2ImdsTokenEndpoint = 'http://169.254.169.254/latest/api/token';
+
+var ec2ImdsSecurityCredentialsEndpoint = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
 
 /**
  * Transform the headers returned from S3 such that there isn't information
@@ -120,20 +133,153 @@ function awsHeaderDate(r) {
 }
 
 /**
+ * Returns the path to the credentials temporary cache file.
+ *
+ * @returns {string} path on the file system to credentials cache file
+ * @private
+ */
+function _credentialsTempFile() {
+    if (process.env['S3_CREDENTIALS_TEMP_FILE']) {
+        return process.env['S3_CREDENTIALS_TEMP_FILE'];
+    }
+    if (process.env['TMPDIR']) {
+        return `${process.env['TMPDIR']}/credentials.json`
+    }
+
+    return '/tmp/credentials.json';
+}
+
+/**
+ * Write the instance profile credentials to a caching backend.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ */
+function writeCredentials(r, credentials) {
+    // Do not bother writing credentials if we are running in a mode where we
+    // do not need instance credentials.
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        return;
+    }
+
+    if (!credentials) {
+        throw `Cannot write invalid credentials: ${JSON.stringify(credentials)}`;
+    }
+
+    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
+        _writeCredentialsToKeyValStore(r, credentials);
+    } else {
+        _writeCredentialsToFile(credentials);
+    }
+}
+
+/**
+ * Write the instance profile credentials to the NGINX Keyval store.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @private
+ */
+function _writeCredentialsToKeyValStore(r, credentials) {
+    r.variables.instance_credential_json = JSON.stringify(credentials);
+}
+
+/**
+ * Write the instance profile credentials to a file on the file system. This
+ * file will be quite small and should end up in the file cache relatively
+ * quickly if it is repeatedly read.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @private
+ */
+function _writeCredentialsToFile(credentials) {
+    fs.writeFileSync(_credentialsTempFile(), JSON.stringify(credentials));
+}
+
+/**
+ * Get the instance profile credentials needed to authenticated against S3 from
+ * a backend cache. If the credentials cannot be found, then return undefined.
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ */
+function readCredentials(r) {
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        return {
+            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
+            secretAccessKey: process.env['S3_SECRET_KEY'],
+            sessionToken: null,
+            expiration: null
+        };
+    }
+
+    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
+        return _readCredentialsFromKeyValStore(r);
+    } else {
+        return _readCredentialsFromFile();
+    }
+}
+
+/**
+ * Read credentials from the NGINX Keyval store. If it is not found, then
+ * return undefined.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @private
+ */
+function _readCredentialsFromKeyValStore(r) {
+    var cached = r.variables.instance_credential_json;
+
+    if (!cached) {
+        return undefined;
+    }
+
+    try {
+        return JSON.parse(cached);
+    } catch (e) {
+        _debug_log(r, `Error parsing JSON value from r.variables.instance_credential_json: ${e}`);
+        return undefined;
+    }
+}
+
+/**
+ * Read the contents of the credentials file into memory. If it is not
+ * found, then return undefined.
+ *
+ * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @private
+ */
+function _readCredentialsFromFile() {
+    var credsFilePath = _credentialsTempFile();
+
+    try {
+        var creds = fs.readFileSync(credsFilePath);
+        return JSON.parse(creds);
+    } catch (e) {
+        // Do not throw an exception in the case of when the
+        // credentials file path is invalid in order to signal to
+        // the caller that such a file has not been created yet.
+        if (e.code === 'ENOENT') {
+            return undefined;
+        }
+        throw e;
+    }
+}
+
+/**
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
  *
- * @param r HTTP request
+ * @param r {Request} HTTP request object
  * @returns {string} AWS authentication signature
  */
 function s3auth(r) {
-    var accessId = process.env['S3_ACCESS_KEY_ID'];
-    var secret = process.env['S3_SECRET_KEY'];
     var bucket = process.env['S3_BUCKET_NAME'];
     var region = process.env['S3_REGION'];
     var server;
     if (s3_style === 'path') {
-	    server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
+        server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
     } else {
         server = process.env['S3_SERVER'];
     }
@@ -141,17 +287,38 @@ function s3auth(r) {
 
     var signature;
 
-    r.decodedUriPath = decodeURIComponent(r.variables.uri_path);
-
+    var credentials = readCredentials(r);
     if (sigver == '2') {
-        signature = signatureV2(r, bucket, accessId, secret);
+        signature = signatureV2(r, bucket, credentials);
     } else {
-        signature = signatureV4(r, now, bucket, accessId, secret, region, server);
+        signature = signatureV4(r, now, bucket, region, server, credentials);
     }
 
     return signature;
 }
 
+/**
+ * Get the current session token from the instance profile credential cache.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {string} current session token or empty string
+ */
+function s3SecurityToken(r) {
+    var credentials = readCredentials(r);
+    if (credentials.sessionToken) {
+        return credentials.sessionToken;
+    }
+    return '';
+}
+
+/**
+ * Build the base file path for a S3 request URI. This function allows for
+ * path style S3 URIs to be created that do not use a subdomain to specify
+ * the bucket name.
+ *
+ * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {string} start of the file path for the S3 object URI
+ */
 function s3BaseUri(r) {
     var bucket = process.env['S3_BUCKET_NAME'];
     var basePath;
@@ -173,36 +340,46 @@ function s3BaseUri(r) {
  * @returns {string} uri for s3 request
  */
 function s3uri(r) {
-    r.decodedUriPath = decodeURIComponent(r.variables.uri_path);
+    var uriPath = r.variables.uri_path;
     var basePath = s3BaseUri(r);
     var path;
 
     // Create query parameters only if directory listing is enabled.
     if (allow_listing) {
-        var queryParams = _s3DirQueryParams(r.decodedUriPath, r.method);
+        var queryParams = _s3DirQueryParams(uriPath, r.method);
         if (queryParams.length > 0) {
             path = basePath + '/?' + queryParams;
         } else {
-            path = basePath + r.decodedUriPath;
+            path = basePath + uriPath;
         }
     } else {
-        path = basePath + r.decodedUriPath;
+        path = basePath + uriPath;
     }
 
     _debug_log(r, 'S3 Request URI: ' + r.method + ' ' + path);
     return path;
 }
 
+/**
+ * Create and encode the query parameters needed to query S3 for an object
+ * listing.
+ *
+ * @param uriPath request URI path
+ * @param method request HTTP method
+ * @returns {string} query parameters to use with S3 request
+ * @private
+ */
 function _s3DirQueryParams(uriPath, method) {
     if (!_isDirectory(uriPath) || method !== 'GET') {
         return '';
     }
 
-    var path = 'delimiter=%2F'
+    let path = 'delimiter=%2F'
 
     if (uriPath !== '/') {
-        var without_leading_slash = uriPath.charAt(0) === '/' ?
-            uriPath.substring(1, uriPath.length) : uriPath;
+        let decodedUriPath = decodeURIComponent(uriPath);
+        let without_leading_slash = decodedUriPath.charAt(0) === '/' ?
+            decodedUriPath.substring(1, decodedUriPath.length) : decodedUriPath;
         path += '&prefix=' + encodeURIComponent(without_leading_slash);
     }
 
@@ -218,18 +395,18 @@ function _s3DirQueryParams(uriPath, method) {
  */
 function redirectToS3(r) {
     // This is a read-only S3 gateway, so we do not support any other methods
-    if ( !(r.method === 'GET' || r.method === 'HEAD')) {
+    if (!(r.method === 'GET' || r.method === 'HEAD')) {
         _debug_log(r, 'Invalid method requested: ' + r.method);
         r.internalRedirect("@error405");
         return;
     }
 
-    r.decodedUriPath = decodeURIComponent(r.variables.uri_path);
-    var isDirectoryListing = allow_listing && _isDirectory(r.decodedUriPath);
+    var uriPath = r.variables.uri_path;
+    var isDirectoryListing = allow_listing && _isDirectory(uriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
-    } else if (!isDirectoryListing && r.decodedUriPath === '/') {
+    } else if (!isDirectoryListing && uriPath === '/') {
         r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
@@ -246,15 +423,15 @@ function redirectToS3(r) {
  * @param secret {string} Secret access key
  * @returns {string} HTTP Authorization header value
  */
-function signatureV2(r, bucket, accessId, secret) {
+function signatureV2(r, bucket, credentials) {
     var method = r.method;
     /* If the source URI is a directory, we are sending to S3 a query string
      * local to the root URI, so this is what we need to encode within the
      * string to sign. For example, if we are requesting /bucket/dir1/ from
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
-    var uri = _isDirectory(r.decodedUriPath) ? '/' : r.decodedUriPath;
-    var hmac = mod_hmac.createHmac('sha1', secret);
+    var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    var hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
     var httpDate = s3date(r);
     var stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
 
@@ -262,7 +439,7 @@ function signatureV2(r, bucket, accessId, secret) {
 
     var s3signature = hmac.update(stringToSign).digest('base64');
 
-    return 'AWS '+accessId+':'+s3signature;
+    return `AWS ${credentials.accessKeyId}:${s3signature}`;
 }
 
 /**
@@ -297,24 +474,39 @@ function filterListResponse(r, data, flags) {
 }
 
 /**
+ * Creates a string containing the headers that need to be signed as part of v4
+ * signature authentication.
+ *
+ * @param sessionToken {string|undefined} AWS session token if present
+ * @returns {string} semicolon delimited string of the headers needed for signing
+ */
+function signedHeaders(sessionToken) {
+    var headers = defaultSignedHeaders;
+    if (sessionToken) {
+        headers += ';x-amz-security-token';
+    }
+    return headers;
+}
+
+/**
  * Create HTTP Authorization header for authenticating with an AWS compatible
  * v4 API.
  *
  * @param r {Request} HTTP request object
  * @param timestamp {Date} timestamp associated with request (must fall within a skew)
  * @param bucket {string} S3 bucket associated with request
- * @param accessId {string} User access key credential
- * @param secret {string} Secret access key
  * @param region {string} API region associated with request
+ * @param server {string}
+ * @param credentials {object} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
  * @returns {string} HTTP Authorization header value
  */
-function signatureV4(r, timestamp, bucket, accessId, secret, region, server) {
+function signatureV4(r, timestamp, bucket, region, server, credentials) {
     var eightDigitDate = _eightDigitDate(timestamp);
     var amzDatetime = _amzDatetime(timestamp, eightDigitDate);
-    var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server);
+    var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
     var authHeader = 'AWS4-HMAC-SHA256 Credential='
-            .concat(accessId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
-                'SignedHeaders=', signedHeaders, ',Signature=', signature);
+        .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
+            'SignedHeaders=', signedHeaders(credentials.sessionToken), ',Signature=', signature);
 
     _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
 
@@ -329,19 +521,18 @@ function signatureV4(r, timestamp, bucket, accessId, secret, region, server) {
  * @param amzDatetime {string} ISO8601 timestamp string to sign request with
  * @param eightDigitDate {string} date in the form of 'YYYYMMDD'
  * @param bucket {string} S3 bucket associated with request
- * @param secret {string} Secret access key
  * @param region {string} API region associated with request
  * @returns {string} hex encoded hash of signature HMAC value
  * @private
  */
-function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, region, server) {
+function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region, server) {
     var host = server;
     if (s3_style === 'virtual' || s3_style === 'default' || s3_style === undefined) {
         host = bucket + '.' + host;
     }
     var method = r.method;
     var baseUri = s3BaseUri(r);
-    var queryParams = _s3DirQueryParams(r.decodedUriPath, method);
+    var queryParams = _s3DirQueryParams(r.variables.uri_path, method);
     var uri;
     if (queryParams.length > 0) {
         if (baseUri.length > 0) {
@@ -352,7 +543,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
     } else {
         uri = _escapeURIPath(s3uri(r));
     }
-    var canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime);
+    var canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
 
     _debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
 
@@ -392,13 +583,13 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, bucket, secret, regio
             kSigningHash = Buffer.from(JSON.parse(fields[1]));
         // Otherwise, generate a new signing key hash and store it in the cache
         } else {
-            kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
+            kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
             _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
     // Otherwise, don't use caching at all (like when we are using NGINX OSS)
     } else {
-        kSigningHash = _buildSigningKeyHash(secret, eightDigitDate, service, region);
+        kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
     }
 
     _debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
@@ -466,16 +657,20 @@ function _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalReques
  * @returns {string} string with concatenated request parameters
  * @private
  */
-function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime) {
+function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken) {
     var canonicalHeaders = 'host:' + host + '\n' +
         'x-amz-content-sha256:' + emptyPayloadHash + '\n' +
         'x-amz-date:' + amzDatetime + '\n';
 
-    var canonicalRequest = method+'\n';
-    canonicalRequest += uri+'\n';
-    canonicalRequest += queryParams+'\n';
-    canonicalRequest += canonicalHeaders+'\n';
-    canonicalRequest += signedHeaders+'\n';
+    if (sessionToken) {
+        canonicalHeaders += 'x-amz-security-token:' + sessionToken + '\n'
+    }
+
+    var canonicalRequest = method + '\n';
+    canonicalRequest += uri + '\n';
+    canonicalRequest += queryParams + '\n';
+    canonicalRequest += canonicalHeaders + '\n';
+    canonicalRequest += signedHeaders(sessionToken) + '\n';
     canonicalRequest += emptyPayloadHash;
 
     return canonicalRequest;
@@ -517,7 +712,9 @@ function _eightDigitDate(timestamp) {
     var month = timestamp.getUTCMonth() + 1;
     var day = timestamp.getUTCDate();
 
-    return ''.concat(_padWithLeadingZeros(year, 4), _padWithLeadingZeros(month,2), _padWithLeadingZeros(day,2));
+    return ''.concat(_padWithLeadingZeros(year, 4),
+        _padWithLeadingZeros(month,2),
+        _padWithLeadingZeros(day,2));
 }
 
 /**
@@ -565,9 +762,11 @@ function _padWithLeadingZeros(num, size) {
  * @private
  */
 function _escapeURIPath(uri) {
-    var components = [];
+    // Check to see if the URI path was already encoded. If so, we decode it.
+    let decodedUri = (uri.indexOf('%') >= 0) ? decodeURIComponent(uri) : uri;
+    let components = [];
 
-    uri.split('/').forEach(function (item, i) {
+    decodedUri.split('/').forEach(function (item, i) {
         components[i] = encodeURIComponent(item);
     });
 
@@ -645,10 +844,164 @@ function _require_env_var(envVarName) {
     }
 }
 
+/**
+ * Offset to the expiration of credentials, when they should be considered expired and refreshed. The maximum
+ * time here can be 5 minutes, the IMDS and ECS credentials endpoint will make sure that each returned set of credentials
+ * is valid for at least another 5 minutes.
+ *
+ * To make sure we always refresh the credentials instead of retrieving the same again, keep credentials until 4:30 minutes
+ * before they really expire.
+ *
+ * @type {number}
+ */
+var maxValidityOffsetMs = 4.5 * 60 * 100;
+
+/**
+ * Get the credentials needed to create AWS signatures in order to authenticate
+ * to S3. If the gateway is being provided credentials via a instance profile
+ * credential as provided over the metadata endpoint, this function will:
+ * 1. Try to read the credentials from cache
+ * 2. Determine if the credentials are stale
+ * 3. If the cached credentials are missing or stale, it gets new credentials
+ *    from the metadata endpoint.
+ * 4. If new credentials were pulled, it writes the credentials back to the
+ *    cache.
+ *
+ * If the gateway is not using instance profile credentials, then this function
+ * quickly exits.
+ *
+ * @param r {Request} HTTP request object
+ * @returns {Promise<void>}
+ */
+async function fetchCredentials(r) {
+    // If we are not using an AWS instance profile to set our credentials we
+    // exit quickly and don't write a credentials file.
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+        r.return(200);
+        return;
+    }
+
+    try {
+        var current = readCredentials(r);
+    } catch (e) {
+        _debug_log(r, `Could not read credentials: ${e}`);
+        r.return(500);
+        return;
+    }
+
+    if (current) {
+        var exp = new Date(current.expiration).getTime() - maxValidityOffsetMs;
+        if (now.getTime() < exp) {
+            r.return(200);
+            return;
+        }
+    }
+
+    var credentials;
+
+    _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
+
+    if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
+        var uri = ecsCredentialsBaseUri + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
+        try {
+            credentials = await _fetchEcsRoleCredentials(uri);
+        } catch (e) {
+            _debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
+            r.return(500);
+            return;
+        }
+    } else {
+        try {
+            credentials = await _fetchEC2RoleCredentials();
+        } catch (e) {
+            _debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
+            r.return(500);
+            return;
+        }
+    }
+    try {
+        writeCredentials(r, credentials);
+    } catch (e) {
+        _debug_log(r, `Could not write credentials: ${e}`);
+        r.return(500);
+        return;
+    }
+    r.return(200);
+}
+
+/**
+ * Get the credentials needed to generate AWS signatures from the ECS
+ * (Elastic Container Service) metadata endpoint.
+ *
+ * @param credentialsUri {string} endpoint to get credentials from
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
+async function _fetchEcsRoleCredentials(credentialsUri) {
+    var resp = await ngx.fetch(credentialsUri);
+    if (!resp.ok) {
+        throw 'Credentials endpoint response was not ok.';
+    }
+    var creds = await resp.json();
+
+    return {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+        expiration: creds.Expiration,
+    };
+}
+
+/**
+ * Get the credentials needed to generate AWS signatures from the EC2
+ * metadata endpoint.
+ *
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
+async function _fetchEC2RoleCredentials() {
+    var tokenResp = await ngx.fetch(ec2ImdsTokenEndpoint, {
+        headers: {
+            'x-aws-ec2-metadata-token-ttl-seconds': '21600',
+        },
+        method: 'PUT',
+    });
+    var token = await tokenResp.text();
+    var resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint, {
+        headers: {
+            'x-aws-ec2-metadata-token': token,
+        },
+    });
+    // This _might_ get multiple possible roles in other scenarios, however, EC2 supports attaching one role only.
+    // It should therefore be safe to take the whole output, even given IMDS _might_ (?) be able to return multiple
+    // roles.
+    var credName = await resp.text();
+    if (credName === "") {
+        throw 'No credentials available for EC2 instance';
+    }
+    resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint + credName, {
+        headers: {
+            'x-aws-ec2-metadata-token': token,
+        },
+    });
+    var creds = await resp.json();
+
+    return {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+        expiration: creds.Expiration,
+    };
+}
+
 export default {
     awsHeaderDate,
+    fetchCredentials,
+    readCredentials,
+    writeCredentials,
     s3date,
     s3auth,
+    s3SecurityToken,
     s3uri,
     redirectToS3,
     editAmzHeaders,

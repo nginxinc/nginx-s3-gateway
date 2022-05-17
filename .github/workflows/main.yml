@@ -17,12 +17,32 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y%m%d')"
       - name: Configure Github Package Registry
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
       - name: Install dependencies
         run: sudo apt-get install -y wait-for-it
-      - name: Run tests
+      - name: Run tests - latest njs version
+        run: ./test.sh latest-njs-oss
+      - name: Run tests - stable njs version
         run: ./test.sh oss
-      - name: Push container image
-        run: docker tag nginx-s3-gateway docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway && docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway
-
+      - name: Tag container image for Push [latest-njs-oss date]
+        run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
+      - name: Tag container image for Push [oss date]
+        run: docker tag nginx-s3-gateway:latest docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-${{ steps.date.outputs.date }}
+      # latest-njs-oss image push
+      - name: Tag container image for Push [latest-njs-oss]
+        run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
+      - name: Push container image [latest-njs-oss date]
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
+      - name: Push container image [latest-njs-oss]
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
+      # oss image push
+      - name: Tag container image for Push [oss]
+        run: docker tag nginx-s3-gateway:latest docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest
+      - name: Push container image [oss date]
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-${{ steps.date.outputs.date }}
+      - name: Push container image [oss latest]
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest

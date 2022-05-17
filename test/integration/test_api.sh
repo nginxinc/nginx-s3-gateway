@@ -71,7 +71,7 @@ assertHttpRequestEquals() {
 
     if [ "${expected_response_code}" != "${actual_response_code}" ]; then
       e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}'"
+      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' --head '${uri}'"
       exit ${test_fail_exit_code}
     fi
   elif [ "${method}" = "GET" ]; then
@@ -104,6 +104,21 @@ assertHttpRequestEquals() {
   fi
 }
 
+# Check to see if HTTP server is available
+set +o errexit
+# Allow curl command to fail with a non-zero exit code for this block because
+# we want to use it to test to see if the server is actually up.
+for (( i=1; i<=3; i++ )); do
+  response="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${test_server}")"
+  if [ "${response}" != "000" ]; then
+    break
+  fi
+  wait_time="$((i * 2))"
+  e "Failed to access ${test_server} - trying again in ${wait_time} seconds, try ${i}/3"
+  sleep ${wait_time}
+done
+set -o errexit
+
 # Ordinary filenames
 
 assertHttpRequestEquals "HEAD" "a.txt" "200"
@@ -117,8 +132,10 @@ assertHttpRequestEquals "HEAD" "b/ブツブツ.txt" "200"
 # Weird filenames
 assertHttpRequestEquals "HEAD" "b/c/=" "200"
 assertHttpRequestEquals "HEAD" "b/c/@" "200"
+assertHttpRequestEquals "HEAD" "a/c/あ" "200"
 assertHttpRequestEquals "HEAD" "b/クズ箱/ゴミ.txt" "200"
 assertHttpRequestEquals "HEAD" "системы/system.txt" "200"
+assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "200"
 
 # Expected 400s
 assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
@@ -150,14 +167,18 @@ assertHttpRequestEquals "GET" "a.txt?some=param&that=should&be=stripped#aaah" "d
 assertHttpRequestEquals "GET" "b/c/d.txt" "data/bucket-1/b/c/d.txt"
 assertHttpRequestEquals "GET" "b/c/=" "data/bucket-1/b/c/="
 assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
+assertHttpRequestEquals "GET" "a/c/あ" "data/bucket-1/a/c/あ"
 assertHttpRequestEquals "GET" "b/ブツブツ.txt" "data/bucket-1/b/ブツブツ.txt"
 assertHttpRequestEquals "GET" "b/クズ箱/ゴミ.txt" "data/bucket-1/b/クズ箱/ゴミ.txt"
 assertHttpRequestEquals "GET" "системы/system.txt" "data/bucket-1/системы/system.txt"
+assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "data/bucket-1/системы/%bad%file%name%"
 
 if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "200"
   assertHttpRequestEquals "GET" "b/" "200"
   assertHttpRequestEquals "GET" "/b/c/" "200"
+  assertHttpRequestEquals "GET" "b/クズ箱/" "200"
+  assertHttpRequestEquals "GET" "системы/" "200"
 else
   assertHttpRequestEquals "GET" "/" "404"
 fi
