@@ -31,8 +31,6 @@ jobs:
       # latest-njs-oss image push [Github]
       - name: Tag container image for Push [latest-njs-oss date]
         run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
-      - name: Tag container image for Push [oss date]
-        run: docker tag nginx-s3-gateway:latest docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-${{ steps.date.outputs.date }}
       - name: Tag container image for Push [latest-njs-oss]
         run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
       - name: Push container image to github [latest-njs-oss date]
@@ -40,6 +38,8 @@ jobs:
       - name: Push container image to github [latest-njs-oss]
         run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
       # oss image push [Github]
+      - name: Tag container image for Push [oss date]
+        run: docker tag nginx-s3-gateway:latest docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-${{ steps.date.outputs.date }}
       - name: Tag container image for Push [oss]
         run: docker tag nginx-s3-gateway:latest docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest
       - name: Push container image to github [oss date]
@@ -55,19 +55,15 @@ jobs:
       # latest-njs-oss image push [Docker Hub]
       - name: Tag container image for Push [latest-njs-oss date]
         run: docker tag nginx-s3-gateway:latest-njs-oss nginxinc/nginx-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
-      - name: Tag container image for Push [oss date]
-        run: docker tag nginx-s3-gateway:latest nginxinc/nginx-s3-gateway:latest-${{ steps.date.outputs.date }}
       - name: Tag container image for Push [latest-njs-oss]
         run: docker tag nginx-s3-gateway:latest-njs-oss nginxinc/nginx-s3-gateway:latest-njs-oss
-      - name: Push container image to github [latest-njs-oss date]
-        run: docker push nginxinc/nginx-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
-      - name: Push container image to github [latest-njs-oss]
-        run: docker push nginxinc/nginx-s3-gateway:latest-njs-oss nginxinc/nginx-s3-gateway:latest-njs-oss
       - name: Push container image to Docker Hub [latest-njs-oss date]
         run: docker push nginxinc/nginx-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
       - name: Push container image to github [latest-njs-oss]
         run: docker push nginxinc/nginx-s3-gateway:latest-njs-oss
       # oss image push [Docker Hub]
+      - name: Tag container image for Push [oss date]
+        run: docker tag nginx-s3-gateway:latest nginxinc/nginx-s3-gateway:latest-${{ steps.date.outputs.date }}
       - name: Tag container image for Push [oss]
         run: docker tag nginx-s3-gateway:latest nginxinc/nginx-s3-gateway:latest
       - name: Push container image to github [oss date]
