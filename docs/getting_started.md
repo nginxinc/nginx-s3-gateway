@@ -2,10 +2,11 @@
 
 ## Contents
 
-[Configuration](#configuration)
-[Running as a Systemd Service](#running-as-a-systemd-service)
-[Running in Containers](#running-in-containers)
-[Running Using AWS Instance Profile Credentials](#running-using-aws-instance-profile-credentials)
+[Configuration](#configuration)  
+[Running as a Systemd Service](#running-as-a-systemd-service)  
+[Running in Containers](#running-in-containers)  
+[Running Using AWS Instance Profile Credentials](#running-using-aws-instance-profile-credentials)  
+[Troubleshooting](#troubleshooting)  
 
 ## Configuration
 
@@ -249,3 +250,14 @@ modified.
   aws cloudformation delete-stack \
     --stack-name nginx-s3-gateway
   ```
+## Troubleshooting
+
+### Disable default `404` error message
+The default behavior of the container is to return a `404` error message for any non-`200` response code. This is implemented as a security feature to sanitize any error response from the S3 bucket being proxied. For container debugging purposes, this sanitization can be turned off by commenting out the following lines within [`default.conf.template`](https://github.com/nginxinc/nginx-s3-gateway/blob/master/common/etc/nginx/templates/default.conf.template). 
+```bash
+proxy_intercept_errors on;
+error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+```
+
+### Error `403 Access Denied` for AWS Accounts with MFA Enabled
+The REST authentication method used in this container does not work with AWS IAM roles that have MFA enabled for authentication. Please use AWS IAM role credentials that do not have MFA enabled. 
