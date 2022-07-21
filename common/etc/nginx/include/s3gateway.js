@@ -910,6 +910,15 @@ async function fetchCredentials(r) {
             r.return(500);
             return;
         }
+    }
+    else if(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']) {
+        try {
+            credentials = await _fetchWebIdentityCredentials()
+        } catch(e) {
+            _debug_log(r, 'Could not assume role using web identity: ' + JSON.stringify(e));
+            r.return(500);
+            return;
+        }
     } else {
         try {
             credentials = await _fetchEC2RoleCredentials();
@@ -985,6 +994,41 @@ async function _fetchEC2RoleCredentials() {
         },
     });
     var creds = await resp.json();
+
+    return {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+        expiration: creds.Expiration,
+    };
+}
+
+/**
+ * Get the credentials by assuming calling AssumeRoleWithWebIdentity with the environment variable
+ * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and HOSTNAME
+ *
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
+async function _fetchWebIdentityCredentials() {
+    var arn   = process.env['AWS_ROLE_ARN'];
+    var name  = process.env['HOSTNAME'] || 'nginx-s3-gateway';
+    var token = fs.readFileSync(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']);
+
+    var response = await ngx.fetch("https://sts.amazonaws.com?" + new URLSearchParams({
+        Version: '2011-06-15',
+        Action: 'AssumeRoleWithWebIdentity',
+        RoleArn: arn,
+        RoleSessionName: name,
+        WebIdentityToken: token,
+    }), {
+        headers: {
+            "Accept": "application/json"
+        },
+        method: 'POST',
+    });
+
+    var creds = response.json().AssumeRoleWithWebIdentityResponse.AssumeRoleWithWebIdentityResult.Credentials;
 
     return {
         accessKeyId: creds.AccessKeyId,
