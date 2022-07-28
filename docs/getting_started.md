@@ -13,7 +13,9 @@
 The following environment variables are used to configure the gateway when
 running as a Container or as a Systemd service.
 
-* `ALLOW_DIRECTORY_LIST` - Enable directory listing - either true or false
+* `ALLOW_DIRECTORY_LIST` - Flag (true/false) enabling directory listing (default: false)
+* `PROVIDE_INDEX_PAGE` - Flag (true/false) which returns the index page if there is one when requesting a directory. Cannot be enabled with `ALLOW_DIRECTORY_LIST`. (default: false)
+* `APPEND_SLASH_FOR_POSSIBLE_DIRECTORY` - Flag (true/false) enabling the return a 302 with a `/` appended to the path. This is independent of the behavior selected in `ALLOW_DIRECTORY_LIST` or `PROVIDE_INDEX_PAGE`. (default: false)
 * `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4
 * `DNS_RESOLVERS` - (optional) DNS resolvers (separated by single spaces) to configure NGINX with
 * `S3_ACCESS_KEY_ID` - Access key
@@ -61,6 +63,16 @@ result in log messages like:
 
 Another limitation is that when using v2 signatures with HEAD requests, the
 gateway will not return 200 for valid folders.
+
+### Static Site Hosting
+
+When `PROVIDE_INDEX_PAGE` environment variable is set to 1, the gateway will
+transform `/some/path/` to `/some/path/index.html` when retrieving from S3.  
+Default of "index.html" can be edited in `s3gateway.js`. 
+It will also redirect `/some/path` to `/some/path/` when S3 returns 404 on 
+`/some/path` if `APPEND_SLASH_FOR_POSSIBLE_DIRECTORY` is set. `path` has to 
+look like a possible directory, it must not start with a `.` and not have an 
+extension.  
 
 ## Running as a Systemd Service
 

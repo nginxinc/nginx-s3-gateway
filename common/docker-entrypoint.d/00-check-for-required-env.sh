@@ -50,6 +50,22 @@ if [ "${AWS_SIGS_VERSION}" != "2" ] && [ "${AWS_SIGS_VERSION}" != "4" ]; then
   failed=1
 fi
 
+parseBoolean() {
+  case "$1" in
+    TRUE | true | True | YES | Yes | 1)
+      echo 1
+      ;;
+    *)
+      echo 0
+      ;;
+  esac
+}
+
+if [ "$(parseBoolean ${ALLOW_DIRECTORY_LIST})" == "1" ] && [ "$(parseBoolean ${PROVIDE_INDEX_PAGE})" == "1" ]; then
+  >&2 echo "ALLOW_DIRECTORY_LIST and PROVIDE_INDEX_PAGE cannot be both set"
+  failed=1
+fi
+
 if [ $failed -gt 0 ]; then
   exit 1
 fi
@@ -62,3 +78,5 @@ echo "Addressing Style: ${S3_STYLE}"
 echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
 echo "DNS Resolvers: ${DNS_RESOLVERS}"
 echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
+echo "Provide Index Pages Enabled: ${PROVIDE_INDEX_PAGE}"
+echo "Append slash for directory enabled: ${APPEND_SLASH_FOR_POSSIBLE_DIRECTORY}"

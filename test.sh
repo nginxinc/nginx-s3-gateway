@@ -110,11 +110,15 @@ integration_test() {
   printf "\e[1m Integration test suite for v%s signatures\e[22m\n" "$1"
   printf "\033[34;1m▶\033[0m"
   printf "\e[1m Integration test suite with ALLOW_DIRECTORY_LIST=%s\e[22m\n" "$2"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with PROVIDE_INDEX_PAGE=%s\e[22m\n" "$3"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=%s\e[22m\n" "$4"
 
   # See if Minio is already running, if it isn't then we don't need to build it
   if [ -z "$(docker ps -q -f name=${test_compose_project}_minio_1)" ]; then
     p "Building Docker Compose environment"
-    AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 compose up --no-start
+    COMPOSE_COMPATIBILITY=true AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 PROVIDE_INDEX_PAGE=$3 APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 compose up --no-start
 
     p "Adding test data to container"
     echo "Copying contents of ${test_dir}/data to Docker container ${test_compose_project}_minio_1:/"
@@ -124,7 +128,7 @@ integration_test() {
   fi
 
   p "Starting Docker Compose Environment"
-  AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 compose up -d
+  COMPOSE_COMPATIBILITY=true AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 PROVIDE_INDEX_PAGE=$3 APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 compose up -d
 
   if [ ${wait_for_it_installed} ]; then
     # Hit minio's health check end point to see if it has started up
@@ -145,8 +149,8 @@ integration_test() {
   fi
 
   p "Starting HTTP API tests (v$1 signatures)"
-  echo "  test/integration/test_api.sh \"$test_server\" \"$test_dir\" $1 $2"
-  bash "${test_dir}/integration/test_api.sh" "$test_server" "$test_dir" "$1" "$2";
+  echo "  test/integration/test_api.sh \"$test_server\" \"$test_dir\" $1 $2 $3 $4"
+  bash "${test_dir}/integration/test_api.sh" "$test_server" "$test_dir" "$1" "$2" "$3" "$4";
 
   # We check to see if NGINX is in fact using the correct version of AWS
   # signatures as it was configured to do.
@@ -225,21 +229,31 @@ ${docker_cmd} run \
 ### INTEGRATION TESTS
 
 p "Testing API with AWS Signature V2 and allow directory listing off"
-integration_test 2 0
+integration_test 2 0 0 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
 p "Testing API with AWS Signature V2 and allow directory listing on"
-integration_test 2 1
+integration_test 2 1 0 0
+
+compose stop nginx-s3-gateway # Restart with new config
+
+p "Testing API with AWS Signature V2 and static site on"
+integration_test 2 0 1 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
 p "Test API with AWS Signature V4 and allow directory listing off"
-integration_test 4 0
+integration_test 4 0 0 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
-p "Test API with AWS Signature V4 and allow directory listing on"
-integration_test 4 1
+p "Test API with AWS Signature V4 and allow directory listing on and appending /"
+integration_test 4 1 0 1
+
+compose stop nginx-s3-gateway # Restart with new config
+
+p "Test API with AWS Signature V4 and static site on appending /"
+integration_test 4 0 1 1
 
 p "All integration tests complete"
