@@ -353,6 +353,9 @@ function s3uri(r) {
             path = basePath + uriPath;
         }
     } else {
+        if (_isDirectory(uriPath)){
+            uriPath += "index.html"
+        }
         path = basePath + uriPath;
     }
 
@@ -371,6 +374,11 @@ function s3uri(r) {
  */
 function _s3DirQueryParams(uriPath, method) {
     if (!_isDirectory(uriPath) || method !== 'GET') {
+        return '';
+    }
+
+    // return if static website
+    if (!allow_listing) {
         return '';
     }
 
@@ -406,8 +414,7 @@ function redirectToS3(r) {
 
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
-    } else if (!isDirectoryListing && uriPath === '/') {
-        r.internalRedirect("@error404");
+
     } else {
         r.internalRedirect("@s3");
     }
@@ -431,6 +438,10 @@ function signatureV2(r, bucket, credentials) {
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
     var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    // For static website we want the path + index.html
+    if (!allow_listing && _isDirectory(r.variables.uri_path)){
+        uri = r.variables.uri_path + "index.html"
+    }
     var hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
     var httpDate = s3date(r);
     var stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
