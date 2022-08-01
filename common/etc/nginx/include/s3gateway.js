@@ -352,7 +352,7 @@ function s3uri(r) {
     if (allow_listing) {
         var queryParams = _s3DirQueryParams(uriPath, r.method);
         if (queryParams.length > 0) {
-            path = basePath + '/?' + queryParams;
+            path = basePath + '?' + queryParams;
         } else {
             path = basePath + uriPath;
         }
