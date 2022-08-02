@@ -5,7 +5,8 @@ services:
     # If minio client is up and running properly, we are reasonably sure that
     # minio has properly started. That's why we depend on it here.
     depends_on:
-      - "minio-client"
+      minio:
+        condition: service_healthy
     image: "nginx-s3-gateway"
     ports:
       - "8989:80/tcp"
@@ -26,6 +27,7 @@ services:
       PROVIDE_INDEX_PAGE:
       APPEND_SLASH_FOR_POSSIBLE_DIRECTORY:
       AWS_SIGS_VERSION:
+      STATIC_SITE_HOSTING:
       PROXY_CACHE_VALID_OK: "1h"
       PROXY_CACHE_VALID_NOTFOUND: "1m"
       PROXY_CACHE_VALID_FORBIDDEN: "30s"
@@ -42,12 +44,8 @@ services:
       MINIO_REGION_NAME: "us-east-1"
       MINIO_DOMAIN: "minio"
       MINIO_BROWSER: "off"
-  minio-client:
-    depends_on:
-      - "minio"
-    image: "minio/mc"
-    restart: "no"
-    command: "admin trace --verbose nginx-test-gateway"
-    environment:
-      MC_HOST_nginx-test-gateway: "http://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY@minio:9000"
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
