@@ -14,6 +14,7 @@ The following environment variables are used to configure the gateway when
 running as a Container or as a Systemd service.
 
 * `ALLOW_DIRECTORY_LIST` - Enable directory listing - either true or false
+* `STATIC_SITE_HOSTING` - Enable static site hosting - either true or false, defaults to be false and cannot both be enabled with `ALLOW_DIRECTORY_LIST`.
 * `AWS_SIGS_VERSION` - AWS Signatures API version - either 2 or 4
 * `DNS_RESOLVERS` - (optional) DNS resolvers (separated by single spaces) to configure NGINX with
 * `S3_ACCESS_KEY_ID` - Access key
@@ -61,6 +62,12 @@ result in log messages like:
 
 Another limitation is that when using v2 signatures with HEAD requests, the
 gateway will not return 200 for valid folders.
+
+### Static Site Hosting
+
+When `STATIC_SITE_HOSTING` environment variable is set to 1, the gateway will
+transform `/some/path/` to `/some/path/index.html` when retrieving from S3. It
+will also redirect `/some/path` to `/some/path/` when S3 returns 404 on `/some/path`.
 
 ## Running as a Systemd Service
 

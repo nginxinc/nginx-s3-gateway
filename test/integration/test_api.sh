@@ -24,6 +24,7 @@ test_server=$1
 test_dir=$2
 signature_version=$3
 allow_directory_list=$4
+static_hosting=$5
 test_fail_exit_code=2
 no_dep_exit_code=3
 checksum_length=32
@@ -62,16 +63,23 @@ assertHttpRequestEquals() {
     uri="${test_server}/${path}"
   fi
 
+  if [ "${static_hosting}" == "1" ]; then
+    # Follow 302 redirect if testing static hosting
+    extra_arg="-L -v"
+  else
+    extra_arg=""
+  fi
+
   printf "  \033[36;1m▲\033[0m "
   echo "Testing object: ${method} ${path}"
 
   if [ "${method}" = "HEAD" ]; then
     expected_response_code="$3"
-    actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${uri}")"
+    actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${uri}" ${extra_arg})"
 
     if [ "${expected_response_code}" != "${actual_response_code}" ]; then
       e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' --head '${uri}'"
+      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' --head '${uri}' ${extra_arg}"
       exit ${test_fail_exit_code}
     fi
   elif [ "${method}" = "GET" ]; then
@@ -81,21 +89,21 @@ assertHttpRequestEquals() {
       checksum_output="$(${checksum_cmd} "${body_data_path}")"
       expected_checksum="${checksum_output:0:${checksum_length}}"
 
-      curl_checksum_output="$(${curl_cmd} -s -X "${method}" "${uri}" | ${checksum_cmd})"
+      curl_checksum_output="$(${curl_cmd} -s -X "${method}" "${uri}" ${extra_arg} | ${checksum_cmd})"
       s3_file_checksum="${curl_checksum_output:0:${checksum_length}}"
 
       if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
         e "Checksum doesn't match expectation. Request [${method} ${uri}] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
-        e "curl command: ${curl_cmd} -s -X '${method}' '${uri}' | ${checksum_cmd}"
+        e "curl command: ${curl_cmd} -s -X '${method}' '${uri}' ${extra_arg} | ${checksum_cmd}"
         exit ${test_fail_exit_code}
       fi
     else
       expected_response_code="$3"
-      actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' "${uri}")"
+      actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' "${uri}" ${extra_arg})"
 
       if [ "${expected_response_code}" != "${actual_response_code}" ]; then
         e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-        e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}'"
+        e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}' ${extra_arg}"
         exit ${test_fail_exit_code}
       fi
     fi
@@ -138,7 +146,8 @@ assertHttpRequestEquals "HEAD" "системы/system.txt" "200"
 assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "200"
 
 # Expected 400s
-assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
+# curl will not send this to server now
+# assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
 
 # Expected 404s
 assertHttpRequestEquals "HEAD" "not%20found" "404"
@@ -151,7 +160,7 @@ assertHttpRequestEquals "HEAD" "b/c" "404"
 # running with v4 signatures.
 # Now, both of these cases have the exception of HEAD returning 200 on the root
 # directory.
-if [ "${allow_directory_list}" == "1" ]; then
+if [ "${allow_directory_list}" == "1" ] || [ "${static_hosting}" == "1" ]; then
   assertHttpRequestEquals "HEAD" "/" "200"
 else
   assertHttpRequestEquals "HEAD" "/" "404"
@@ -160,6 +169,17 @@ assertHttpRequestEquals "HEAD" "b/" "404"
 assertHttpRequestEquals "HEAD" "/b/c/" "404"
 assertHttpRequestEquals "HEAD" "b//c" "404"
 assertHttpRequestEquals "HEAD" "/soap" "404"
+
+if [ "${static_hosting}" == "1" ]; then
+assertHttpRequestEquals "HEAD" "/statichost/" "200"
+assertHttpRequestEquals "HEAD" "/statichost" "200"
+assertHttpRequestEquals "HEAD" "/nonexistdir/noindexdir/" "404"
+assertHttpRequestEquals "HEAD" "/nonexistdir/noindexdir" "404"
+assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir/" "200"
+assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir" "200"
+assertHttpRequestEquals "HEAD" "/nonexistdir/" "404"
+assertHttpRequestEquals "HEAD" "/nonexistdir" "404"
+fi
 
 # Verify GET is working
 assertHttpRequestEquals "GET" "a.txt" "data/bucket-1/a.txt"
@@ -173,12 +193,21 @@ assertHttpRequestEquals "GET" "b/クズ箱/ゴミ.txt" "data/bucket-1/b/クズ�
 assertHttpRequestEquals "GET" "системы/system.txt" "data/bucket-1/системы/system.txt"
 assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "data/bucket-1/системы/%bad%file%name%"
 
+if [ "${static_hosting}" == "1" ]; then
+assertHttpRequestEquals "GET" "/statichost/" "data/bucket-1/statichost/index.html"
+assertHttpRequestEquals "GET" "/statichost" "data/bucket-1/statichost/index.html"
+assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir/" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
+assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
+fi
+
 if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "200"
   assertHttpRequestEquals "GET" "b/" "200"
   assertHttpRequestEquals "GET" "/b/c/" "200"
   assertHttpRequestEquals "GET" "b/クズ箱/" "200"
   assertHttpRequestEquals "GET" "системы/" "200"
+elif [ "${static_hosting}" == "1" ]; then
+  assertHttpRequestEquals "GET" "/" "data/bucket-1/index.html"
 else
   assertHttpRequestEquals "GET" "/" "404"
 fi

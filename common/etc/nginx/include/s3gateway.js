@@ -32,6 +32,7 @@ var fs = require('fs');
  */
 var debug = _parseBoolean(process.env['S3_DEBUG']);
 var allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST'])
+var static_hosting = _parseBoolean(process.env['STATIC_SITE_HOSTING'])
 
 var s3_style = process.env['S3_STYLE'];
 
@@ -352,10 +353,12 @@ function s3uri(r) {
         } else {
             path = basePath + uriPath;
         }
-    } else {
+    } else if (static_hosting) {
         if (_isDirectory(uriPath)){
-            uriPath += "index.html"
+            uriPath += "index.html";
         }
+        path = basePath + uriPath;
+    }else {
         path = basePath + uriPath;
     }
 
@@ -378,7 +381,7 @@ function _s3DirQueryParams(uriPath, method) {
     }
 
     // return if static website
-    if (!allow_listing) {
+    if (static_hosting){
         return '';
     }
 
@@ -411,12 +414,29 @@ function redirectToS3(r) {
 
     var uriPath = r.variables.uri_path;
     var isDirectoryListing = allow_listing && _isDirectory(uriPath);
+    var isStaticSite = static_hosting && _isDirectory(uriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
-
+    } else if (isStaticSite){
+        r.internalRedirect("@s3");
+    } else if (!isDirectoryListing && uriPath === '/') {
+        r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
+    }
+}
+
+function staticPageHandler(r) {
+    var uriPath = r.variables.uri_path;
+    if (!static_hosting){
+        r.internalRedirect("@error404");
+    }
+    else if (_isDirectory(uriPath)){
+        // Already retrieving a directory, return 404
+        r.internalRedirect("@error404");
+    } else{
+        r.internalRedirect("@trailslash");
     }
 }
 
@@ -439,7 +459,7 @@ function signatureV2(r, bucket, credentials) {
      * Thus, we can't put the path /dir1/ in the string to sign. */
     var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
     // For static website we want the path + index.html
-    if (!allow_listing && _isDirectory(r.variables.uri_path)){
+    if (static_hosting && _isDirectory(r.variables.uri_path)){
         uri = r.variables.uri_path + "index.html"
     }
     var hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
@@ -1014,6 +1034,7 @@ export default {
     s3auth,
     s3SecurityToken,
     s3uri,
+    staticPageHandler,
     redirectToS3,
     editAmzHeaders,
     filterListResponse,
