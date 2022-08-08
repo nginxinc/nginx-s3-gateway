@@ -33,6 +33,7 @@ var fs = require('fs');
 var debug = _parseBoolean(process.env['S3_DEBUG']);
 var allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST'])
 var static_hosting = _parseBoolean(process.env['STATIC_SITE_HOSTING'])
+var append_slash = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY'])
 
 var s3_style = process.env['S3_STYLE'];
 
@@ -427,17 +428,14 @@ function redirectToS3(r) {
     }
 }
 
-function staticPageHandler(r) {
-    var uriPath = r.variables.uri_path;
-    if (!static_hosting){
-        r.internalRedirect("@error404");
+function trailslashControl(r) {
+    if (append_slash) {
+        var hasExtension = /\/[^.\/]+\.[^.]+$/;
+        if (!hasExtension.test(r.variables.uri_path)){
+            r.internalRedirect("@trailslash");
     }
-    else if (_isDirectory(uriPath)){
-        // Already retrieving a directory, return 404
         r.internalRedirect("@error404");
-    } else{
-        r.internalRedirect("@trailslash");
-    }
+
 }
 
 /**
@@ -1034,7 +1032,7 @@ export default {
     s3auth,
     s3SecurityToken,
     s3uri,
-    staticPageHandler,
+    trailslashControl,
     redirectToS3,
     editAmzHeaders,
     filterListResponse,

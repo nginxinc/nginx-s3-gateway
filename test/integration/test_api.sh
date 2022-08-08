@@ -25,6 +25,7 @@ test_dir=$2
 signature_version=$3
 allow_directory_list=$4
 static_hosting=$5
+append_slash=$6
 test_fail_exit_code=2
 no_dep_exit_code=3
 checksum_length=32
@@ -117,7 +118,7 @@ set +o errexit
 # Allow curl command to fail with a non-zero exit code for this block because
 # we want to use it to test to see if the server is actually up.
 for (( i=1; i<=3; i++ )); do
-  response="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${test_server}")"
+  response="$(${curl_cmd} -v -s -o /dev/null -w '%{http_code}' --head "${test_server}")"
   if [ "${response}" != "000" ]; then
     break
   fi
@@ -150,8 +151,13 @@ assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25ba
 # assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
 
 # Expected 404s
-assertHttpRequestEquals "HEAD" "not%20found" "404"
-assertHttpRequestEquals "HEAD" "b/c" "404"
+if [ "${append_slash} " == "1" ]; then
+  assertHttpRequestEquals "HEAD" "not%20found" "302"
+  assertHttpRequestEquals "HEAD" "b/c" "302"
+else
+  assertHttpRequestEquals "HEAD" "not%20found" "404"
+  assertHttpRequestEquals "HEAD" "b/c" "404"
+fi
 
 # Directory HEAD 404s
 # Unfortunately, the logic here can't be properly encoded into the test.
@@ -172,13 +178,18 @@ assertHttpRequestEquals "HEAD" "/soap" "404"
 
 if [ "${static_hosting}" == "1" ]; then
 assertHttpRequestEquals "HEAD" "/statichost/" "200"
-assertHttpRequestEquals "HEAD" "/statichost" "200"
 assertHttpRequestEquals "HEAD" "/nonexistdir/noindexdir/" "404"
 assertHttpRequestEquals "HEAD" "/nonexistdir/noindexdir" "404"
 assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir/" "200"
-assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir" "200"
 assertHttpRequestEquals "HEAD" "/nonexistdir/" "404"
 assertHttpRequestEquals "HEAD" "/nonexistdir" "404"
+  if [ $S{append_slash} == "1"]; then
+  assertHttpRequestEquals "HEAD" "/statichost" "200"
+  assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir" "200"
+  else
+  assertHttpRequestEquals "HEAD" "/statichost" "404"
+  assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir" "404"
+  fi
 fi
 
 # Verify GET is working
@@ -195,9 +206,11 @@ assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad
 
 if [ "${static_hosting}" == "1" ]; then
 assertHttpRequestEquals "GET" "/statichost/" "data/bucket-1/statichost/index.html"
-assertHttpRequestEquals "GET" "/statichost" "data/bucket-1/statichost/index.html"
 assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir/" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
-assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
+  if [ "${append_slash}" == "1"]; then 
+  assertHttpRequestEquals "GET" "/statichost" "data/bucket-1/statichost/index.html"
+  assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
+  f1
 fi
 
 if [ "${allow_directory_list}" == "1" ]; then
@@ -206,6 +219,11 @@ if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "/b/c/" "200"
   assertHttpRequestEquals "GET" "b/クズ箱/" "200"
   assertHttpRequestEquals "GET" "системы/" "200"
+  if [ "$append_slash" == "1"]; then
+    assertHttpRequestEquals "GET" "b" "200"
+  else
+    assertHttpRequestEquals "GET" "b" "400"
+  fi 
 elif [ "${static_hosting}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "data/bucket-1/index.html"
 else
