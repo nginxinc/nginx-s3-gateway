@@ -24,7 +24,7 @@ test_server=$1
 test_dir=$2
 signature_version=$3
 allow_directory_list=$4
-static_hosting=$5
+index_page=$5
 append_slash=$6
 test_fail_exit_code=2
 no_dep_exit_code=3
@@ -64,7 +64,7 @@ assertHttpRequestEquals() {
     uri="${test_server}/${path}"
   fi
 
-  if [ "${static_hosting}" == "1" ]; then
+  if [ "${index_page}" == "1" ]; then
     # Follow 302 redirect if testing static hosting
     extra_arg="-L -v"
   else
@@ -151,7 +151,7 @@ assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25ba
 # assertHttpRequestEquals "HEAD" "request with unencoded spaces" "400"
 
 # Expected 404s
-if [ "${append_slash} " == "1" ]; then
+if [ "${append_slash}" == "1" ] && [ "${index_page}" == "0" ]; then
   assertHttpRequestEquals "HEAD" "not%20found" "302"
   assertHttpRequestEquals "HEAD" "b/c" "302"
 else
@@ -166,24 +166,28 @@ fi
 # running with v4 signatures.
 # Now, both of these cases have the exception of HEAD returning 200 on the root
 # directory.
-if [ "${allow_directory_list}" == "1" ] || [ "${static_hosting}" == "1" ]; then
+if [ "${allow_directory_list}" == "1" ] || [ "${index_page}" == "1" ]; then
   assertHttpRequestEquals "HEAD" "/" "200"
 else
   assertHttpRequestEquals "HEAD" "/" "404"
 fi
 assertHttpRequestEquals "HEAD" "b/" "404"
 assertHttpRequestEquals "HEAD" "/b/c/" "404"
-assertHttpRequestEquals "HEAD" "b//c" "404"
 assertHttpRequestEquals "HEAD" "/soap" "404"
+if [ "${append_slash}" == "1" ] && [ "${index_page}" == "0" ]; then
+assertHttpRequestEquals "HEAD" "b//c" "302"
+else
+assertHttpRequestEquals "HEAD" "b//c" "404"
+fi
 
-if [ "${static_hosting}" == "1" ]; then
+if [ "${index_page}" == "1" ]; then
 assertHttpRequestEquals "HEAD" "/statichost/" "200"
 assertHttpRequestEquals "HEAD" "/nonexistdir/noindexdir/" "404"
 assertHttpRequestEquals "HEAD" "/nonexistdir/noindexdir" "404"
 assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir/" "200"
 assertHttpRequestEquals "HEAD" "/nonexistdir/" "404"
 assertHttpRequestEquals "HEAD" "/nonexistdir" "404"
-  if [ $S{append_slash} == "1"]; then
+  if [ ${append_slash} == "1" ]; then
   assertHttpRequestEquals "HEAD" "/statichost" "200"
   assertHttpRequestEquals "HEAD" "/statichost/noindexdir/multipledir" "200"
   else
@@ -204,13 +208,13 @@ assertHttpRequestEquals "GET" "b/クズ箱/ゴミ.txt" "data/bucket-1/b/クズ�
 assertHttpRequestEquals "GET" "системы/system.txt" "data/bucket-1/системы/system.txt"
 assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "data/bucket-1/системы/%bad%file%name%"
 
-if [ "${static_hosting}" == "1" ]; then
+if [ "${index_page}" == "1" ]; then
 assertHttpRequestEquals "GET" "/statichost/" "data/bucket-1/statichost/index.html"
 assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir/" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
-  if [ "${append_slash}" == "1"]; then 
+  if [ "${append_slash}" == "1" ]; then 
   assertHttpRequestEquals "GET" "/statichost" "data/bucket-1/statichost/index.html"
   assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
-  f1
+  fi
 fi
 
 if [ "${allow_directory_list}" == "1" ]; then
@@ -219,12 +223,12 @@ if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "/b/c/" "200"
   assertHttpRequestEquals "GET" "b/クズ箱/" "200"
   assertHttpRequestEquals "GET" "системы/" "200"
-  if [ "$append_slash" == "1"]; then
-    assertHttpRequestEquals "GET" "b" "200"
+  if [ "$append_slash" == "1" ]; then
+    assertHttpRequestEquals "GET" "b" "302"
   else
-    assertHttpRequestEquals "GET" "b" "400"
+    assertHttpRequestEquals "GET" "b" "404"
   fi 
-elif [ "${static_hosting}" == "1" ]; then
+elif [ "${index_page}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "data/bucket-1/index.html"
 else
   assertHttpRequestEquals "GET" "/" "404"

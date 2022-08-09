@@ -32,10 +32,12 @@ var fs = require('fs');
  */
 var debug = _parseBoolean(process.env['S3_DEBUG']);
 var allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST'])
-var static_hosting = _parseBoolean(process.env['STATIC_SITE_HOSTING'])
+var provide_index_page = _parseBoolean(process.env['PROVIDE_INDEX_PAGE'])
 var append_slash = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY'])
 
 var s3_style = process.env['S3_STYLE'];
+
+var INDEX_PAGE = "index.html";
 
 /**
  * The current moment as a timestamp. This timestamp will be used across
@@ -354,12 +356,10 @@ function s3uri(r) {
         } else {
             path = basePath + uriPath;
         }
-    } else if (static_hosting) {
-        if (_isDirectory(uriPath)){
-            uriPath += "index.html";
+    } else {
+        if (provide_index_page  && _isDirectory(uriPath) ) {
+               uriPath += INDEX_PAGE;
         }
-        path = basePath + uriPath;
-    }else {
         path = basePath + uriPath;
     }
 
@@ -381,8 +381,8 @@ function _s3DirQueryParams(uriPath, method) {
         return '';
     }
 
-    // return if static website
-    if (static_hosting){
+    // return if static website. We don't want to list the files in the directory, we want to append the index page and get the fil.
+    if (provide_index_page){
         return '';
     }
 
@@ -415,14 +415,13 @@ function redirectToS3(r) {
 
     var uriPath = r.variables.uri_path;
     var isDirectoryListing = allow_listing && _isDirectory(uriPath);
-    var isStaticSite = static_hosting && _isDirectory(uriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
-    } else if (isStaticSite){
-        r.internalRedirect("@s3");
-    } else if (!isDirectoryListing && uriPath === '/') {
-        r.internalRedirect("@error404");
+    } else if ( provide_index_page == true ) {
+        r.internalRedirect("@s3");   
+    } else if ( !allow_listing && !provide_index_page && uriPath == "/" ) {
+       r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
     }
@@ -431,11 +430,11 @@ function redirectToS3(r) {
 function trailslashControl(r) {
     if (append_slash) {
         var hasExtension = /\/[^.\/]+\.[^.]+$/;
-        if (!hasExtension.test(r.variables.uri_path)){
-            r.internalRedirect("@trailslash");
+        if (!hasExtension.test(r.variables.uri_path)  && !_isDirectory(r.variables.uri_path)){
+            return r.internalRedirect("@trailslash");
+        }
     }
         r.internalRedirect("@error404");
-
 }
 
 /**
@@ -456,9 +455,9 @@ function signatureV2(r, bucket, credentials) {
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
     var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
-    // For static website we want the path + index.html
-    if (static_hosting && _isDirectory(r.variables.uri_path)){
-        uri = r.variables.uri_path + "index.html"
+    // To return index pages + index.html
+    if (provide_index_page && _isDirectory(r.variables.uri_path)){
+        uri = r.variables.uri_path + INDEX_PAGE
     }
     var hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
     var httpDate = s3date(r);

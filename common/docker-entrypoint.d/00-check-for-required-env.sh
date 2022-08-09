@@ -61,8 +61,8 @@ parseBoolean() {
   esac
 }
 
-if [ "$(parseBoolean ${ALLOW_DIRECTORY_LIST})" == "1" ] && [ "$(parseBoolean ${STATIC_SITE_HOSTING})" == "1" ]; then
-  >&2 echo "ALLOW_DIRECTORY_LIST and STATIC_SITE_HOSTING cannot be both set"
+if [ "$(parseBoolean ${ALLOW_DIRECTORY_LIST})" == "1" ] && [ "$(parseBoolean ${PROVIDE_INDEX_PAGE})" == "1" ]; then
+  >&2 echo "ALLOW_DIRECTORY_LIST and PROVIDE_INDEX_PAGE cannot be both set"
   failed=1
 fi
 
@@ -78,4 +78,5 @@ echo "Addressing Style: ${S3_STYLE}"
 echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
 echo "DNS Resolvers: ${DNS_RESOLVERS}"
 echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
-echo "Static site hosting Enabled: ${STATIC_SITE_HOSTING}"
+echo "Provide Index Pages Enabled: ${PROVIDE_INDEX_PAGE}"
+echo "Append slash for directory enabled: ${APPEND_SLASH_FOR_POSSIBLE_DIRECTORY}"
