@@ -66,7 +66,8 @@ assertHttpRequestEquals() {
 
   if [ "${index_page}" == "1" ]; then
     # Follow 302 redirect if testing static hosting
-    extra_arg="-L -v"
+    # Add the -v flag to the curl command below to debug why curl is failing
+    extra_arg="-L"
   else
     extra_arg=""
   fi
@@ -118,7 +119,8 @@ set +o errexit
 # Allow curl command to fail with a non-zero exit code for this block because
 # we want to use it to test to see if the server is actually up.
 for (( i=1; i<=3; i++ )); do
-  response="$(${curl_cmd} -v -s -o /dev/null -w '%{http_code}' --head "${test_server}")"
+  # Add the -v flag to the curl command below to debug why curl is failing
+  response="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${test_server}")"
   if [ "${response}" != "000" ]; then
     break
   fi
@@ -211,7 +213,7 @@ assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad
 if [ "${index_page}" == "1" ]; then
 assertHttpRequestEquals "GET" "/statichost/" "data/bucket-1/statichost/index.html"
 assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir/" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
-  if [ "${append_slash}" == "1" ]; then 
+  if [ "${append_slash}" == "1" ]; then
   assertHttpRequestEquals "GET" "/statichost" "data/bucket-1/statichost/index.html"
   assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
   fi
@@ -227,7 +229,7 @@ if [ "${allow_directory_list}" == "1" ]; then
     assertHttpRequestEquals "GET" "b" "302"
   else
     assertHttpRequestEquals "GET" "b" "404"
-  fi 
+  fi
 elif [ "${index_page}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "data/bucket-1/index.html"
 else
