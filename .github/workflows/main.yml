@@ -13,6 +13,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    if: github.ref != 'refs/heads/master'
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: sudo apt-get install -y wait-for-it
+      - name: Run tests - latest njs version
+        run: ./test.sh latest-njs-oss
+      - name: Run tests - stable njs version
+        run: ./test.sh oss
+
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    if: github.ref == 'refs/heads/main'
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
