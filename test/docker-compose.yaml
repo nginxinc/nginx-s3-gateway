@@ -49,3 +49,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 3
+  # It may be useful to enable minio client so that you can debug what calls
+  # were made to minio by the gateway.
+#  minio-client:
+#    depends_on:
+#      - "minio"
+#    image: "minio/mc"
+#    restart: "no"
+#    command: "admin trace --verbose nginx-test-gateway"
+#    environment:
+#      MC_HOST_nginx-test-gateway: "http://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY@minio:9000"
