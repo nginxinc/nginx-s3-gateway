@@ -17,7 +17,6 @@
 #
 
 set -o errexit   # abort on nonzero exit status
-set -o nounset   # abort on unbound variable
 set -o pipefail  # don't hide errors within pipes
 
 test_server=$1
@@ -44,6 +43,8 @@ elif command -v uname > /dev/null; then
     is_windows="1"
   fi
 fi
+
+set -o nounset   # abort on unbound variable
 
 e() {
   >&2 echo "$1"
