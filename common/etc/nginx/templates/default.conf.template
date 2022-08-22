@@ -194,8 +194,6 @@ server {
         # internaly only, /auth can not be accessed from outside
         internal;
 
-        proxy_set_header X-debug-message $path;
-
         proxy_no_cache 1;
 
         # internal proxy to auth-server running on port 3000, responses expected from proxy:
@@ -214,5 +212,6 @@ server {
         proxy_set_header X-Original-URI $request_uri;
         proxy_set_header X-Original-Remote-Addr $remote_addr;
         proxy_set_header X-Original-Host $host;
+        proxy_set_header X-Bucket-Relative-URI $path;
     }
 }
