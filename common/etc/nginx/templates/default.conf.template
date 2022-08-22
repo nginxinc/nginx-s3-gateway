@@ -8,7 +8,7 @@ include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_js_vars.conf;
 # parameters and anchors in order to prevent extranous data from being sent to
 # S3.
 map $request_uri $uri_path {
-    "~^(?P<path>.*?)(\?.*)*$"  $path;
+    "~^${URI_PREFIX}/${S3_BUCKET_NAME}(?P<path>.*?)(\?.*)*$"  $path;
 }
 
 map $S3_STYLE $s3_host_hdr {
@@ -80,6 +80,8 @@ server {
     }
 
     location @s3 {
+        auth_request /auth;
+
         # We include only the headers needed for the authentication signatures that
         # we plan to use.
         include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
@@ -117,6 +119,8 @@ server {
     }
 
     location @s3Listing {
+        auth_request /auth;
+
         # We include only the headers needed for the authentication signatures that
         # we plan to use.
         include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
@@ -184,5 +188,31 @@ server {
     location @error405 {
         add_header Allow "GET, HEAD" always;
         return 405;
+    }
+
+    location = /auth {
+        # internaly only, /auth can not be accessed from outside
+        internal;
+
+        proxy_set_header X-debug-message $path;
+
+        proxy_no_cache 1;
+
+        # internal proxy to auth-server running on port 3000, responses expected from proxy:
+        #   2xx response = access allowed via auth_request
+        #   401 or 403 response = access denied via auth_request
+        #   anything else = error
+        proxy_pass ${AUTH_URI};
+
+        # don't pass request body to proxied server, we only need the headers which are passed on by default
+        proxy_pass_request_body off;
+
+        # there is no content length since we stripped the request body
+        proxy_set_header Content-Length "";
+
+        # let proxy server know more details of request
+        proxy_set_header X-Original-URI $request_uri;
+        proxy_set_header X-Original-Remote-Addr $remote_addr;
+        proxy_set_header X-Original-Host $host;
     }
 }
