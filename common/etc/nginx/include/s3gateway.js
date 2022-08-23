@@ -405,10 +405,12 @@ function redirectToS3(r) {
     var isDirectoryListing = allow_listing && _isDirectory(uriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
+        _debug_log(r, 'Redirecting to S3Listing..')
         r.internalRedirect("@s3Listing");
     } else if (!isDirectoryListing && uriPath === '/') {
         r.internalRedirect("@error404");
     } else {
+        _debug_log(r, 'Redirecting to S3..')
         r.internalRedirect("@s3");
     }
 }
@@ -913,7 +915,7 @@ async function fetchCredentials(r) {
     }
     else if(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']) {
         try {
-            credentials = await _fetchWebIdentityCredentials()
+            credentials = await _fetchWebIdentityCredentials(r)
         } catch(e) {
             _debug_log(r, 'Could not assume role using web identity: ' + JSON.stringify(e));
             r.return(500);
@@ -1010,30 +1012,27 @@ async function _fetchEC2RoleCredentials() {
  * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
  * @private
  */
-async function _fetchWebIdentityCredentials() {
+async function _fetchWebIdentityCredentials(r) {
     var arn   = process.env['AWS_ROLE_ARN'];
     var name  = process.env['HOSTNAME'] || 'nginx-s3-gateway';
     var token = fs.readFileSync(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']);
+    
+    var params = "Version=2011-06-15&Action=AssumeRoleWithWebIdentity&RoleArn=" + arn + "&RoleSessionName=" + name + "&WebIdentityToken=" + token;
 
-    var response = await ngx.fetch("https://sts.amazonaws.com?" + new URLSearchParams({
-        Version: '2011-06-15',
-        Action: 'AssumeRoleWithWebIdentity',
-        RoleArn: arn,
-        RoleSessionName: name,
-        WebIdentityToken: token,
-    }), {
+    var response = await ngx.fetch("https://sts.us-east-1.amazonaws.com?" + params, {
         headers: {
             "Accept": "application/json"
         },
-        method: 'POST',
+        method: 'GET',
     });
 
-    var creds = response.json().AssumeRoleWithWebIdentityResponse.AssumeRoleWithWebIdentityResult.Credentials;
+    var resp = await response.json()
+    var creds = resp.AssumeRoleWithWebIdentityResponse.AssumeRoleWithWebIdentityResult.Credentials;
 
     return {
         accessKeyId: creds.AccessKeyId,
         secretAccessKey: creds.SecretAccessKey,
-        sessionToken: creds.Token,
+        sessionToken: creds.SessionToken,
         expiration: creds.Expiration,
     };
 }
