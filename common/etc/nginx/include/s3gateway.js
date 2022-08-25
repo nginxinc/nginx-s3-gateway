@@ -405,12 +405,10 @@ function redirectToS3(r) {
     var isDirectoryListing = allow_listing && _isDirectory(uriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
-        _debug_log(r, 'Redirecting to S3Listing..')
         r.internalRedirect("@s3Listing");
     } else if (!isDirectoryListing && uriPath === '/') {
         r.internalRedirect("@error404");
     } else {
-        _debug_log(r, 'Redirecting to S3..')
         r.internalRedirect("@s3");
     }
 }
