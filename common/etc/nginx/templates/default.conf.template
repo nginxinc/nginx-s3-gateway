@@ -77,7 +77,9 @@ server {
     location /aws/credentials/retrieve {
         internal;
         js_content s3gateway.fetchCredentials;
-        js_fetch_trusted_certificate /etc/ssl/certs/Amazon_Root_CA_1.pem;
+        
+        # Enable the below line if you are seeing SSL Handshake error while connecing to s3 bucket
+        # js_fetch_trusted_certificate /etc/ssl/certs/Amazon_Root_CA_1.pem;
     }
 
     location @s3 {
