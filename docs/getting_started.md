@@ -45,6 +45,22 @@ variables are specified in the `/etc/nginx/environment` file. An example of
 the format of the file can be found in the [settings.example](/settings.example)
 file.
 
+If you are planning to use docker image on kubernetes cluster, you can use [service account]((https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)) which can assume a role using [AWS Security Token Service](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html).
+
+- Create a new [AWS IAM OIDC Provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html). If you are using AWS EKS Cluster, then the IAM OIDC Provider should already be created as the part of cluster creation. So validate it before you create the new IAM OIDC Provider.
+- Configuring a [Kubernetes service account to assume an IAM role](https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html)
+- [Annotate the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/cross-account-access.html) using IAM Role create in the above step.
+- [Configure your pods, Deployments, etc to use the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/pod-configuration.html)
+- As soon as the pods/deployments are updated, you will see the couple of Env Variables listed below in the pods.
+  `AWS_ROLE_ARN` - Contains IAM Role ARN
+  `AWS_WEB_IDENTITY_TOKEN_FILE`  - Contains the token which will be used to create temporary credentials using AWS Security Token Service.
+  
+There are few optional environment variables that can be used.
+
+* `HOSTNAME` - (optional) The value will be used for Role Session Name. The default value is nginx-s3-gateway.
+* `STS_ENDPOINT` - (optional) Enter region specific STS Endpoint. The default value is https://sts.amazonaws.com.
+
+
 ### Configuring Directory Listing
 
 Listing of S3 directories ([folders](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html)) is supported when the
