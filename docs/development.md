@@ -6,9 +6,9 @@ In the [examples/ directory](/examples), there are `Dockerfile` examples that
 show how to extend the base functionality of the NGINX S3 Gateway by adding
 additional modules.
 
-* [Enabling Brotli Compression in Docker](examples/brotli-compression)
-* [Enabling GZip Compression in Docker](examples/gzip-compression)
-* [Installing Modsecurity in Docker](examples/modsecurity)
+* [Enabling Brotli Compression in Docker](/examples/brotli-compression)
+* [Enabling GZip Compression in Docker](/examples/gzip-compression)
+* [Installing Modsecurity in Docker](/examples/modsecurity)
 
 ## Testing
 
