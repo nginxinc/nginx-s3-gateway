@@ -102,7 +102,7 @@ if [ "${nginx_type}" = "plus" ]; then
 fi
 
 compose() {
-  ${docker_compose_cmd} -f "${test_compose_config}" -p "${test_compose_project}" "$@"
+  "${docker_compose_cmd}"  -f "${test_compose_config}" -p "${test_compose_project}" "$@"
 }
 
 integration_test() {
@@ -110,28 +110,34 @@ integration_test() {
   printf "\e[1m Integration test suite for v%s signatures\e[22m\n" "$1"
   printf "\033[34;1m▶\033[0m"
   printf "\e[1m Integration test suite with ALLOW_DIRECTORY_LIST=%s\e[22m\n" "$2"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with PROVIDE_INDEX_PAGE=%s\e[22m\n" "$3"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=%s\e[22m\n" "$4"
 
   # See if Minio is already running, if it isn't then we don't need to build it
-  if [ -z "$(docker ps -q -f name=${test_compose_project}_minio_1)" ]; then
+  # COMPOSE_COMPATIBILITY=true Supports older style compose filenames with _ vs -
+
+  if [ -z "$(docker ps -q -f name=${test_compose_project}_minio-_1)" ]; then
     p "Building Docker Compose environment"
-    AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 compose up --no-start
+    COMPOSE_COMPATIBILITY=true AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 PROVIDE_INDEX_PAGE=$3 APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 compose up --no-start
 
     p "Adding test data to container"
     echo "Copying contents of ${test_dir}/data to Docker container ${test_compose_project}_minio_1:/"
-    ${docker_cmd} cp "${test_dir}/data" ${test_compose_project}_minio_1:/
+    "${docker_cmd}" cp "${test_dir}/data" "${test_compose_project}"_minio_1:/
     echo "Docker diff output:"
-    ${docker_cmd} diff ${test_compose_project}_minio_1
+    "${docker_cmd}" diff "${test_compose_project}"_minio_1
   fi
 
   p "Starting Docker Compose Environment"
-  AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 compose up -d
+  COMPOSE_COMPATIBILITY=true AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 PROVIDE_INDEX_PAGE=$3 APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 compose up -d
 
-  if [ ${wait_for_it_installed} ]; then
+  if [ "${wait_for_it_installed}" ]; then
     # Hit minio's health check end point to see if it has started up
     for (( i=1; i<=3; i++ ))
     do
       echo "Querying minio server to see if it is ready"
-      minio_is_up="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' ${minio_server}/minio/health/cluster)"
+      minio_is_up="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' "${minio_server}"/minio/health/cluster)"
       if [ "${minio_is_up}" = "200" ]; then
         break
       else
@@ -140,13 +146,13 @@ integration_test() {
     done
 
     if [ -x "${wait_for_it_cmd}" ]; then
-      $wait_for_it_cmd -h ${nginx_server_host} -p ${nginx_server_port}
+      "${wait_for_it_cmd}" -h "${nginx_server_host}" -p "${nginx_server_port}"
     fi
   fi
 
   p "Starting HTTP API tests (v$1 signatures)"
-  echo "  test/integration/test_api.sh \"$test_server\" \"$test_dir\" $1 $2"
-  bash "${test_dir}/integration/test_api.sh" "$test_server" "$test_dir" "$1" "$2";
+  echo "  test/integration/test_api.sh \"$test_server\" \"$test_dir\" $1 $2 $3 $4"
+  bash "${test_dir}/integration/test_api.sh" "${test_server}" "${test_dir}" "$1" "$2" "$3" "$4";
 
   # We check to see if NGINX is in fact using the correct version of AWS
   # signatures as it was configured to do.
@@ -205,7 +211,9 @@ fi
 ### UNIT TESTS
 
 p "Running unit tests in Docker image"
-${docker_cmd} run \
+#MSYS_NO_PATHCONV=1 added to resolve automatic path conversion
+# https://github.com/docker/for-win/issues/6754#issuecomment-629702199
+MSYS_NO_PATHCONV=1 "${docker_cmd}" run \
   --rm \
   -v "$(pwd)/test/unit:/var/tmp" \
   --workdir /var/tmp \
@@ -225,21 +233,31 @@ ${docker_cmd} run \
 ### INTEGRATION TESTS
 
 p "Testing API with AWS Signature V2 and allow directory listing off"
-integration_test 2 0
+integration_test 2 0 0 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
 p "Testing API with AWS Signature V2 and allow directory listing on"
-integration_test 2 1
+integration_test 2 1 0 0
+
+compose stop nginx-s3-gateway # Restart with new config
+
+p "Testing API with AWS Signature V2 and static site on"
+integration_test 2 0 1 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
 p "Test API with AWS Signature V4 and allow directory listing off"
-integration_test 4 0
+integration_test 4 0 0 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
-p "Test API with AWS Signature V4 and allow directory listing on"
-integration_test 4 1
+p "Test API with AWS Signature V4 and allow directory listing on and appending /"
+integration_test 4 1 0 1
+
+compose stop nginx-s3-gateway # Restart with new config
+
+p "Test API with AWS Signature V4 and static site on appending /"
+integration_test 4 0 1 1
 
 p "All integration tests complete"

@@ -112,7 +112,9 @@ server {
         proxy_intercept_errors on;
 
         # Comment out this line to receive the error messages returned by S3
-        error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+        error_page 400 401 402 403 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+
+        error_page 404 @trailslashControl;
 
         proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
     }
@@ -167,6 +169,17 @@ server {
 
     location @error404 {
         return 404;
+    }
+
+    location @trailslashControl {
+        # Checks if requesting a folder without trailing slash, and return 302 
+        # appending a slash to it when using for static site hosting.
+        js_content s3gateway.trailslashControl;
+    }
+
+    location @trailslash {
+        # 302 to request without slashes
+        rewrite ^ $scheme://$http_host$request_uri/ redirect;
     }
 
     # Provide a hint to the client on 405 errors of the acceptable request methods
