@@ -1042,7 +1042,22 @@ async function _fetchEC2RoleCredentials() {
 async function _fetchWebIdentityCredentials(r) {
     var arn   = process.env['AWS_ROLE_ARN'];
     var name  = process.env['HOSTNAME'] || 'nginx-s3-gateway';
-    var sts_endpoint = process.env['STS_ENDPOINT'] || 'https://sts.amazonaws.com';
+
+    var sts_endpoint = process.env['STS_ENDPOINT'];
+    if (!sts_endpoint) {
+        var sts_regional = process.env['AWS_STS_REGIONAL_ENDPOINTS'] || 'global';
+        if (sts_regional === 'regional') {
+            var region = process.env['AWS_REGION'];
+            if (region) {
+                sts_endpoint = 'https://sts.' + region + '.amazonaws.com';
+            } else {
+                throw 'Missing required AWS_REGION env variable';
+            }
+        } else {
+            sts_endpoint = 'https://sts.amazonaws.com';
+        }
+    }
+
     var token = fs.readFileSync(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']);
     
     var params = "Version=2011-06-15&Action=AssumeRoleWithWebIdentity&RoleArn=" + arn + "&RoleSessionName=" + name + "&WebIdentityToken=" + token;
