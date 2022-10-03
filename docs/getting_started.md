@@ -46,21 +46,11 @@ with the `--env-file` flag. When running as a Systemd service, the environment
 variables are specified in the `/etc/nginx/environment` file. An example of
 the format of the file can be found in the [settings.example](/settings.example)
 file.
-
-If you are planning to use docker image on kubernetes cluster, you can use [service account]((https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)) which can assume a role using [AWS Security Token Service](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html).
-
-- Create a new [AWS IAM OIDC Provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html). If you are using AWS EKS Cluster, then the IAM OIDC Provider should already be created as the part of cluster creation. So validate it before you create the new IAM OIDC Provider.
-- Configuring a [Kubernetes service account to assume an IAM role](https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html)
-- [Annotate the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/cross-account-access.html) using IAM Role create in the above step.
-- [Configure your pods, Deployments, etc to use the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/pod-configuration.html)
-- As soon as the pods/deployments are updated, you will see the couple of Env Variables listed below in the pods.
-  `AWS_ROLE_ARN` - Contains IAM Role ARN
-  `AWS_WEB_IDENTITY_TOKEN_FILE`  - Contains the token which will be used to create temporary credentials using AWS Security Token Service.
   
 There are few optional environment variables that can be used.
 
 * `HOSTNAME` - (optional) The value will be used for Role Session Name. The default value is nginx-s3-gateway.
-* `STS_ENDPOINT` - (optional) Enter region specific STS Endpoint. The default value is https://sts.amazonaws.com.
+* `STS_ENDPOINT` - (optional) Overrides the STS endpoint to be used in applicable setups. This is not required when running on EKS. See the EKS portion of the guide below for more details.
 
 
 ### Configuring Directory Listing
@@ -278,6 +268,81 @@ modified.
   aws cloudformation delete-stack \
     --stack-name nginx-s3-gateway
   ```
+## Running on EKS with IAM roles for service accounts
+
+If you are planning to use the container image on an EKS cluster, you can use a [service account]((https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)) which can assume a role using [AWS Security Token Service](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html).
+
+- Create a new [AWS IAM OIDC Provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html). If you are using AWS EKS Cluster, then the IAM OIDC Provider should already be created as the part of cluster creation. So validate it before you create the new IAM OIDC Provider.
+- Configuring a [Kubernetes service account to assume an IAM role](https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html)
+- [Annotate the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/cross-account-access.html) using IAM Role create in the above step.
+- [Configure your pods, Deployments, etc to use the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/pod-configuration.html)
+- As soon as the pods/deployments are updated, you will see the couple of Env Variables listed below in the pods.
+  - `AWS_ROLE_ARN` - Contains IAM Role ARN
+  - `AWS_WEB_IDENTITY_TOKEN_FILE`  - Contains the token which will be used to create temporary credentials using AWS Security Token Service.
+
+The following is a minimal set of resources to deploy:
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-s3-gateway
+  annotations:
+    eks.amazonaws.com/role-arn: "<role-arn>"
+    # See https://docs.aws.amazon.com/eks/latest/userguide/configure-sts-endpoint.html
+    eks.amazonaws.com/sts-regional-endpoints: "true"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-s3-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-s3-gateway
+  template:
+    metadata:
+      labels:
+        app: nginx-s3-gateway
+    spec:
+      serviceAccountName: nginx-s3-gateway
+      containers:
+        - name: nginx-s3-gateway
+          image: "ghcr.io/nginxinc/nginx-s3-gateway/nginx-oss-s3-gateway:latest-20220916"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: S3_BUCKET_NAME
+              value: "<bucket>"
+            - name: S3_SERVER
+              value: "s3.<aws region>.amazonaws.com"
+            - name: S3_SERVER_PROTO
+              value: "https"
+            - name: S3_SERVER_PORT
+              value: "443"
+            - name: S3_STYLE
+              value: "virtual"
+            - name: S3_REGION
+              value: "<aws region>"
+            - name: AWS_SIGS_VERSION
+              value: "4"
+            - name: ALLOW_DIRECTORY_LIST
+              value: "false"
+            - name: PROVIDE_INDEX_PAGE
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+```
+
 ## Troubleshooting
 
 ### Disable default `404` error message
