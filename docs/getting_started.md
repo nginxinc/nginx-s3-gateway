@@ -268,6 +268,7 @@ modified.
   aws cloudformation delete-stack \
     --stack-name nginx-s3-gateway
   ```
+
 ## Running on EKS with IAM roles for service accounts
 
 If you are planning to use the container image on an EKS cluster, you can use a [service account]((https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)) which can assume a role using [AWS Security Token Service](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html).
