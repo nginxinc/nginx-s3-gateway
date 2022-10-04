@@ -1044,8 +1044,16 @@ async function _fetchWebIdentityCredentials(r) {
 
     var sts_endpoint = process.env['STS_ENDPOINT'];
     if (!sts_endpoint) {
+        // On EKS, the ServiceAccount can be annotated with 'eks.amazonaws.com/sts-regional-endpoints' to control
+        // the usage of regional endpoints. We are using the same standard environment variable here as
+        // the AWS SDK. This is with the exception of replacing the value `legacy` with `global` to match
+        // what EKS sets the variable to.
+        // https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html
+        // https://docs.aws.amazon.com/eks/latest/userguide/configure-sts-endpoint.html
         var sts_regional = process.env['AWS_STS_REGIONAL_ENDPOINTS'] || 'global';
         if (sts_regional === 'regional') {
+            // STS regional endpoints can be derived from the region's name.
+            // https://docs.aws.amazon.com/general/latest/gr/sts.html
             var region = process.env['AWS_REGION'];
             if (region) {
                 sts_endpoint = `https://sts.${region}.amazonaws.com`;
@@ -1053,6 +1061,7 @@ async function _fetchWebIdentityCredentials(r) {
                 throw 'Missing required AWS_REGION env variable';
             }
         } else {
+            // This is the default global endpoint
             sts_endpoint = 'https://sts.amazonaws.com';
         }
     }
