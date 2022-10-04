@@ -882,7 +882,7 @@ function _require_env_var(envVarName) {
  *
  * @type {number}
  */
-var maxValidityOffsetMs = 4.5 * 60 * 100;
+var maxValidityOffsetMs = 4.5 * 60 * 1000;
 
 /**
  * Get the credentials needed to create AWS signatures in order to authenticate
@@ -918,7 +918,8 @@ async function fetchCredentials(r) {
     }
 
     if (current) {
-        var exp = new Date(current.expiration).getTime() - maxValidityOffsetMs;
+        // AWS returns Unix timestamps in seconds, but in Date constructor we should provide timestamp in milliseconds
+        var exp = new Date(current.expiration * 1000).getTime() - maxValidityOffsetMs;
         if (now.getTime() < exp) {
             r.return(200);
             return;
