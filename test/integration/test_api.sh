@@ -158,6 +158,7 @@ assertHttpRequestEquals "HEAD" "b//e.txt" "200"
 # Weird filenames
 assertHttpRequestEquals "HEAD" "b/c/=" "200"
 assertHttpRequestEquals "HEAD" "b/c/@" "200"
+assertHttpRequestEquals "HEAD" "b/c/'(1).txt" "200"
 assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "200"
 if [ ${is_windows} == "0" ]; then
   assertHttpRequestEquals "HEAD" "a/c/あ" "200"
@@ -221,6 +222,7 @@ assertHttpRequestEquals "GET" "a.txt" "data/bucket-1/a.txt"
 assertHttpRequestEquals "GET" "a.txt?some=param&that=should&be=stripped#aaah" "data/bucket-1/a.txt"
 assertHttpRequestEquals "GET" "b/c/d.txt" "data/bucket-1/b/c/d.txt"
 assertHttpRequestEquals "GET" "b/c/=" "data/bucket-1/b/c/="
+assertHttpRequestEquals "GET" "b/c/'(1).txt" "data/bucket-1/b/c/'(1).txt"
 assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
 assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "data/bucket-1/системы/%bad%file%name%"
 
