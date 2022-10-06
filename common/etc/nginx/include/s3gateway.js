@@ -358,7 +358,7 @@ function s3uri(r) {
         }
     } else {
         if (provide_index_page  && _isDirectory(uriPath) ) {
-               uriPath += INDEX_PAGE;
+            uriPath += INDEX_PAGE;
         }
         path = basePath + uriPath;
     }
@@ -571,6 +571,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
     } else {
         uri = _escapeURIPath(s3uri(r));
     }
+
     var canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
 
     _debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
@@ -782,6 +783,31 @@ function _padWithLeadingZeros(num, size) {
 }
 
 /**
+ * Adds additional encoding to a URI component
+ *
+ * @param string {string} string to encode
+ * @returns {string} an encoded string
+ * @private
+ */
+function _encodeURIComponent(string) {
+    var additionalEscapes = [
+        [/\(/g, '%28'],
+        [/\)/g, '%29'],
+        [/\!/g, '%21'],
+        [/\*/g, '%2A'],
+        [/\'/g, '%27']
+    ];
+
+    var encoded = encodeURIComponent(string);
+
+    additionalEscapes.forEach(function (replace) {
+        encoded = encoded.replace(replace[0], replace[1]);
+    });
+
+    return encoded;
+}
+
+/**
  * Escapes the path portion of a URI without escaping the path separator
  * characters (/).
  *
@@ -795,7 +821,7 @@ function _escapeURIPath(uri) {
     let components = [];
 
     decodedUri.split('/').forEach(function (item, i) {
-        components[i] = encodeURIComponent(item);
+        components[i] = _encodeURIComponent(item);
     });
 
     return components.join('/');
@@ -1038,6 +1064,7 @@ export default {
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
     _padWithLeadingZeros,
+    _encodeURIComponent,
     _eightDigitDate,
     _amzDatetime,
     _splitCachedValues,
