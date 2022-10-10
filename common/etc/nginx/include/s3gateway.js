@@ -419,7 +419,7 @@ function redirectToS3(r) {
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
     } else if ( provide_index_page == true ) {
-        r.internalRedirect("@s3");   
+        r.internalRedirect("@s3");
     } else if ( !allow_listing && !provide_index_page && uriPath == "/" ) {
        r.internalRedirect("@error404");
     } else {
@@ -790,21 +790,9 @@ function _padWithLeadingZeros(num, size) {
  * @private
  */
 function _encodeURIComponent(string) {
-    var additionalEscapes = [
-        [/\(/g, '%28'],
-        [/\)/g, '%29'],
-        [/\!/g, '%21'],
-        [/\*/g, '%2A'],
-        [/\'/g, '%27']
-    ];
-
-    var encoded = encodeURIComponent(string);
-
-    additionalEscapes.forEach(function (replace) {
-        encoded = encoded.replace(replace[0], replace[1]);
-    });
-
-    return encoded;
+    return encodeURIComponent(string)
+        .replace(/[!*'()]/g, (c) =>
+            `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
 /**
