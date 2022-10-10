@@ -48,6 +48,50 @@ fakeRequest.log = function(msg) {
     console.log(msg);
 }
 
+function testEncodeURIComponent() {
+    printHeader('testEncodeURIComponent');
+    function testPureAsciiAlphaNum() {
+        console.log('  ## testPureAsciiAlphaNum');
+        let alphaNum = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let encoded = s3gateway._encodeURIComponent(alphaNum);
+        if (alphaNum !== alphaNum) {
+            throw 'Incorrect encoding applied to string.\n' +
+            `Actual:   [${encoded}]\n` +
+            `Expected: [${expected}]`;
+        }
+    }
+    function testUnicodeText() {
+        console.log('  ## testUnicodeText');
+        let unicode = 'これは　This is ASCII системы  חן ';
+        let expected = '%E3%81%93%E3%82%8C%E3%81%AF%E3%80%80This%20is%20ASCII%20%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B%20%20%D7%97%D7%9F%20';
+        let encoded = s3gateway._encodeURIComponent(unicode);
+        if (expected !== encoded) {
+            throw 'Incorrect encoding applied to string.\n' +
+            `Actual:   [${encoded}]\n` +
+            `Expected: [${expected}]`;
+        }
+    }
+    function testDiceyCharactersInText() {
+        console.log('  ## testDiceyCharactersInText');
+
+        let diceyCharacters = '%@!*()=+$#^&|\\/';
+        for (let i = 0; i < diceyCharacters.length; i++) {
+            let char = diceyCharacters[i];
+            let encoded = s3gateway._encodeURIComponent(char);
+            let expected = `%${char.charCodeAt(0).toString(16).toUpperCase()}`;
+            if (encoded !== expected) {
+                throw 'Incorrect encoding applied to string.\n' +
+                `Actual:   [${encoded}]\n` +
+                `Expected: [${expected}]`;
+            }
+        }
+    }
+
+    testPureAsciiAlphaNum();
+    testUnicodeText();
+    testDiceyCharactersInText();
+}
+
 function testPad() {
     printHeader('testPad');
     var padSingleDigit = s3gateway._padWithLeadingZeros(3, 2);
@@ -568,6 +612,7 @@ function printHeader(testName) {
 }
 
 async function test() {
+    testEncodeURIComponent();
     testPad();
     testEightDigitDate();
     testAmzDatetime();
