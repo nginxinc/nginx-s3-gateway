@@ -156,20 +156,38 @@ assertHttpRequestEquals "HEAD" "b/e.txt" "200"
 assertHttpRequestEquals "HEAD" "b//e.txt" "200"
 assertHttpRequestEquals "HEAD" "a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt" "200"
 
+# We try to request URLs that are properly encoded as well as URLs that
+# are not properly encoded to understand what works and what does not.
+
 # Weird filenames
+assertHttpRequestEquals "HEAD" "b/c/%3D" "200"
 assertHttpRequestEquals "HEAD" "b/c/=" "200"
+
+assertHttpRequestEquals "HEAD" "b/c/%40" "200"
 assertHttpRequestEquals "HEAD" "b/c/@" "200"
+
+assertHttpRequestEquals "HEAD" "b/c/%27%281%29.txt" "200"
 assertHttpRequestEquals "HEAD" "b/c/'(1).txt" "200"
+
+# These URLs do not work unencoded
+assertHttpRequestEquals "HEAD" 'a/plus%2Bplus.txt' "200"
 assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "200"
-assertHttpRequestEquals "HEAD" 'a/plus+plus.txt' "200"
+
+# Testing these files does not currently work on Windows
 if [ ${is_windows} == "0" ]; then
+  assertHttpRequestEquals "HEAD" "a/c/%E3%81%82" "200"
   assertHttpRequestEquals "HEAD" "a/c/あ" "200"
+
+  assertHttpRequestEquals "HEAD" "b/%E3%82%AF%E3%82%BA%E7%AE%B1/%E3%82%B4%E3%83%9F.txt" "200"
   assertHttpRequestEquals "HEAD" "b/クズ箱/ゴミ.txt" "200"
+
+  assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/system.txt" "200"
   assertHttpRequestEquals "HEAD" "системы/system.txt" "200"
+
+  assertHttpRequestEquals "HEAD" "b/%E3%83%96%E3%83%84%E3%83%96%E3%83%84.txt" "200"
   assertHttpRequestEquals "HEAD" "b/ブツブツ.txt" "200"
-  # The following two objects do not get encoded correctly by curl when requested using their
-  # unicode names. The are provided as URL encoded as below. This is the same type of encoding
-  # expected by S3 and divergence from it will not work with nginx either.
+
+  # These URLs do not work unencoded
   assertHttpRequestEquals "HEAD" 'a/%25%40%21%2A%28%29%3D%24%23%5E%26%7C.txt' "200"
   assertHttpRequestEquals "HEAD" 'a/%E3%81%93%E3%82%8C%E3%81%AF%E3%80%80This%20is%20ASCII%20%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B%20%20%D7%97%D7%9F%20.txt' "200"
 fi
@@ -229,20 +247,25 @@ assertHttpRequestEquals "GET" "a.txt" "data/bucket-1/a.txt"
 assertHttpRequestEquals "GET" "a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt" "data/bucket-1/a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt"
 assertHttpRequestEquals "GET" "a.txt?some=param&that=should&be=stripped#aaah" "data/bucket-1/a.txt"
 assertHttpRequestEquals "GET" "b/c/d.txt" "data/bucket-1/b/c/d.txt"
-assertHttpRequestEquals "GET" "b/c/=" "data/bucket-1/b/c/="
-assertHttpRequestEquals "GET" "b/c/'(1).txt" "data/bucket-1/b/c/'(1).txt"
-assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
-assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "data/bucket-1/системы/%bad%file%name%"
-assertHttpRequestEquals "GET" 'a/plus+plus.txt' "data/bucket-1/a/plus+plus.txt"
 
+assertHttpRequestEquals "GET" "b/c/%3D" "data/bucket-1/b/c/="
+assertHttpRequestEquals "GET" "b/c/=" "data/bucket-1/b/c/="
+
+assertHttpRequestEquals "GET" "b/c/%27%281%29.txt" "data/bucket-1/b/c/'(1).txt"
+assertHttpRequestEquals "GET" "b/c/'(1).txt" "data/bucket-1/b/c/'(1).txt"
+
+assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
+
+# These URLs do not work unencoded
+assertHttpRequestEquals "GET" 'a/plus%2Bplus.txt' "data/bucket-1/a/plus+plus.txt"
+
+# Testing these files does not currently work on Windows
 if [ ${is_windows} == "0" ]; then
-  assertHttpRequestEquals "GET" "a/c/あ" "data/bucket-1/a/c/あ"
-  assertHttpRequestEquals "GET" "b/ブツブツ.txt" "data/bucket-1/b/ブツブツ.txt"
-  assertHttpRequestEquals "GET" "b/クズ箱/ゴミ.txt" "data/bucket-1/b/クズ箱/ゴミ.txt"
-  assertHttpRequestEquals "GET" "системы/system.txt" "data/bucket-1/системы/system.txt"
-  # The following two objects do not get encoded correctly by curl when requested using their
-  # unicode names. The are provided as URL encoded as below. This is the same type of encoding
-  # expected by S3 and divergence from it will not work with nginx either.
+  assertHttpRequestEquals "GET" "a/c/%E3%81%82" "data/bucket-1/a/c/あ"
+  assertHttpRequestEquals "GET" "b/%E3%83%96%E3%83%84%E3%83%96%E3%83%84.txt" "data/bucket-1/b/ブツブツ.txt"
+  assertHttpRequestEquals "GET" "b/%E3%82%AF%E3%82%BA%E7%AE%B1/%E3%82%B4%E3%83%9F.txt" "data/bucket-1/b/クズ箱/ゴミ.txt"
+  assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/system.txt" "data/bucket-1/системы/system.txt"
+  assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "data/bucket-1/системы/%bad%file%name%"
   assertHttpRequestEquals "GET" 'a/%25%40%21%2A%28%29%3D%24%23%5E%26%7C.txt' 'data/bucket-1/a/%@!*()=$#^&|.txt'
   assertHttpRequestEquals "GET" 'a/%E3%81%93%E3%82%8C%E3%81%AF%E3%80%80This%20is%20ASCII%20%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B%20%20%D7%97%D7%9F%20.txt' "data/bucket-1/a/これは　This is ASCII системы  חן .txt"
 fi
@@ -260,7 +283,9 @@ if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "/" "200"
   assertHttpRequestEquals "GET" "b/" "200"
   assertHttpRequestEquals "GET" "/b/c/" "200"
+  assertHttpRequestEquals "GET" "b/%E3%82%AF%E3%82%BA%E7%AE%B1/" "200"
   assertHttpRequestEquals "GET" "b/クズ箱/" "200"
+  assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/" "200"
   assertHttpRequestEquals "GET" "системы/" "200"
   if [ "$append_slash" == "1" ]; then
     assertHttpRequestEquals "GET" "b" "302"

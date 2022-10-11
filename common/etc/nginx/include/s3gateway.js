@@ -354,13 +354,14 @@ function s3uri(r) {
         if (queryParams.length > 0) {
             path = basePath + '?' + queryParams;
         } else {
-            path = basePath + uriPath;
+            path = _escapeURIPath(basePath + uriPath);
         }
     } else {
+        // This is a path that will resolve to an index page
         if (provide_index_page  && _isDirectory(uriPath) ) {
             uriPath += INDEX_PAGE;
         }
-        path = basePath + uriPath;
+        path = _escapeURIPath(basePath + uriPath);
     }
 
     _debug_log(r, 'S3 Request URI: ' + r.method + ' ' + path);
@@ -392,7 +393,7 @@ function _s3DirQueryParams(uriPath, method) {
         let decodedUriPath = decodeURIComponent(uriPath);
         let without_leading_slash = decodedUriPath.charAt(0) === '/' ?
             decodedUriPath.substring(1, decodedUriPath.length) : decodedUriPath;
-        path += '&prefix=' + encodeURIComponent(without_leading_slash);
+        path += '&prefix=' + _encodeURIComponent(without_leading_slash);
     }
 
     return path;
@@ -569,7 +570,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
             uri = '/';
         }
     } else {
-        uri = _escapeURIPath(s3uri(r));
+        uri = s3uri(r);
     }
 
     var canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
