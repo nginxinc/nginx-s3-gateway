@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
-<xsl:stylesheet version="1.1" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:stylesheet version="1.1" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:str="http://exslt.org/strings" extension-element-prefixes="str">
     <xsl:output method="html" encoding="utf-8" indent="yes"/>
+    <xsl:strip-space elements="*" />
 
     <xsl:template match="/">
         <xsl:choose>
@@ -81,7 +82,7 @@
                           select="substring-after(text(), $globalPrefix)"/>
             <tr>
                 <td>
-                    <a href="/{text()}">
+                    <a><xsl:attribute name="href">/<xsl:call-template name="encode-uri"><xsl:with-param name="uri" select="text()"/></xsl:call-template>/</xsl:attribute>
                         <xsl:value-of select="$dirName"/>
                     </a>
                 </td>
@@ -103,7 +104,8 @@
             <xsl:variable name="size" select="*[local-name()='Size']/text()"/>
             <tr>
                 <td>
-                    <a href="/{$key}">
+                    <a>
+                        <xsl:attribute name="href">/<xsl:call-template name="encode-uri"><xsl:with-param name="uri" select="$key"/></xsl:call-template></xsl:attribute>
                         <xsl:value-of select="$fileName"/>
                     </a>
                 </td>
@@ -115,5 +117,22 @@
                 </td>
             </tr>
         </xsl:if>
+    </xsl:template>
+    <!-- This template escapes the URI such that symbols or unicode characters are
+         encoded so that they form a valid link that NGINX can parse -->
+    <xsl:template name="encode-uri">
+        <xsl:param name="uri"/>
+        <xsl:for-each select="str:split($uri, '/')">
+            <xsl:variable name="encoded" select="str:encode-uri(., 'true', 'UTF-8')" />
+            <xsl:variable name="more-encoded" select="
+                str:replace(
+                    str:replace(
+                        str:replace(
+                            str:replace(
+                                str:replace($encoded, '@', '%40'), '(', '%28'),
+                        ')', '%29'),
+                    '!', '%21'),
+                '*', '%2A')" />
+            <xsl:value-of select="$more-encoded" /><xsl:if test="position() != last()">/</xsl:if></xsl:for-each>
     </xsl:template>
 </xsl:stylesheet>

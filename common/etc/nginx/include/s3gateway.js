@@ -354,13 +354,14 @@ function s3uri(r) {
         if (queryParams.length > 0) {
             path = basePath + '?' + queryParams;
         } else {
-            path = basePath + uriPath;
+            path = _escapeURIPath(basePath + uriPath);
         }
     } else {
+        // This is a path that will resolve to an index page
         if (provide_index_page  && _isDirectory(uriPath) ) {
-               uriPath += INDEX_PAGE;
+            uriPath += INDEX_PAGE;
         }
-        path = basePath + uriPath;
+        path = _escapeURIPath(basePath + uriPath);
     }
 
     _debug_log(r, 'S3 Request URI: ' + r.method + ' ' + path);
@@ -392,7 +393,7 @@ function _s3DirQueryParams(uriPath, method) {
         let decodedUriPath = decodeURIComponent(uriPath);
         let without_leading_slash = decodedUriPath.charAt(0) === '/' ?
             decodedUriPath.substring(1, decodedUriPath.length) : decodedUriPath;
-        path += '&prefix=' + encodeURIComponent(without_leading_slash);
+        path += '&prefix=' + _encodeURIComponent(without_leading_slash);
     }
 
     return path;
@@ -419,7 +420,7 @@ function redirectToS3(r) {
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
     } else if ( provide_index_page == true ) {
-        r.internalRedirect("@s3");   
+        r.internalRedirect("@s3");
     } else if ( !allow_listing && !provide_index_page && uriPath == "/" ) {
        r.internalRedirect("@error404");
     } else {
@@ -569,8 +570,9 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
             uri = '/';
         }
     } else {
-        uri = _escapeURIPath(s3uri(r));
+        uri = s3uri(r);
     }
+
     var canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
 
     _debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
@@ -782,6 +784,19 @@ function _padWithLeadingZeros(num, size) {
 }
 
 /**
+ * Adds additional encoding to a URI component
+ *
+ * @param string {string} string to encode
+ * @returns {string} an encoded string
+ * @private
+ */
+function _encodeURIComponent(string) {
+    return encodeURIComponent(string)
+        .replace(/[!*'()]/g, (c) =>
+            `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+/**
  * Escapes the path portion of a URI without escaping the path separator
  * characters (/).
  *
@@ -795,7 +810,7 @@ function _escapeURIPath(uri) {
     let components = [];
 
     decodedUri.split('/').forEach(function (item, i) {
-        components[i] = encodeURIComponent(item);
+        components[i] = _encodeURIComponent(item);
     });
 
     return components.join('/');
@@ -1105,6 +1120,7 @@ export default {
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
     _padWithLeadingZeros,
+    _encodeURIComponent,
     _eightDigitDate,
     _amzDatetime,
     _splitCachedValues,
