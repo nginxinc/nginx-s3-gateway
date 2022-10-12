@@ -11,7 +11,8 @@ COPY plus/usr /usr
 # startup is the same.
 # Source: https://github.com/nginxinc/docker-nginx/tree/1.19.2/stable/buster
 COPY common/docker-entrypoint.sh /docker-entrypoint.sh
-COPY plus/docker-entrypoint.d /docker-entrypoint.d
+COPY common/docker-entrypoint.d /docker-entrypoint.d/
+COPY plus/docker-entrypoint.d /docker-entrypoint.d/
 # Add NGINX Plus package repository keyring
 COPY plus/usr/share/keyrings/nginx-archive-keyring.gpg /usr/share/keyrings/nginx-archive-keyring.gpg
 

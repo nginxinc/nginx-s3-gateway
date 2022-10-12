@@ -77,9 +77,8 @@ server {
     location /aws/credentials/retrieve {
         internal;
         js_content s3gateway.fetchCredentials;
-        
-        # Enable the below line if you are seeing SSL Handshake error while connecing to s3 bucket
-        # js_fetch_trusted_certificate /etc/ssl/certs/Amazon_Root_CA_1.pem;
+
+        include /etc/nginx/conf.d/gateway/js_fetch_trusted_certificate.conf;
     }
 
     location @s3 {
@@ -172,7 +171,7 @@ server {
     }
 
     location @trailslashControl {
-        # Checks if requesting a folder without trailing slash, and return 302 
+        # Checks if requesting a folder without trailing slash, and return 302
         # appending a slash to it when using for static site hosting.
         js_content s3gateway.trailslashControl;
     }
