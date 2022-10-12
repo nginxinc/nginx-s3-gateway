@@ -17,6 +17,11 @@
 set -e
 
 if [ -f /etc/nginx/conf.d/gateway/js_fetch_trusted_certificate.conf ] && [ -n "${JS_TRUSTED_CERT_PATH+x}" ]; then
+  if [ ! -f "${JS_TRUSTED_CERT_PATH}" ]; then
+    >&2 echo "JS_TRUSTED_CERT_PATH environment variable error: no file found at the path: ${JS_TRUSTED_CERT_PATH}"
+    exit 1
+  fi
+
   echo "js_fetch_trusted_certificate ${JS_TRUSTED_CERT_PATH};" >> /etc/nginx/conf.d/gateway/js_fetch_trusted_certificate.conf
   echo "Enabling js_fetch_trusted_certificate ${JS_TRUSTED_CERT_PATH}"
 fi
