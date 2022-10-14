@@ -241,6 +241,8 @@ Resources:
               Value: default
             - Name: S3_DEBUG
               Value: 'false'
+            - Name: CORS_ALLOW_ALL
+              Value: 'false'
           Image: ghcr.io/nginxinc/nginx-s3-gateway/nginx-oss-s3-gateway:latest-njs-oss
           LogConfiguration:
             LogDriver: awslogs

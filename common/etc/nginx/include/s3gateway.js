@@ -34,6 +34,7 @@ var debug = _parseBoolean(process.env['S3_DEBUG']);
 var allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST'])
 var provide_index_page = _parseBoolean(process.env['PROVIDE_INDEX_PAGE'])
 var append_slash = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY'])
+var cors_allow = _parseBoolean(process.env['CORS_ALLOW_ALL'])
 
 var s3_style = process.env['S3_STYLE'];
 
@@ -400,6 +401,41 @@ function _s3DirQueryParams(uriPath, method) {
 }
 
 /**
+ * Add CORS headers depending on the cors_allow setting
+ *
+ * @param r {Request} HTTP request object
+ * @return boolean Whether the request should be considered 'complete' after this point.
+ *                 this only applys to OPTIONS requests when cors_allow is enabled. After
+ *                 this function, these requests will have been served a 204.
+ */
+function handleCors(r) {
+    if (!cors_allow) {
+        return false;
+    }
+
+    if (r.method === 'OPTIONS') {
+        r.headersOut['Access-Control-Allow-Origin'] = '*';
+        r.headersOut['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+        // Custom headers and headers various browsers *should* be OK with but aren't
+        r.headersOut['Access-Control-Allow-Headers'] = 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+        // Tell client that this pre-flight info is valid for 20 days
+
+        r.headersOut['Access-Control-Max-Age'] = 1728000;
+        r.headersOut['Content-Type'] = 'text/plain; charset=utf-8';
+        r.headersOut['Content-Length'] = 0;
+        r.return(204, '');
+        return true;
+    } else if (r.method === 'GET' || r.method === 'POST') {
+        r.headersOut['Access-Control-Allow-Origin'] ='*';
+        r.headersOut['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+        r.headersOut['Access-Control-Allow-Headers'] = 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+        r.headersOut['Access-Control-Expose-Headers'] = 'Content-Length,Content-Range';
+        return false;
+    }
+    return false;
+}
+
+/**
  * Redirects the request to the appropriate location. If the request is not
  * a read (GET/HEAD) request, then we reject the request outright by returning
  * a HTTP 405 error with a list of allowed methods.
@@ -408,6 +444,11 @@ function _s3DirQueryParams(uriPath, method) {
  */
 function redirectToS3(r) {
     // This is a read-only S3 gateway, so we do not support any other methods
+  var reqIsCorsOnly = handleCors(r);
+  if (reqIsCorsOnly) {
+    return;
+  }
+
     if (!(r.method === 'GET' || r.method === 'HEAD')) {
         _debug_log(r, 'Invalid method requested: ' + r.method);
         r.internalRedirect("@error405");
@@ -839,7 +880,7 @@ function _isDirectory(path) {
 
 /**
  * Parses a string to and returns a boolean value based on its value. If the
- * string can't be parsed, this method returns null.
+ * string can't be parsed, this method returns false.
  *
  * @param string {*} value representing a boolean
  * @returns {boolean} boolean value of string

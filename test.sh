@@ -227,6 +227,7 @@ MSYS_NO_PATHCONV=1 "${docker_cmd}" run \
   -e "S3_SERVER_PORT=443" \
   -e "S3_REGION=test-1" \
   -e "AWS_SIGS_VERSION=4" \
+  -e "CORS_ALLOW_ALL=true" \
   --entrypoint /usr/bin/njs \
   nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/s3gateway_test.js
 

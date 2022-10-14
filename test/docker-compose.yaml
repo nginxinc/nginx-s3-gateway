@@ -31,6 +31,7 @@ services:
       PROXY_CACHE_VALID_OK: "1h"
       PROXY_CACHE_VALID_NOTFOUND: "1m"
       PROXY_CACHE_VALID_FORBIDDEN: "30s"
+      CORS_ALLOW_ALL: "false"
 
   minio:
     image: "minio/minio:RELEASE.2021-02-19T04-38-02Z"

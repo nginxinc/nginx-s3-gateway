@@ -141,6 +141,8 @@ S3_SERVER=${S3_SERVER}
 S3_STYLE=${S3_STYLE}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 S3_DEBUG=${S3_DEBUG}
+# Flag (true/false) enable 'fully open' cross-domain CORS access
+CORS_ALLOW_ALL=${CORS_ALLOW_ALL}
 EOF
 
 # Only include these env vars if we are not using a instance profile credential
@@ -262,6 +264,7 @@ env AWS_SIGS_VERSION;
 env S3_DEBUG;
 env S3_STYLE;
 env ALLOW_DIRECTORY_LIST;
+env CORS_ALLOW_ALL;
 
 events {
     worker_connections  1024;
