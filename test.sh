@@ -185,7 +185,7 @@ trap finish EXIT ERR SIGTERM SIGINT
 
 p "Building NGINX S3 gateway Docker image"
 if [ "${nginx_type}" = "plus" ]; then
-  if docker info 2> /dev/null | grep --quiet 'Build with BuildKit'; then
+  if docker buildx > /dev/null 2>&1; then
     p "Building using BuildKit"
     export DOCKER_BUILDKIT=1
     docker build -f Dockerfile.buildkit.${nginx_type} \
