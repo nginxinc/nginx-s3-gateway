@@ -37,6 +37,8 @@ const APPEND_SLASH = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECT
 
 const S3_STYLE = process.env['S3_STYLE'];
 
+const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = _parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
+
 /**
  * Default filename for index pages to be read off of the backing object store.
  * @type {string}
@@ -87,9 +89,9 @@ const EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT = 'http://169.254.169.254/latest/me
  * leakage about S3 and do other tasks needed for appropriate gateway output.
  * @param r HTTP request
  */
-function editAmzHeaders(r) {
+function editHeaders(r) {
     const isDirectoryHeadRequest =
-        allow_listing &&
+        ALLOW_LISTING &&
         r.method === 'HEAD' &&
         _isDirectory(decodeURIComponent(r.variables.uri_path));
 
@@ -101,7 +103,7 @@ function editAmzHeaders(r) {
              * none of the information is relevant for passing on via a gateway. */
             if (isDirectoryHeadRequest) {
                 delete r.headersOut[key];
-            } else if (key.toLowerCase().indexOf("x-amz-", 0) >= 0) {
+            } else if (_isHeaderToBeStripped(key.toLowerCase(), ADDITIONAL_HEADER_PREFIXES_TO_STRIP)) {
                 delete r.headersOut[key];
             }
         }
@@ -114,6 +116,28 @@ function editAmzHeaders(r) {
             r.headersOut['Content-Type'] = 'text/html; charset=utf-8'
         }
     }
+}
+
+/**
+ * Determines if a given HTTP header should be removed before being
+ * sent on to the requesting client.
+ * @param headerName {string} Lowercase HTTP header name
+ * @param additionalHeadersToStrip {Array[string]} array of additional headers to remove
+ * @returns {boolean} true if header should be removed
+ */
+function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
+    if (headerName.indexOf('x-amz-', 0) >= 0) {
+        return true;
+    }
+
+    for (let i = 0; i < additionalHeadersToStrip.length; i++) {
+        const headerToStrip = additionalHeadersToStrip[i];
+        if (headerName.indexOf(headerToStrip, 0) >= 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -286,7 +310,7 @@ function s3auth(r) {
     const bucket = process.env['S3_BUCKET_NAME'];
     const region = process.env['S3_REGION'];
     let server;
-    if (s3_style === 'path') {
+    if (S3_STYLE === 'path') {
         server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
     } else {
         server = process.env['S3_SERVER'];
@@ -331,7 +355,7 @@ function s3BaseUri(r) {
     const bucket = process.env['S3_BUCKET_NAME'];
     let basePath;
 
-    if (s3_style === 'path') {
+    if (S3_STYLE === 'path') {
         _debug_log(r, 'Using path style uri : ' + '/' + bucket);
         basePath = '/' + bucket;
     } else {
@@ -353,7 +377,7 @@ function s3uri(r) {
     let path;
 
     // Create query parameters only if directory listing is enabled.
-    if (allow_listing) {
+    if (ALLOW_LISTING) {
         const queryParams = _s3DirQueryParams(uriPath, r.method);
         if (queryParams.length > 0) {
             path = basePath + '?' + queryParams;
@@ -362,7 +386,7 @@ function s3uri(r) {
         }
     } else {
         // This is a path that will resolve to an index page
-        if (provide_index_page  && _isDirectory(uriPath) ) {
+        if (PROVIDE_INDEX_PAGE  && _isDirectory(uriPath) ) {
             uriPath += INDEX_PAGE;
         }
         path = _escapeURIPath(basePath + uriPath);
@@ -388,7 +412,7 @@ function _s3DirQueryParams(uriPath, method) {
 
     /* Return if static website. We don't want to list the files in the
        directory, we want to append the index page and get the fil. */
-    if (provide_index_page){
+    if (PROVIDE_INDEX_PAGE){
         return '';
     }
 
@@ -420,13 +444,13 @@ function redirectToS3(r) {
     }
 
     const uriPath = r.variables.uri_path;
-    const isDirectoryListing = allow_listing && _isDirectory(uriPath);
+    const isDirectoryListing = ALLOW_LISTING && _isDirectory(uriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
-    } else if ( provide_index_page == true ) {
+    } else if ( PROVIDE_INDEX_PAGE == true ) {
         r.internalRedirect("@s3");
-    } else if ( !allow_listing && !provide_index_page && uriPath == "/" ) {
+    } else if ( !ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath == "/" ) {
        r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
@@ -434,7 +458,7 @@ function redirectToS3(r) {
 }
 
 function trailslashControl(r) {
-    if (append_slash) {
+    if (APPEND_SLASH) {
         const hasExtension = /\/[^.\/]+\.[^.]+$/;
         if (!hasExtension.test(r.variables.uri_path)  && !_isDirectory(r.variables.uri_path)){
             return r.internalRedirect("@trailslash");
@@ -462,7 +486,7 @@ function signatureV2(r, bucket, credentials) {
      * Thus, we can't put the path /dir1/ in the string to sign. */
     let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
     // To return index pages + index.html
-    if (provide_index_page && _isDirectory(r.variables.uri_path)){
+    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
         uri = r.variables.uri_path + INDEX_PAGE
     }
     const hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
@@ -561,7 +585,7 @@ function signatureV4(r, timestamp, bucket, region, server, credentials) {
  */
 function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region, server) {
     let host = server;
-    if (s3_style === 'virtual' || s3_style === 'default' || s3_style === undefined) {
+    if (S3_STYLE === 'virtual' || S3_STYLE === 'default' || S3_STYLE === undefined) {
         host = bucket + '.' + host;
     }
     const method = r.method;
@@ -866,6 +890,25 @@ function _parseBoolean(string) {
 }
 
 /**
+ * Parses a string delimited by semicolons into an array of values
+ * @param string {string|null} value representing a array of strings
+ * @returns {Array} a list of values
+ * @private
+ */
+function _parseArray(string) {
+    if (string == null || !string || string === ';') {
+        return [];
+    }
+
+    // Exclude trailing delimiter
+    if (string.endsWith(';')) {
+        return string.substr(0, string.length - 1).split(';');
+    }
+
+    return string.split(';')
+}
+
+/**
  * Outputs a log message to the request logger if debug messages are enabled.
  *
  * @param r {Request} HTTP request object
@@ -873,7 +916,7 @@ function _parseBoolean(string) {
  * @private
  */
 function _debug_log(r, msg) {
-    if (debug && "log" in r) {
+    if (DEBUG && "log" in r) {
         r.log(msg);
     }
 }
@@ -1125,7 +1168,7 @@ export default {
     s3uri,
     trailslashControl,
     redirectToS3,
-    editAmzHeaders,
+    editHeaders,
     filterListResponse,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
@@ -1136,5 +1179,7 @@ export default {
     _splitCachedValues,
     _buildSigningKeyHash,
     _buildSignatureV4,
-    _escapeURIPath
+    _escapeURIPath,
+    _parseArray,
+    _isHeaderToBeStripped
 };

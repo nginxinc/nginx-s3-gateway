@@ -66,6 +66,14 @@ if [ "$(parseBoolean ${ALLOW_DIRECTORY_LIST})" == "1" ] && [ "$(parseBoolean ${P
   failed=1
 fi
 
+if [ -n "${HEADER_PREFIXES_TO_STRIP+x}" ]; then
+  if [[ "${HEADER_PREFIXES_TO_STRIP}" =~ [A-Z] ]]; then
+    >&2 echo "HEADER_PREFIXES_TO_STRIP must not contain uppercase characters"
+    failed=1
+  fi
+fi
+
+
 if [ $failed -gt 0 ]; then
   exit 1
 fi
@@ -80,3 +88,4 @@ echo "DNS Resolvers: ${DNS_RESOLVERS}"
 echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
 echo "Provide Index Pages Enabled: ${PROVIDE_INDEX_PAGE}"
 echo "Append slash for directory enabled: ${APPEND_SLASH_FOR_POSSIBLE_DIRECTORY}"
+echo "Stripping the following headers from responses: x-amz-;${HEADER_PREFIXES_TO_STRIP}"

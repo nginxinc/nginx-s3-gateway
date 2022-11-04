@@ -284,9 +284,10 @@ function testSignatureV4Cache() {
     _runSignatureV4(r);
 }
 
-function testEditAmzHeaders() {
-    printHeader('testEditAmzHeaders');
-    var r = {
+function testEditHeaders() {
+    printHeader('testEditHeaders');
+
+    const r = {
         "headersOut": {
             "Accept-Ranges": "bytes",
             "Content-Length": 42,
@@ -305,17 +306,17 @@ function testEditAmzHeaders() {
         console.log(msg);
     }
 
-    s3gateway.editAmzHeaders(r);
+    s3gateway.editHeaders(r);
 
-    for (var key in r.headersOut) {
+    for (const key in r.headersOut) {
         if (key.toLowerCase().indexOf("x-amz", 0) >= 0) {
             throw "x-amz header not stripped from headers correctly";
         }
     }
 }
 
-function testEditAmzHeadersHeadDirectory() {
-    printHeader('testEditAmzHeadersHeadDirectory');
+function testEditHeadersHeadDirectory() {
+    printHeader('testEditHeadersHeadDirectory');
     let r = {
         "method": "HEAD",
         "headersOut" : {
@@ -335,10 +336,24 @@ function testEditAmzHeadersHeadDirectory() {
         console.log(msg);
     }
 
-    s3gateway.editAmzHeaders(r);
+    s3gateway.editHeaders(r);
 
     if (r.headersOut.length > 0) {
         throw "all headers were not stripped from request";
+    }
+}
+
+function testIsHeaderToBeStripped() {
+    printHeader('testIsHeaderToBeStripped');
+    // if (s3gateway._isHeaderToBeStripped('cache-control', [])) {
+    //     throw "valid header should not be stripped";
+    // }
+    // if (!s3gateway._isHeaderToBeStripped('x-amz-request-id', [])) {
+    //     throw "x-amz header should always be stripped";
+    // }
+    if (!s3gateway._isHeaderToBeStripped('x-goog-storage-class',
+        ['x-goog'])) {
+        throw "x-goog-storage-class header should be stripped";
     }
 }
 
@@ -611,6 +626,71 @@ function printHeader(testName) {
     console.log(`\n## ${testName}`);
 }
 
+function testParseArray() {
+    printHeader('testParseArray');
+
+    function testParseNull() {
+        console.log('  ## testParseNull');
+        const actual = s3gateway._parseArray(null);
+        if (!Array.isArray(actual) || actual.length > 0) {
+            throw 'Null not parsed into an empty array';
+        }
+    }
+    function testParseEmptyString() {
+        console.log('  ## testParseEmptyString');
+        const actual = s3gateway._parseArray('');
+        if (!Array.isArray(actual) || actual.length > 0) {
+            throw 'Empty string not parsed into an empty array';
+        }
+    }
+    function testParseSingleValue() {
+        console.log('  ## testParseSingleValue');
+        const value = 'Single Value';
+        const actual = s3gateway._parseArray(value);
+        if (!Array.isArray(actual) || actual.length !== 1) {
+            throw 'Single value not parsed into an array with a single element';
+        }
+        if (actual[0] !== value) {
+            throw `Unexpected array element: ${actual[0]}`
+        }
+    }
+    function testParseMultipleValues() {
+        console.log('  ## testParseMultipleValues');
+        const values = ['string 1', 'something else', 'Yet another value'];
+        const textValues = values.join(';');
+        const actual = s3gateway._parseArray(textValues);
+        if (!Array.isArray(actual) || actual.length !== values.length) {
+            throw 'Multiple values not parsed into an array with the expected length';
+        }
+        for (let i = 0; i < values.length; i++) {
+            if (values[i] !== actual[i]) {
+                throw `Unexpected array element [${i}]: ${actual[i]}`
+            }
+        }
+    }
+
+    function testParseMultipleValuesTrailingDelimiter() {
+        console.log('  ## testParseMultipleValuesTrailingDelimiter');
+        const values = ['string 1', 'something else', 'Yet another value'];
+        const textValues = values.join(';');
+        const actual = s3gateway._parseArray(textValues + ';');
+        if (!Array.isArray(actual) || actual.length !== values.length) {
+            throw 'Multiple values not parsed into an array with the expected length';
+        }
+        for (let i = 0; i < values.length; i++) {
+            if (values[i] !== actual[i]) {
+                throw `Unexpected array element [${i}]: ${actual[i]}`
+            }
+        }
+    }
+
+    testParseNull();
+    testParseEmptyString();
+    testParseSingleValue();
+    testParseMultipleValues();
+    testParseMultipleValuesTrailingDelimiter();
+}
+
 async function test() {
     testEncodeURIComponent();
     testPad();
@@ -621,8 +701,9 @@ async function test() {
     testBuildSigningKeyHashWithTestSuiteInputs();
     testSignatureV4();
     testSignatureV4Cache();
-    testEditAmzHeaders();
-    testEditAmzHeadersHeadDirectory();
+    testIsHeaderToBeStripped();
+    testEditHeaders();
+    testEditHeadersHeadDirectory();
     testEscapeURIPathPreservesDoubleSlashes();
     testReadCredentialsWithAccessAndSecretKeySet();
     testReadCredentialsFromFilePath();
@@ -630,6 +711,7 @@ async function test() {
     testReadAndWriteCredentialsFromKeyValStore();
     await testEcsCredentialRetrieval();
     await testEc2CredentialRetrieval();
+    testParseArray();
 }
 
 test();
