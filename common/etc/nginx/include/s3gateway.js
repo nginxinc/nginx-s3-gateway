@@ -30,13 +30,17 @@ const fs = require('fs');
  * about signature generation will be logged.
  * @type {boolean}
  */
-const debug = _parseBoolean(process.env['S3_DEBUG']);
-const allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
-const provide_index_page = _parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
-const append_slash = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
+const DEBUG = _parseBoolean(process.env['S3_DEBUG']);
+const ALLOW_LISTING = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
+const PROVIDE_INDEX_PAGE = _parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
+const APPEND_SLASH = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
 
-const s3_style = process.env['S3_STYLE'];
+const S3_STYLE = process.env['S3_STYLE'];
 
+/**
+ * Default filename for index pages to be read off of the backing object store.
+ * @type {string}
+ */
 const INDEX_PAGE = "index.html";
 
 /**
@@ -44,39 +48,39 @@ const INDEX_PAGE = "index.html";
  * functions in order for there to be no variations in signatures.
  * @type {Date}
  */
-const now = new Date();
+const NOW = new Date();
 
 /**
  * Constant defining the service requests are being signed for.
  * @type {string}
  */
-const service = 's3';
+const SERVICE = 's3';
 
 /**
  * Constant checksum for an empty HTTP body.
  * @type {string}
  */
-const emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+const EMPTY_PAYLOAD_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
 /**
  * Constant defining the headers being signed.
  * @type {string}
  */
-const defaultSignedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+const DEFAULT_SIGNED_HEADERS = 'host;x-amz-content-sha256;x-amz-date';
 
 /**
  * Constant base URI to fetch credentials together with the credentials relative URI, see
  * https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html for more details.
  * @type {string}
  */
-const ecsCredentialsBaseUri = 'http://169.254.170.2';
+const ECS_CREDENTIAL_BASE_URI = 'http://169.254.170.2';
 
 /**
  * @type {string}
  */
-const ec2ImdsTokenEndpoint = 'http://169.254.169.254/latest/api/token';
+const EC2_IMDS_TOKEN_ENDPOINT = 'http://169.254.169.254/latest/api/token';
 
-const ec2ImdsSecurityCredentialsEndpoint = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
+const EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
 
 /**
  * Transform the headers returned from S3 such that there isn't information
@@ -120,7 +124,7 @@ function editAmzHeaders(r) {
  * @returns {string} RFC2616 timestamp
  */
 function s3date(r) {
-    return now.toUTCString();
+    return NOW.toUTCString();
 }
 
 /**
@@ -133,7 +137,7 @@ function s3date(r) {
  * @returns {string} ISO 8601 timestamp
  */
 function awsHeaderDate(r) {
-    return _amzDatetime(now, _eightDigitDate(now));
+    return _amzDatetime(NOW, _eightDigitDate(NOW));
 }
 
 /**
@@ -295,7 +299,7 @@ function s3auth(r) {
     if (sigver == '2') {
         signature = signatureV2(r, bucket, credentials);
     } else {
-        signature = signatureV4(r, now, bucket, region, server, credentials);
+        signature = signatureV4(r, NOW, bucket, region, server, credentials);
     }
 
     return signature;
@@ -511,7 +515,7 @@ function filterListResponse(r, data, flags) {
  * @returns {string} semicolon delimited string of the headers needed for signing
  */
 function signedHeaders(sessionToken) {
-    let headers = defaultSignedHeaders;
+    let headers = DEFAULT_SIGNED_HEADERS;
     if (sessionToken) {
         headers += ';x-amz-security-token';
     }
@@ -535,7 +539,7 @@ function signatureV4(r, timestamp, bucket, region, server, credentials) {
     const amzDatetime = _amzDatetime(timestamp, eightDigitDate);
     const signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
     const authHeader = 'AWS4-HMAC-SHA256 Credential='
-        .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
+        .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', SERVICE, '/aws4_request,',
             'SignedHeaders=', signedHeaders(credentials.sessionToken), ',Signature=', signature);
 
     _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
@@ -614,13 +618,13 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
             kSigningHash = Buffer.from(JSON.parse(fields[1]));
         // Otherwise, generate a new signing key hash and store it in the cache
         } else {
-            kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
+            kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, SERVICE, region);
             _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
     // Otherwise, don't use caching at all (like when we are using NGINX OSS)
     } else {
-        kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, service, region);
+        kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, SERVICE, region);
     }
 
     _debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
@@ -690,7 +694,7 @@ function _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalReques
  */
 function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken) {
     let canonicalHeaders = 'host:' + host + '\n' +
-        'x-amz-content-sha256:' + emptyPayloadHash + '\n' +
+        'x-amz-content-sha256:' + EMPTY_PAYLOAD_HASH + '\n' +
         'x-amz-date:' + amzDatetime + '\n';
 
     if (sessionToken) {
@@ -702,7 +706,7 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
     canonicalRequest += queryParams + '\n';
     canonicalRequest += canonicalHeaders + '\n';
     canonicalRequest += signedHeaders(sessionToken) + '\n';
-    canonicalRequest += emptyPayloadHash;
+    canonicalRequest += EMPTY_PAYLOAD_HASH;
 
     return canonicalRequest;
 }
@@ -938,7 +942,7 @@ async function fetchCredentials(r) {
     if (current) {
         // AWS returns Unix timestamps in seconds, but in Date constructor we should provide timestamp in milliseconds
         const exp = new Date(current.expiration * 1000).getTime() - maxValidityOffsetMs;
-        if (now.getTime() < exp) {
+        if (NOW.getTime() < exp) {
             r.return(200);
             return;
         }
@@ -949,7 +953,7 @@ async function fetchCredentials(r) {
     _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
     if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
-        const uri = ecsCredentialsBaseUri + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
+        const uri = ECS_CREDENTIAL_BASE_URI + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
         try {
             credentials = await _fetchEcsRoleCredentials(uri);
         } catch (e) {
@@ -1016,14 +1020,14 @@ async function _fetchEcsRoleCredentials(credentialsUri) {
  * @private
  */
 async function _fetchEC2RoleCredentials() {
-    const tokenResp = await ngx.fetch(ec2ImdsTokenEndpoint, {
+    const tokenResp = await ngx.fetch(EC2_IMDS_TOKEN_ENDPOINT, {
         headers: {
             'x-aws-ec2-metadata-token-ttl-seconds': '21600',
         },
         method: 'PUT',
     });
     const token = await tokenResp.text();
-    let resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint, {
+    let resp = await ngx.fetch(EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT, {
         headers: {
             'x-aws-ec2-metadata-token': token,
         },
@@ -1036,7 +1040,7 @@ async function _fetchEC2RoleCredentials() {
     if (credName === "") {
         throw 'No credentials available for EC2 instance';
     }
-    resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint + credName, {
+    resp = await ngx.fetch(EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT + credName, {
         headers: {
             'x-aws-ec2-metadata-token': token,
         },
