@@ -22,61 +22,61 @@ _require_env_var('S3_REGION');
 _require_env_var('AWS_SIGS_VERSION');
 _require_env_var('S3_STYLE');
 
-var mod_hmac = require('crypto');
-var fs = require('fs');
+const mod_hmac = require('crypto');
+const fs = require('fs');
 
 /**
  * Flag indicating debug mode operation. If true, additional information
  * about signature generation will be logged.
  * @type {boolean}
  */
-var debug = _parseBoolean(process.env['S3_DEBUG']);
-var allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST'])
-var provide_index_page = _parseBoolean(process.env['PROVIDE_INDEX_PAGE'])
-var append_slash = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY'])
+const debug = _parseBoolean(process.env['S3_DEBUG']);
+const allow_listing = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
+const provide_index_page = _parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
+const append_slash = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
 
-var s3_style = process.env['S3_STYLE'];
+const s3_style = process.env['S3_STYLE'];
 
-var INDEX_PAGE = "index.html";
+const INDEX_PAGE = "index.html";
 
 /**
  * The current moment as a timestamp. This timestamp will be used across
  * functions in order for there to be no variations in signatures.
  * @type {Date}
  */
-var now = new Date();
+const now = new Date();
 
 /**
  * Constant defining the service requests are being signed for.
  * @type {string}
  */
-var service = 's3';
+const service = 's3';
 
 /**
  * Constant checksum for an empty HTTP body.
  * @type {string}
  */
-var emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+const emptyPayloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
 /**
  * Constant defining the headers being signed.
  * @type {string}
  */
-var defaultSignedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+const defaultSignedHeaders = 'host;x-amz-content-sha256;x-amz-date';
 
 /**
  * Constant base URI to fetch credentials together with the credentials relative URI, see
  * https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html for more details.
  * @type {string}
  */
-var ecsCredentialsBaseUri = 'http://169.254.170.2';
+const ecsCredentialsBaseUri = 'http://169.254.170.2';
 
 /**
  * @type {string}
  */
-var ec2ImdsTokenEndpoint = 'http://169.254.169.254/latest/api/token';
+const ec2ImdsTokenEndpoint = 'http://169.254.169.254/latest/api/token';
 
-var ec2ImdsSecurityCredentialsEndpoint = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
+const ec2ImdsSecurityCredentialsEndpoint = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
 
 /**
  * Transform the headers returned from S3 such that there isn't information
@@ -84,7 +84,7 @@ var ec2ImdsSecurityCredentialsEndpoint = 'http://169.254.169.254/latest/meta-dat
  * @param r HTTP request
  */
 function editAmzHeaders(r) {
-    var isDirectoryHeadRequest =
+    const isDirectoryHeadRequest =
         allow_listing &&
         r.method === 'HEAD' &&
         _isDirectory(decodeURIComponent(r.variables.uri_path));
@@ -92,7 +92,7 @@ function editAmzHeaders(r) {
     /* Strips all x-amz- headers from the output HTTP headers so that the
      * requesters to the gateway will not know you are proxying S3. */
     if ('headersOut' in r) {
-        for (var key in r.headersOut) {
+        for (const key in r.headersOut) {
             /* We delete all headers when it is a directory head request because
              * none of the information is relevant for passing on via a gateway. */
             if (isDirectoryHeadRequest) {
@@ -233,7 +233,7 @@ function readCredentials(r) {
  * @private
  */
 function _readCredentialsFromKeyValStore(r) {
-    var cached = r.variables.instance_credential_json;
+    const cached = r.variables.instance_credential_json;
 
     if (!cached) {
         return undefined;
@@ -255,15 +255,15 @@ function _readCredentialsFromKeyValStore(r) {
  * @private
  */
 function _readCredentialsFromFile() {
-    var credsFilePath = _credentialsTempFile();
+    const credsFilePath = _credentialsTempFile();
 
     try {
-        var creds = fs.readFileSync(credsFilePath);
+        const creds = fs.readFileSync(credsFilePath);
         return JSON.parse(creds);
     } catch (e) {
-        // Do not throw an exception in the case of when the
-        // credentials file path is invalid in order to signal to
-        // the caller that such a file has not been created yet.
+        /* Do not throw an exception in the case of when the
+           credentials file path is invalid in order to signal to
+           the caller that such a file has not been created yet. */
         if (e.code === 'ENOENT') {
             return undefined;
         }
@@ -279,19 +279,19 @@ function _readCredentialsFromFile() {
  * @returns {string} AWS authentication signature
  */
 function s3auth(r) {
-    var bucket = process.env['S3_BUCKET_NAME'];
-    var region = process.env['S3_REGION'];
-    var server;
+    const bucket = process.env['S3_BUCKET_NAME'];
+    const region = process.env['S3_REGION'];
+    let server;
     if (s3_style === 'path') {
         server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
     } else {
         server = process.env['S3_SERVER'];
     }
-    var sigver = process.env['AWS_SIGS_VERSION'];
+    const sigver = process.env['AWS_SIGS_VERSION'];
 
-    var signature;
+    let signature;
 
-    var credentials = readCredentials(r);
+    const credentials = readCredentials(r);
     if (sigver == '2') {
         signature = signatureV2(r, bucket, credentials);
     } else {
@@ -308,7 +308,7 @@ function s3auth(r) {
  * @returns {string} current session token or empty string
  */
 function s3SecurityToken(r) {
-    var credentials = readCredentials(r);
+    const credentials = readCredentials(r);
     if (credentials.sessionToken) {
         return credentials.sessionToken;
     }
@@ -324,8 +324,8 @@ function s3SecurityToken(r) {
  * @returns {string} start of the file path for the S3 object URI
  */
 function s3BaseUri(r) {
-    var bucket = process.env['S3_BUCKET_NAME'];
-    var basePath;
+    const bucket = process.env['S3_BUCKET_NAME'];
+    let basePath;
 
     if (s3_style === 'path') {
         _debug_log(r, 'Using path style uri : ' + '/' + bucket);
@@ -344,13 +344,13 @@ function s3BaseUri(r) {
  * @returns {string} uri for s3 request
  */
 function s3uri(r) {
-    var uriPath = r.variables.uri_path;
-    var basePath = s3BaseUri(r);
-    var path;
+    let uriPath = r.variables.uri_path;
+    const basePath = s3BaseUri(r);
+    let path;
 
     // Create query parameters only if directory listing is enabled.
     if (allow_listing) {
-        var queryParams = _s3DirQueryParams(uriPath, r.method);
+        const queryParams = _s3DirQueryParams(uriPath, r.method);
         if (queryParams.length > 0) {
             path = basePath + '?' + queryParams;
         } else {
@@ -415,8 +415,8 @@ function redirectToS3(r) {
         return;
     }
 
-    var uriPath = r.variables.uri_path;
-    var isDirectoryListing = allow_listing && _isDirectory(uriPath);
+    const uriPath = r.variables.uri_path;
+    const isDirectoryListing = allow_listing && _isDirectory(uriPath);
 
     if (isDirectoryListing && r.method === 'GET') {
         r.internalRedirect("@s3Listing");
@@ -431,7 +431,7 @@ function redirectToS3(r) {
 
 function trailslashControl(r) {
     if (append_slash) {
-        var hasExtension = /\/[^.\/]+\.[^.]+$/;
+        const hasExtension = /\/[^.\/]+\.[^.]+$/;
         if (!hasExtension.test(r.variables.uri_path)  && !_isDirectory(r.variables.uri_path)){
             return r.internalRedirect("@trailslash");
         }
@@ -450,24 +450,24 @@ function trailslashControl(r) {
  * @returns {string} HTTP Authorization header value
  */
 function signatureV2(r, bucket, credentials) {
-    var method = r.method;
+    const method = r.method;
     /* If the source URI is a directory, we are sending to S3 a query string
      * local to the root URI, so this is what we need to encode within the
      * string to sign. For example, if we are requesting /bucket/dir1/ from
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
-    var uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
     // To return index pages + index.html
     if (provide_index_page && _isDirectory(r.variables.uri_path)){
         uri = r.variables.uri_path + INDEX_PAGE
     }
-    var hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
-    var httpDate = s3date(r);
-    var stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
+    const hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
+    const httpDate = s3date(r);
+    const stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
 
     _debug_log(r, 'AWS v2 Auth Signing String: [' + stringToSign + ']');
 
-    var s3signature = hmac.update(stringToSign).digest('base64');
+    const s3signature = hmac.update(stringToSign).digest('base64');
 
     return `AWS ${credentials.accessKeyId}:${s3signature}`;
 }
@@ -484,7 +484,7 @@ function signatureV2(r, bucket, credentials) {
  * @param flags contains field that indicates that a chunk is last
  */
 function filterListResponse(r, data, flags) {
-    var indexIsEmpty = _parseBoolean(r.variables.indexIsEmpty);
+    let indexIsEmpty = _parseBoolean(r.variables.indexIsEmpty);
 
     if (indexIsEmpty && data.indexOf('<Contents') >= 0) {
         r.variables.indexIsEmpty = false;
@@ -511,7 +511,7 @@ function filterListResponse(r, data, flags) {
  * @returns {string} semicolon delimited string of the headers needed for signing
  */
 function signedHeaders(sessionToken) {
-    var headers = defaultSignedHeaders;
+    let headers = defaultSignedHeaders;
     if (sessionToken) {
         headers += ';x-amz-security-token';
     }
@@ -531,10 +531,10 @@ function signedHeaders(sessionToken) {
  * @returns {string} HTTP Authorization header value
  */
 function signatureV4(r, timestamp, bucket, region, server, credentials) {
-    var eightDigitDate = _eightDigitDate(timestamp);
-    var amzDatetime = _amzDatetime(timestamp, eightDigitDate);
-    var signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
-    var authHeader = 'AWS4-HMAC-SHA256 Credential='
+    const eightDigitDate = _eightDigitDate(timestamp);
+    const amzDatetime = _amzDatetime(timestamp, eightDigitDate);
+    const signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
+    const authHeader = 'AWS4-HMAC-SHA256 Credential='
         .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
             'SignedHeaders=', signedHeaders(credentials.sessionToken), ',Signature=', signature);
 
@@ -556,14 +556,14 @@ function signatureV4(r, timestamp, bucket, region, server, credentials) {
  * @private
  */
 function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region, server) {
-    var host = server;
+    let host = server;
     if (s3_style === 'virtual' || s3_style === 'default' || s3_style === undefined) {
         host = bucket + '.' + host;
     }
-    var method = r.method;
-    var baseUri = s3BaseUri(r);
-    var queryParams = _s3DirQueryParams(r.variables.uri_path, method);
-    var uri;
+    const method = r.method;
+    const baseUri = s3BaseUri(r);
+    const queryParams = _s3DirQueryParams(r.variables.uri_path, method);
+    let uri;
     if (queryParams.length > 0) {
         if (baseUri.length > 0) {
             uri = baseUri;
@@ -574,21 +574,21 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
         uri = s3uri(r);
     }
 
-    var canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
+    const canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
 
     _debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
 
-    var canonicalRequestHash = mod_hmac.createHash('sha256')
+    const canonicalRequestHash = mod_hmac.createHash('sha256')
         .update(canonicalRequest)
         .digest('hex');
 
     _debug_log(r, 'AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
 
-    var stringToSign = _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash)
+    const stringToSign = _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash);
 
     _debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
 
-    var kSigningHash;
+    let kSigningHash;
 
     /* If we have a keyval zone and key defined for caching the signing key hash,
      * then signing key caching will be enabled. By caching signing keys we can
@@ -598,10 +598,10 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
      */
     if ("variables" in r && r.variables.cache_signing_key_enabled == 1) {
         // cached value is in the format: [eightDigitDate]:[signingKeyHash]
-        var cached = "signing_key_hash" in r.variables ? r.variables.signing_key_hash : "";
-        var fields = _splitCachedValues(cached);
-        var cachedEightDigitDate = fields[0];
-        var cacheIsValid = fields.length === 2 && eightDigitDate === cachedEightDigitDate;
+        const cached = "signing_key_hash" in r.variables ? r.variables.signing_key_hash : "";
+        const fields = _splitCachedValues(cached);
+        const cachedEightDigitDate = fields[0];
+        const cacheIsValid = fields.length === 2 && eightDigitDate === cachedEightDigitDate;
 
         // If true, use cached value
         if (cacheIsValid) {
@@ -625,7 +625,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
 
     _debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
 
-    var signature = mod_hmac.createHmac('sha256', kSigningHash)
+    const signature = mod_hmac.createHmac('sha256', kSigningHash)
         .update(stringToSign).digest('hex');
 
     _debug_log(r, 'AWS v4 Authorization Header: [' + signature + ']');
@@ -644,15 +644,15 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
  * @private
  */
 function _splitCachedValues(cached) {
-    var matchedPos = cached.indexOf(':', 0)
+    const matchedPos = cached.indexOf(':', 0);
     // Do a sanity check on the position returned, if it isn't sane, return
     // an empty array and let the caller logic process it.
     if (matchedPos < 0 || matchedPos + 1 > cached.length) {
         return []
     }
 
-    var eightDigitDate = cached.substring(0, matchedPos)
-    var kSigningHash = cached.substring(matchedPos + 1)
+    const eightDigitDate = cached.substring(0, matchedPos);
+    const kSigningHash = cached.substring(matchedPos + 1);
 
     return [eightDigitDate, kSigningHash]
 }
@@ -689,7 +689,7 @@ function _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalReques
  * @private
  */
 function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken) {
-    var canonicalHeaders = 'host:' + host + '\n' +
+    let canonicalHeaders = 'host:' + host + '\n' +
         'x-amz-content-sha256:' + emptyPayloadHash + '\n' +
         'x-amz-date:' + amzDatetime + '\n';
 
@@ -697,7 +697,7 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
         canonicalHeaders += 'x-amz-security-token:' + sessionToken + '\n'
     }
 
-    var canonicalRequest = method + '\n';
+    let canonicalRequest = method + '\n';
     canonicalRequest += uri + '\n';
     canonicalRequest += queryParams + '\n';
     canonicalRequest += canonicalHeaders + '\n';
@@ -719,13 +719,13 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
  * @private
  */
 function _buildSigningKeyHash(kSecret, eightDigitDate, service, region) {
-    var kDate = mod_hmac.createHmac('sha256', 'AWS4'.concat(kSecret))
+    const kDate = mod_hmac.createHmac('sha256', 'AWS4'.concat(kSecret))
         .update(eightDigitDate).digest();
-    var kRegion = mod_hmac.createHmac('sha256', kDate)
+    const kRegion = mod_hmac.createHmac('sha256', kDate)
         .update(region).digest();
-    var kService = mod_hmac.createHmac('sha256', kRegion)
+    const kService = mod_hmac.createHmac('sha256', kRegion)
         .update(service).digest();
-    var kSigning = mod_hmac.createHmac('sha256', kService)
+    const kSigning = mod_hmac.createHmac('sha256', kService)
         .update('aws4_request').digest();
 
     return kSigning;
@@ -739,9 +739,9 @@ function _buildSigningKeyHash(kSecret, eightDigitDate, service, region) {
  * @private
  */
 function _eightDigitDate(timestamp) {
-    var year = timestamp.getUTCFullYear();
-    var month = timestamp.getUTCMonth() + 1;
-    var day = timestamp.getUTCDate();
+    const year = timestamp.getUTCFullYear();
+    const month = timestamp.getUTCMonth() + 1;
+    const day = timestamp.getUTCDate();
 
     return ''.concat(_padWithLeadingZeros(year, 4),
         _padWithLeadingZeros(month,2),
@@ -759,9 +759,9 @@ function _eightDigitDate(timestamp) {
  * @private
  */
 function _amzDatetime(timestamp, eightDigitDate) {
-    var hours = timestamp.getUTCHours();
-    var minutes = timestamp.getUTCMinutes();
-    var seconds = timestamp.getUTCSeconds();
+    const hours = timestamp.getUTCHours();
+    const minutes = timestamp.getUTCMinutes();
+    const seconds = timestamp.getUTCSeconds();
 
     return ''.concat(
         eightDigitDate,
@@ -780,7 +780,7 @@ function _amzDatetime(timestamp, eightDigitDate) {
  * @private
  */
 function _padWithLeadingZeros(num, size) {
-    var s = "0" + num;
+    const s = "0" + num;
     return s.substr(s.length-size);
 }
 
@@ -829,7 +829,7 @@ function _isDirectory(path) {
     if (path === undefined) {
         return false;
     }
-    var len = path.length;
+    const len = path.length;
 
     if (len < 1) {
         return false;
@@ -881,7 +881,7 @@ function _debug_log(r, msg) {
  * @private
  */
 function _require_env_var(envVarName) {
-    var isSet = envVarName in process.env;
+    const isSet = envVarName in process.env;
 
     if (!isSet) {
         throw('Required environment variable ' + envVarName + ' is missing');
@@ -898,7 +898,7 @@ function _require_env_var(envVarName) {
  *
  * @type {number}
  */
-var maxValidityOffsetMs = 4.5 * 60 * 1000;
+const maxValidityOffsetMs = 4.5 * 60 * 1000;
 
 /**
  * Get the credentials needed to create AWS signatures in order to authenticate
@@ -925,8 +925,10 @@ async function fetchCredentials(r) {
         return;
     }
 
+    let current;
+
     try {
-        var current = readCredentials(r);
+        current = readCredentials(r);
     } catch (e) {
         _debug_log(r, `Could not read credentials: ${e}`);
         r.return(500);
@@ -935,19 +937,19 @@ async function fetchCredentials(r) {
 
     if (current) {
         // AWS returns Unix timestamps in seconds, but in Date constructor we should provide timestamp in milliseconds
-        var exp = new Date(current.expiration * 1000).getTime() - maxValidityOffsetMs;
+        const exp = new Date(current.expiration * 1000).getTime() - maxValidityOffsetMs;
         if (now.getTime() < exp) {
             r.return(200);
             return;
         }
     }
 
-    var credentials;
+    let credentials;
 
     _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
     if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
-        var uri = ecsCredentialsBaseUri + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
+        const uri = ecsCredentialsBaseUri + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
         try {
             credentials = await _fetchEcsRoleCredentials(uri);
         } catch (e) {
@@ -992,11 +994,11 @@ async function fetchCredentials(r) {
  * @private
  */
 async function _fetchEcsRoleCredentials(credentialsUri) {
-    var resp = await ngx.fetch(credentialsUri);
+    const resp = await ngx.fetch(credentialsUri);
     if (!resp.ok) {
         throw 'Credentials endpoint response was not ok.';
     }
-    var creds = await resp.json();
+    const creds = await resp.json();
 
     return {
         accessKeyId: creds.AccessKeyId,
@@ -1014,14 +1016,14 @@ async function _fetchEcsRoleCredentials(credentialsUri) {
  * @private
  */
 async function _fetchEC2RoleCredentials() {
-    var tokenResp = await ngx.fetch(ec2ImdsTokenEndpoint, {
+    const tokenResp = await ngx.fetch(ec2ImdsTokenEndpoint, {
         headers: {
             'x-aws-ec2-metadata-token-ttl-seconds': '21600',
         },
         method: 'PUT',
     });
-    var token = await tokenResp.text();
-    var resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint, {
+    const token = await tokenResp.text();
+    let resp = await ngx.fetch(ec2ImdsSecurityCredentialsEndpoint, {
         headers: {
             'x-aws-ec2-metadata-token': token,
         },
@@ -1030,7 +1032,7 @@ async function _fetchEC2RoleCredentials() {
        EC2 supports attaching one role only.It should therefore be safe to take
        the whole output, even given IMDS _might_ (?) be able to return multiple
        roles. */
-    var credName = await resp.text();
+    const credName = await resp.text();
     if (credName === "") {
         throw 'No credentials available for EC2 instance';
     }
@@ -1039,7 +1041,7 @@ async function _fetchEC2RoleCredentials() {
             'x-aws-ec2-metadata-token': token,
         },
     });
-    var creds = await resp.json();
+    const creds = await resp.json();
 
     return {
         accessKeyId: creds.AccessKeyId,
@@ -1057,10 +1059,10 @@ async function _fetchEC2RoleCredentials() {
  * @private
  */
 async function _fetchWebIdentityCredentials(r) {
-    var arn   = process.env['AWS_ROLE_ARN'];
-    var name  = process.env['HOSTNAME'] || 'nginx-s3-gateway';
+    const arn = process.env['AWS_ROLE_ARN'];
+    const name = process.env['HOSTNAME'] || 'nginx-s3-gateway';
 
-    var sts_endpoint = process.env['STS_ENDPOINT'];
+    let sts_endpoint = process.env['STS_ENDPOINT'];
     if (!sts_endpoint) {
         /* On EKS, the ServiceAccount can be annotated with
            'eks.amazonaws.com/sts-regional-endpoints' to control
@@ -1070,11 +1072,11 @@ async function _fetchWebIdentityCredentials(r) {
            the variable to.
            See: https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html
            See: https://docs.aws.amazon.com/eks/latest/userguide/configure-sts-endpoint.html */
-        var sts_regional = process.env['AWS_STS_REGIONAL_ENDPOINTS'] || 'global';
+        const sts_regional = process.env['AWS_STS_REGIONAL_ENDPOINTS'] || 'global';
         if (sts_regional === 'regional') {
             /* STS regional endpoints can be derived from the region's name.
                See: https://docs.aws.amazon.com/general/latest/gr/sts.html */
-            var region = process.env['AWS_REGION'];
+            const region = process.env['AWS_REGION'];
             if (region) {
                 sts_endpoint = `https://sts.${region}.amazonaws.com`;
             } else {
@@ -1086,19 +1088,19 @@ async function _fetchWebIdentityCredentials(r) {
         }
     }
 
-    var token = fs.readFileSync(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']);
-    
-    var params = `Version=2011-06-15&Action=AssumeRoleWithWebIdentity&RoleArn=${arn}&RoleSessionName=${name}&WebIdentityToken=${token}`;
+    const token = fs.readFileSync(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']);
 
-    var response = await ngx.fetch(sts_endpoint + "?" + params, {
+    const params = `Version=2011-06-15&Action=AssumeRoleWithWebIdentity&RoleArn=${arn}&RoleSessionName=${name}&WebIdentityToken=${token}`;
+
+    const response = await ngx.fetch(sts_endpoint + "?" + params, {
         headers: {
             "Accept": "application/json"
         },
         method: 'GET',
     });
 
-    var resp = await response.json()
-    var creds = resp.AssumeRoleWithWebIdentityResponse.AssumeRoleWithWebIdentityResult.Credentials;
+    const resp = await response.json();
+    const creds = resp.AssumeRoleWithWebIdentityResponse.AssumeRoleWithWebIdentityResult.Credentials;
 
     return {
         accessKeyId: creds.AccessKeyId,
