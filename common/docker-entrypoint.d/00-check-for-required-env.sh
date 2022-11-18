@@ -25,16 +25,34 @@ failed=0
 required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 "S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION")
 
-if [ ! -z ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
+# Require some form of authentication to be configured.
+
+# a) Using container credentials. This is indicated by AWS_CONTAINER_CREDENTIALS_RELATIVE_URI being set.
+#    See https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html
+#    Example: We are running inside an ECS task.
+if [[ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]]; then
   echo "Running inside an ECS task, using container credentials"
+
+# b) Using Instance Metadata Service (IMDS) credentials, if IMDS is present at http://169.254.169.254.
+#    See https://docs.aws.amazon.com/sdkref/latest/guide/feature-imds-credentials.html.
+#    Example: We are running inside an EC2 instance.
 elif curl --output /dev/null --silent --head --fail --connect-timeout 2 "http://169.254.169.254"; then
   echo "Running inside an EC2 instance, using IMDS for credentials"
+
+# c) Using assume role credentials. This is indicated by AWS_WEB_IDENTITY_TOKEN_FILE being set.
+#    See https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html.
+#    Example: We are running inside an EKS cluster with IAM roles for service accounts enabled.
+elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
+  echo "Running inside EKS with IAM roles for service accounts"
+
+# If none of the options above is used, require static credentials.
+# See https://docs.aws.amazon.com/sdkref/latest/guide/feature-static-credentials.html.
 else
   required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
 fi
 
 for name in ${required[@]}; do
-  if [ -z ${!name+x} ]; then
+  if [[ ! -v name ]]; then
       >&2 echo "Required ${name} environment variable missing"
       failed=1
   fi
