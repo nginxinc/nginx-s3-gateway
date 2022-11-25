@@ -70,6 +70,9 @@ Dockerfile.buildkit.plus         Dockerfile with the same configuration as Docke
                                  with support for hiding secrets using Docker's Buildkit
 Dockerfile.latest-njs            Dockerfile that inherits from the last build of the gateway and
                                  then builds and installs the latest version of njs from source
+Dockerfile.latest-unpriviledged  Dockerfiles that inherits from the last build of the gateway and
+                                 makes the necessary modifications to allow running the container
+                                 as a non root, unpriviledged user.
 settings.example                 Docker env file example
 standalone_ubuntu_oss_install.sh install script that will install the gateway as a Systemd service
 test.sh                          test launcher
