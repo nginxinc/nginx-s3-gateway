@@ -868,7 +868,7 @@ function _isDirectory(path) {
 
 /**
  * Parses a string to and returns a boolean value based on its value. If the
- * string can't be parsed, this method returns null.
+ * string can't be parsed, this method returns false.
  *
  * @param string {*} value representing a boolean
  * @returns {boolean} boolean value of string
