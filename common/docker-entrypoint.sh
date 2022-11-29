@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 #
 #  Copyright 2020 F5 Networks
 #
@@ -19,9 +19,35 @@
 
 set -e
 
+parseBoolean() {
+  case "$1" in
+    TRUE | true | True | YES | Yes | 1)
+      echo 1
+      ;;
+    *)
+      echo 0
+      ;;
+  esac
+}
+
 # This line is an addition to the NGINX Docker image's entrypoint script.
 if [ -z ${DNS_RESOLVERS+x} ]; then
   export DNS_RESOLVERS="$(cat /etc/resolv.conf | grep nameserver | cut -d' ' -f2 | xargs)"
+fi
+
+# Normalize the CORS_ENABLED environment variable to a numeric value
+# so that it can be easily parsed in the nginx configuration.
+export CORS_ENABLED="$(parseBoolean "${CORS_ENABLED}")"
+
+# By enabling CORS, we also need to enable the OPTIONS method which
+# is not normally used as part of the gateway. The following variable
+# defines the set of acceptable headers.
+if [ "${CORS_ENABLED}" == "1" ]; then
+  export LIMIT_METHODS_TO="GET HEAD OPTIONS"
+  export LIMIT_METHODS_TO_CSV="GET, HEAD, OPTIONS"
+else
+  export LIMIT_METHODS_TO="GET HEAD"
+  export LIMIT_METHODS_TO_CSV="GET, HEAD"
 fi
 
 # Nothing is modified under this line

@@ -66,6 +66,17 @@ server {
     }
 
     location / {
+        # This value is templated in based on the value of $CORS_ENABLED. When
+        # CORS is enabled, acceptable methods are GET, HEAD, and OPTIONS.
+        # Otherwise, they are GET and HEAD.
+        limit_except ${LIMIT_METHODS_TO} {}
+
+        # CORS is implemented by returning the appropriate headers as part of
+        # the response to an OPTIONS request. If you want to customize the
+        # CORS response, the cors.conf.template file can be overwritten and
+        # extended to meet one's needs.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
         auth_request /aws/credentials/retrieve;
 
         # Redirect to the proper location based on the client request - either
@@ -85,6 +96,10 @@ server {
         # We include only the headers needed for the authentication signatures that
         # we plan to use.
         include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+
+        # The CORS configuration needs to be imported in several places in order for
+        # it to be applied within different contexts.
+        include /etc/nginx/conf.d/gateway/cors.conf;
 
         # Don't allow any headers from the client - we don't want them messing
         # with S3 at all.
@@ -127,6 +142,10 @@ server {
         # We include only the headers needed for the authentication signatures that
         # we plan to use.
         include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+
+        # The CORS configuration needs to be imported in several places in order for
+        # it to be applied within different contexts.
+        include /etc/nginx/conf.d/gateway/cors.conf;
 
         # Don't allow any headers from the client - we don't want them messing
         # with S3 at all.
@@ -193,7 +212,7 @@ server {
     # Provide a hint to the client on 405 errors of the acceptable request methods
     error_page 405 @error405;
     location @error405 {
-        add_header Allow "GET, HEAD" always;
+        add_header Allow "${LIMIT_METHODS_TO_CSV}" always;
         return 405;
     }
 
