@@ -5,6 +5,11 @@ ENV NGINX_VERSION        1.21.6
 ENV NJS_VERSION          27+0.7.7-1
 ENV XSLT_VERSION         27-1
 
+ENV PROXY_CACHE_VALID_OK "1h"
+ENV PROXY_CACHE_VALID_NOTFOUND "1m"
+ENV PROXY_CACHE_VALID_FORBIDDEN "30s"
+ENV CORS_ENABLED 0
+
 COPY plus/usr /usr
 
 # Copy files from the OSS NGINX Docker container such that the container

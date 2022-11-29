@@ -23,7 +23,8 @@ set -e
 failed=0
 
 required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
-"S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION")
+"S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION"
+"CORS_ENABLED")
 
 if [ ! -z ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
   echo "Running inside an ECS task, using container credentials"
@@ -89,3 +90,4 @@ echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
 echo "Provide Index Pages Enabled: ${PROVIDE_INDEX_PAGE}"
 echo "Append slash for directory enabled: ${APPEND_SLASH_FOR_POSSIBLE_DIRECTORY}"
 echo "Stripping the following headers from responses: x-amz-;${HEADER_PREFIXES_TO_STRIP}"
+echo "CORS Enabled: ${CORS_ENABLED}"

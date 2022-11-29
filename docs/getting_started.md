@@ -37,7 +37,14 @@ running as a Container or as a Systemd service.
 * `PROXY_CACHE_VALID_NOTFOUND` - Sets caching time for response code 404
 * `PROXY_CACHE_VALID_FORBIDDEN` - Sets caching time for response code 403
 * `JS_TRUSTED_CERT_PATH` - (optional) Enables the `js_fetch_trusted_certificate` directive when retrieving AWS credentials and sets the path (on the container) to the specified path
-* `HEADER_PREFIXES_TO_STRIP` - (optional) a list of HTTP header prefixes that exclude headers client responses. List should be specified in lower-case and a semicolon (;) should be used to as a deliminator between values. For example: `x-goog-;x-something-` 
+* `HEADER_PREFIXES_TO_STRIP` - (optional) a list of HTTP header prefixes that exclude headers client responses. List should be specified in lower-case and a semicolon (;) should be used to as a deliminator between values. For example: `x-goog-;x-something-`
+* `CORS_ENABLED` - Flag (true/false) that enables CORS headers on GET
+  requests and enables pre-flight OPTIONS requests. If enabled, this will 
+  add CORS headers for "fully open" cross domain requests by default,
+  meaning all domains are allowed, similar to the settings show in
+  [this example](https://enable-cors.org/server_nginx.html).
+  CORS settings can be fine-tuned by overwriting the 
+  [`cors.conf.template`](/common/etc/nginx/templates/gateway/cors.conf.template) file. (default: false)
 
 If you are using [AWS instance profile credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html),
 you will need to omit the `S3_ACCESS_KEY_ID` and `S3_SECRET_KEY` variables from
