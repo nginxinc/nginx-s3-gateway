@@ -48,6 +48,8 @@ jobs:
         run: ./test.sh --latest-njs --type oss
       - name: Run tests - stable njs version
         run: ./test.sh --type oss
+      - name: Run tests - stable njs version - unprivileged process
+        run: ./test.sh --unprivileged --type oss
       # latest-njs-oss image push [Github]
       - name: Tag container image for Push to github [latest-njs-oss date]
         run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
