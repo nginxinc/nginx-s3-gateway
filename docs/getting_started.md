@@ -45,6 +45,9 @@ running as a Container or as a Systemd service.
   [this example](https://enable-cors.org/server_nginx.html).
   CORS settings can be fine-tuned by overwriting the 
   [`cors.conf.template`](/common/etc/nginx/templates/gateway/cors.conf.template) file. (default: false)
+* `CORS_ALLOWED_ORIGIN` - (optional) value to set to be returned from the
+  CORS `Access-Control-Allow-Origin` header. This value is only used if 
+  CORS is enabled. (default: *)
 
 If you are using [AWS instance profile credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html),
 you will need to omit the `S3_ACCESS_KEY_ID` and `S3_SECRET_KEY` variables from
