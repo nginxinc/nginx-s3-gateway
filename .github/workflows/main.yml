@@ -21,9 +21,13 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install -y wait-for-it
       - name: Run tests - latest njs version
-        run: ./test.sh latest-njs-oss
+        run: ./test.sh --latest-njs --type oss
       - name: Run tests - stable njs version
-        run: ./test.sh oss
+        run: ./test.sh --type oss
+      - name: Run tests - stable njs version - unprivileged process
+        run: ./test.sh --unprivileged --type oss
+      - name: Run tests - latest njs version - unprivileged process
+        run: ./test.sh --latest-njs --unprivileged --type oss
 
   build_and_deploy:
     runs-on: ubuntu-latest
@@ -41,9 +45,11 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install -y wait-for-it
       - name: Run tests - latest njs version
-        run: ./test.sh latest-njs-oss
+        run: ./test.sh --latest-njs --type oss
       - name: Run tests - stable njs version
-        run: ./test.sh oss
+        run: ./test.sh --type oss
+      - name: Run tests - stable njs version - unprivileged process
+        run: ./test.sh --unprivileged --type oss
       # latest-njs-oss image push [Github]
       - name: Tag container image for Push to github [latest-njs-oss date]
         run: docker tag nginx-s3-gateway:latest-njs-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
@@ -53,6 +59,15 @@ jobs:
         run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
       - name: Push container image to github [latest-njs-oss]
         run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-njs-oss
+      # unprivileged-oss image push [Github]
+      - name: Tag container image for Push to github [unprivileged-oss date]
+        run: docker tag nginx-s3-gateway:unprivileged-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:unprivileged-oss-${{ steps.date.outputs.date }}
+      - name: Tag container image for Push to github [unprivileged-oss]
+        run: docker tag nginx-s3-gateway:unprivileged-oss docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:unprivileged-oss
+      - name: Push container image to github [unprivileged-oss date]
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:unprivileged-oss-${{ steps.date.outputs.date }}
+      - name: Push container image to github [unprivileged-oss]
+        run: docker push docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:unprivileged-oss
       # oss image push [Github]
       - name: Tag container image for Push to github [oss date]
         run: docker tag nginx-s3-gateway:latest docker.pkg.github.com/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-${{ steps.date.outputs.date }}
@@ -77,6 +92,15 @@ jobs:
         run: docker push nginxinc/nginx-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
       - name: Push container image to Docker Hub [latest-njs-oss]
         run: docker push nginxinc/nginx-s3-gateway:latest-njs-oss
+      # unprivileged-oss image push [Docker Hub]
+      - name: Tag container image for Push to Docker Hub [unprivileged-oss date]
+        run: docker tag nginx-s3-gateway:unprivileged-oss nginxinc/nginx-s3-gateway:unprivileged-oss-${{ steps.date.outputs.date }}
+      - name: Tag container image for Push to Docker Hub [unprivileged-oss]
+        run: docker tag nginx-s3-gateway:unprivileged-oss nginxinc/nginx-s3-gateway:unprivileged-oss
+      - name: Push container image to Docker Hub [unprivileged-oss date]
+        run: docker push nginxinc/nginx-s3-gateway:unprivileged-oss-${{ steps.date.outputs.date }}
+      - name: Push container image to Docker Hub [unprivileged-oss]
+        run: docker push nginxinc/nginx-s3-gateway:unprivileged-oss
       # oss image push [Docker Hub]
       - name: Tag container image for Push to Docker Hub [oss date]
         run: docker tag nginx-s3-gateway:latest nginxinc/nginx-s3-gateway:latest-${{ steps.date.outputs.date }}

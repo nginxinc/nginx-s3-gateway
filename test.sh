@@ -17,7 +17,6 @@
 #
 
 set -o errexit   # abort on nonzero exit status
-set -o nounset   # abort on unbound variable
 set -o pipefail  # don't hide errors within pipes
 
 nginx_server_proto="http"
@@ -41,27 +40,70 @@ e() {
   >&2 echo "$1"
 }
 
+usage() { e "Usage: $0 [--latest-njs <default:false>] [--unprivileged <default:false>] [--type <default:oss|plus>" 1>&2; exit 1; }
 
-if [ $# -eq 0 ]; then
+for arg in "$@"; do
+  shift
+  case "$arg" in
+    '--help')           set -- "$@" '-h'   ;;
+    '--latest-njs')     set -- "$@" '-j'   ;;
+    '--unprivileged')   set -- "$@" '-u'   ;;
+    '--type')           set -- "$@" '-t'   ;;
+    *)                  set -- "$@" "$arg" ;;
+  esac
+done
+
+while getopts "hjut:" arg; do
+    case "${arg}" in
+        j)
+            njs_latest="1"
+            ;;
+        u)
+            unprivileged="1"
+            ;;
+        t)
+            nginx_type="${OPTARG}"
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+startup_message=""
+
+if [ -z "${nginx_type}" ]; then
   nginx_type="oss"
-  njs_latest=0
-  p "No argument specified - defaulting to NGINX OSS. Valid arguments: oss, plus, latest-njs-oss, latest-njs-plus"
+  startup_message="Starting NGINX ${nginx_type} (default)"
+elif ! { [ ${nginx_type} == "oss" ] || [ ${nginx_type} == "plus" ]; }; then
+    e "Invalid NGINX type: ${nginx_type} - must be either 'oss' or 'plus'"
+    usage
 else
-  if [[ "${1}" == *plus ]]; then
-    nginx_type="plus"
-    p "Testing with NGINX Plus"
-  else
-    nginx_type="oss"
-    p "Testing with NGINX OSS"
-  fi
-
-  if [[ "${1}" == latest-njs-* ]]; then
-    p "Testing with latest development version of NJS"
-    njs_latest=1
-  else
-    njs_latest=0
-  fi
+  startup_message="Starting NGINX ${nginx_type}"
 fi
+
+if [ -z "${njs_latest}" ]; then
+  njs_latest="0"
+  startup_message="${startup_message} with the release NJS module (default)"
+elif [ ${njs_latest} -eq 1 ]; then
+  startup_message="${startup_message} with the latest NJS module"
+else
+  startup_message="${startup_message} with the release NJS module"
+fi
+
+if [ -z "${unprivileged}" ]; then
+  unprivileged="0"
+  startup_message="${startup_message} in privileged mode (default)"
+elif [ ${unprivileged} -eq 1 ]; then
+  startup_message="${startup_message} in unprivileged mode"
+else
+  startup_message="${startup_message} in privileged mode"
+fi
+
+e "${startup_message}"
+
+set -o nounset   # abort on unbound variable
 
 docker_cmd="$(command -v docker)"
 if ! [ -x "${docker_cmd}" ]; then
@@ -102,7 +144,14 @@ if [ "${nginx_type}" = "plus" ]; then
 fi
 
 compose() {
-  "${docker_compose_cmd}"  -f "${test_compose_config}" -p "${test_compose_project}" "$@"
+  # Hint to docker-compose the internal port to map for the container
+  if [ ${unprivileged} -eq 1 ]; then
+    export NGINX_INTERNAL_PORT=8080
+  else
+    export NGINX_INTERNAL_PORT=80
+  fi
+
+  "${docker_compose_cmd}" -f "${test_compose_config}" -p "${test_compose_project}" "$@"
 }
 
 integration_test() {
@@ -206,6 +255,12 @@ if [ ${njs_latest} -eq 1 ]; then
   p "Layering in latest NJS build"
   docker build -f Dockerfile.latest-njs \
     --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-${nginx_type} .
+fi
+
+if [ ${unprivileged} -eq 1 ]; then
+  p "Layering in unprivileged build"
+  docker build -f Dockerfile.unprivileged \
+    --tag nginx-s3-gateway --tag nginx-s3-gateway:unprivileged-${nginx_type} .
 fi
 
 ### UNIT TESTS
