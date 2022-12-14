@@ -50,6 +50,10 @@ else
   export LIMIT_METHODS_TO_CSV="GET, HEAD"
 fi
 
+if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
+  export CORS_ALLOWED_ORIGIN="*"
+fi
+
 # Nothing is modified under this line
 
 if [ -z "${NGINX_ENTRYPOINT_QUIET_LOGS:-}" ]; then
