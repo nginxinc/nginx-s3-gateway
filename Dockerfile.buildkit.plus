@@ -1,9 +1,9 @@
 FROM debian:bullseye-slim
 
-ENV NGINX_PLUS_VERSION   27-2
-ENV NGINX_VERSION        1.21.6
-ENV NJS_VERSION          27+0.7.7-1
-ENV XSLT_VERSION         27-1
+ENV NGINX_PLUS_VERSION   28-1
+ENV NGINX_VERSION        1.23.2
+ENV NJS_VERSION          28+0.7.9-1
+ENV XSLT_VERSION         28-1
 
 COPY plus/usr /usr
 
