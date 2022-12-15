@@ -34,7 +34,7 @@ const DEBUG = _parseBoolean(process.env['S3_DEBUG']);
 const ALLOW_LISTING = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
 const PROVIDE_INDEX_PAGE = _parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
 const APPEND_SLASH = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
-
+const FOUR_O_FOUR_ON_EMPTY_BUCKET = _parseBoolean(process.env['FOUR_O_FOUR_ON_EMPTY_BUCKET']);
 const S3_STYLE = process.env['S3_STYLE'];
 
 const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = _parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
@@ -501,9 +501,10 @@ function signatureV2(r, bucket, credentials) {
 }
 
 /**
- * Processes the directory listing output as returned from S3 and corrupts the
- * XML output by inserting 'junk' into causing nginx to return a 404 for empty
- * directory listings.
+ * Processes the directory listing output as returned from S3. If
+ * FOUR_O_FOUR_ON_EMPTY_BUCKET is enabled, this function will corrupt the
+ * XML output by inserting the string 'junk' into the output thereby causing
+ * nginx to return a 404 for empty directory listings.
  *
  * If anyone finds a better way to do this, please submit a PR.
  *
@@ -512,20 +513,24 @@ function signatureV2(r, bucket, credentials) {
  * @param flags contains field that indicates that a chunk is last
  */
 function filterListResponse(r, data, flags) {
-    let indexIsEmpty = _parseBoolean(r.variables.indexIsEmpty);
+    if (FOUR_O_FOUR_ON_EMPTY_BUCKET) {
+        let indexIsEmpty = _parseBoolean(r.variables.indexIsEmpty);
 
-    if (indexIsEmpty && data.indexOf('<Contents') >= 0) {
-        r.variables.indexIsEmpty = false;
-        indexIsEmpty = false;
-    }
+        if (indexIsEmpty && data.indexOf('<Contents') >= 0) {
+            r.variables.indexIsEmpty = false;
+            indexIsEmpty = false;
+        }
 
-    if (indexIsEmpty && data.indexOf('<CommonPrefixes') >= 0) {
-        r.variables.indexIsEmpty = false;
-        indexIsEmpty = false;
-    }
+        if (indexIsEmpty && data.indexOf('<CommonPrefixes') >= 0) {
+            r.variables.indexIsEmpty = false;
+            indexIsEmpty = false;
+        }
 
-    if (flags.last && indexIsEmpty) {
-        r.sendBuffer('junk', flags);
+        if (flags.last && indexIsEmpty) {
+            r.sendBuffer('junk', flags);
+        } else {
+            r.sendBuffer(data, flags);
+        }
     } else {
         r.sendBuffer(data, flags);
     }

@@ -15,11 +15,13 @@
 
     </xsl:template>
 
+    <!-- When FOUR_O_FOUR_ON_EMPTY_BUCKET is disabled (the default setting),
+         the following template will be executed when the bucket is empty. -->
     <xsl:template name="no_contents">
         <html>
-            <head><title>Not Found</title></head>
+            <head><title>No Files Available for Listing</title></head>
             <body>
-                <h1>Not Found</h1>
+                <h1>No Files Available for Listing</h1>
             </body>
         </html>
     </xsl:template>
