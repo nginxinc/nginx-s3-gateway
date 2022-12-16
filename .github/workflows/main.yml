@@ -103,9 +103,9 @@ jobs:
         run: docker push nginxinc/nginx-s3-gateway:unprivileged-oss
       # oss image push [Docker Hub]
       - name: Tag container image for Push to Docker Hub [oss date]
-        run: docker tag nginx-s3-gateway:latest nginxinc/nginx-s3-gateway:latest-${{ steps.date.outputs.date }}
+        run: docker tag nginx-s3-gateway:oss nginxinc/nginx-s3-gateway:latest-${{ steps.date.outputs.date }}
       - name: Tag container image for Push to Docker Hub [oss]
-        run: docker tag nginx-s3-gateway:latest nginxinc/nginx-s3-gateway:latest
+        run: docker tag nginx-s3-gateway:oss nginxinc/nginx-s3-gateway:latest
       - name: Push container image to Docker Hub [oss date]
         run: docker push nginxinc/nginx-s3-gateway:latest-${{ steps.date.outputs.date }}
       - name: Push container image to Docker Hub [oss latest]
