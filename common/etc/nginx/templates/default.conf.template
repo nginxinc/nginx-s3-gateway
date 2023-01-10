@@ -5,8 +5,8 @@ js_import /etc/nginx/include/s3gateway.js;
 include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_js_vars.conf;
 
 # Extracts only the path from the requested URI. This strips out all query
-# parameters and anchors in order to prevent extranous data from being sent to
-# S3.
+# parameters and anchors in order to prevent extraneous data from being sent
+# to S3.
 map $request_uri $uri_path {
     "~^(?P<path>.*?)(\?.*)*$"  $path;
 }
