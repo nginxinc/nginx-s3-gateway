@@ -75,7 +75,7 @@ server {
         # the response to an OPTIONS request. If you want to customize the
         # CORS response, the cors.conf.template file can be overwritten and
         # extended to meet one's needs.
-        include /etc/nginx/conf.d/gateway/cors.conf;
+        # include /etc/nginx/conf.d/gateway/cors.conf;
 
         auth_request /aws/credentials/retrieve;
 
@@ -99,7 +99,7 @@ server {
 
         # The CORS configuration needs to be imported in several places in order for
         # it to be applied within different contexts.
-        include /etc/nginx/conf.d/gateway/cors.conf;
+        # include /etc/nginx/conf.d/gateway/cors.conf;
 
         # Don't allow any headers from the client - we don't want them messing
         # with S3 at all.
@@ -146,7 +146,7 @@ server {
 
         # The CORS configuration needs to be imported in several places in order for
         # it to be applied within different contexts.
-        include /etc/nginx/conf.d/gateway/cors.conf;
+        # include /etc/nginx/conf.d/gateway/cors.conf;
 
         # Don't allow any headers from the client - we don't want them messing
         # with S3 at all.

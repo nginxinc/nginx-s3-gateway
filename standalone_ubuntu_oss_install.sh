@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+S3_BUCKET_NAME=nginx-0206
+S3_SERVER=s3-us-east-2.amazonaws.com
+S3_SERVER_PORT=443
+S3_SERVER_PROTO=https
+S3_REGION=us-east-2
+S3_STYLE=virtual
+S3_DEBUG=true
+AWS_SIGS_VERSION=4
+ALLOW_DIRECTORY_LIST=true
+PROVIDE_INDEX_PAGE=true
+APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=false
+PROXY_CACHE_VALID_OK=1h
+PROXY_CACHE_VALID_NOTFOUND=1m
+PROXY_CACHE_VALID_FORBIDDEN=30s
+CORS_ENABLED=false
+DNS_RESOLVERS=8.8.8.8
+
 set -o errexit   # abort on nonzero exit status
 set -o pipefail  # don't hide errors within pipes
 
@@ -205,6 +222,7 @@ EOF
 chmod +x /usr/local/bin/template_nginx_config.sh
 
 echo "▶ Reconfiguring systemd for S3 Gateway"
+mkdir -p /etc/systemd/system/nginx.service.d
 cat > /etc/systemd/system/nginx.service.d/override.conf << 'EOF'
 [Service]
 EnvironmentFile=/etc/nginx/environment
@@ -218,7 +236,7 @@ mkdir -p /etc/nginx/conf.d/gateway
 mkdir -p /etc/nginx/templates/gateway
 
 function download() {
-  wget --quiet --output-document="$2" "https://raw.githubusercontent.com/nginxinc/nginx-s3-gateway/${branch}/$1"
+  wget --quiet --output-document="$2" "https://raw.githubusercontent.com/nginx-serverless/nginx-s3-gateway-v2/master/$1"
 }
 
 if [ ! -f /etc/nginx/nginx.conf.orig ]; then
@@ -306,6 +324,10 @@ download "common/etc/nginx/templates/gateway/v4_headers.conf.template" "/etc/ngi
 download "common/etc/nginx/templates/gateway/v4_js_vars.conf.template" "/etc/nginx/templates/gateway/v4_js_vars.conf.template"
 download "oss/etc/nginx/templates/upstreams.conf.template" "/etc/nginx/templates/upstreams.conf.template"
 download "oss/etc/nginx/conf.d/gateway/server_variables.conf" "/etc/nginx/conf.d/gateway/server_variables.conf"
+download "common/etc/nginx/templates/gateway/cors.conf.template" "/etc/nginx/templates/gateway/cors.conf.template"
+download "common/etc/nginx/templates/gateway/js_fetch_trusted_certificate.conf.template" "/etc/nginx/templates/gateway/js_fetch_trusted_certificate.conf.template"
+download "common/etc/nginx/templates/gateway/s3listing_location.conf.template" "/etc/nginx/templates/gateway/s3listing_location.conf.template"
+download "common/etc/nginx/templates/gateway/s3_server.conf.template" "/etc/nginx/templates/gateway/s3_server.conf.template"
 
 echo "▶ Creating directory for proxy cache"
 mkdir -p /var/cache/nginx/s3_proxy

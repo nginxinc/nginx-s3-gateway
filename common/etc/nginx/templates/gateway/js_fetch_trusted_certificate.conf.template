@@ -1,3 +1,3 @@
 # Enable js_fetch_trusted_certificate if you are seeing SSL Handshake error when connecing to S3
 # The following often works for connecting to AWS services:
-# js_fetch_trusted_certificate /etc/ssl/certs/Amazon_Root_CA_1.pem;
+js_fetch_trusted_certificate /etc/ssl/certs/Amazon_Root_CA_1.pem;

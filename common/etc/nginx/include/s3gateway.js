@@ -43,7 +43,7 @@ const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = _parseArray(process.env['HEADER_PREF
  * Default filename for index pages to be read off of the backing object store.
  * @type {string}
  */
-const INDEX_PAGE = "index.html";
+const INDEX_PAGE = "www/index.html";
 
 /**
  * The current moment as a timestamp. This timestamp will be used across
