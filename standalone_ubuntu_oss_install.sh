@@ -205,6 +205,7 @@ EOF
 chmod +x /usr/local/bin/template_nginx_config.sh
 
 echo "▶ Reconfiguring systemd for S3 Gateway"
+mkdir -p /etc/systemd/system/nginx.service.d
 cat > /etc/systemd/system/nginx.service.d/override.conf << 'EOF'
 [Service]
 EnvironmentFile=/etc/nginx/environment
