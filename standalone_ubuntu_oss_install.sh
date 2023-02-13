@@ -158,7 +158,30 @@ S3_SERVER=${S3_SERVER}
 S3_STYLE=${S3_STYLE}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 S3_DEBUG=${S3_DEBUG}
+PROXY_CACHE_VALID_OK=${PROXY_CACHE_VALID_OK}
+PROXY_CACHE_VALID_NOTFOUND=${PROXY_CACHE_VALID_NOTFOUND}
+PROXY_CACHE_VALID_FORBIDDEN=${PROXY_CACHE_VALID_FORBIDDEN}
+CORS_ENABLED=${CORS_ENABLED}
 EOF
+
+# By enabling CORS, we also need to enable the OPTIONS method which
+# is not normally used as part of the gateway. The following variable
+# defines the set of acceptable headers.
+if [ "${CORS_ENABLED}" == "1" ]; then
+    cat >> "/etc/nginx/environment" << EOF
+LIMIT_METHODS_TO="GET HEAD OPTIONS"
+LIMIT_METHODS_TO_CSV="GET, HEAD, OPTIONS"
+EOF
+else
+    cat >> "/etc/nginx/environment" << EOF
+LIMIT_METHODS_TO="GET HEAD"
+LIMIT_METHODS_TO_CSV="GET, HEAD"
+EOF
+fi
+
+if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
+CORS_ALLOWED_ORIGIN="*"
+fi
 
 # Only include these env vars if we are not using a instance profile credential
 # to obtain S3 permissions.
@@ -327,6 +350,7 @@ download "oss/etc/nginx/conf.d/gateway/server_variables.conf" "/etc/nginx/conf.d
 download "common/etc/nginx/templates/gateway/cors.conf.template" "/etc/nginx/templates/gateway/cors.conf.template"
 download "common/etc/nginx/templates/gateway/js_fetch_trusted_certificate.conf.template" "/etc/nginx/templates/gateway/js_fetch_trusted_certificate.conf.template"
 download "common/etc/nginx/templates/gateway/s3listing_location.conf.template" "/etc/nginx/templates/gateway/s3listing_location.conf.template"
+download "common/etc/nginx/templates/gateway/s3_location.conf.template" "/etc/nginx/templates/gateway/s3_location.conf.template"
 download "common/etc/nginx/templates/gateway/s3_server.conf.template" "/etc/nginx/templates/gateway/s3_server.conf.template"
 
 echo "▶ Creating directory for proxy cache"
