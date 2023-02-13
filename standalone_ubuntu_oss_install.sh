@@ -81,6 +81,10 @@ echo "Addressing Style: ${S3_STYLE}"
 echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
 echo "DNS Resolvers: ${DNS_RESOLVERS}"
 echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
+echo "Proxy Caching Time for Valid Response: ${PROXY_CACHE_VALID_OK}"
+echo "Proxy Caching Time for Not Found Response: ${PROXY_CACHE_VALID_NOTFOUND}"
+echo "Proxy Caching Time for Forbidden Response: ${PROXY_CACHE_VALID_FORBIDDEN}"
+echo "CORS Enabled: ${CORS_ENABLED}"
 
 set -o nounset   # abort on unbound variable
 
@@ -123,7 +127,7 @@ fi
 
 echo "▶ Adding environment variables to NGINX configuration file: /etc/nginx/environment"
 cat > "/etc/nginx/environment" << EOF
-# Enables or disables directory listing for the S3 Gateway (1=enabled, 0=disabled)
+# Enables or disables directory listing for the S3 Gateway (true=enabled, false=disabled)
 ALLOW_DIRECTORY_LIST=${ALLOW_DIRECTORY_LIST}
 # AWS Authentication signature version (2=v2 authentication, 4=v4 authentication)
 AWS_SIGS_VERSION=${AWS_SIGS_VERSION}
@@ -141,7 +145,34 @@ S3_SERVER=${S3_SERVER}
 S3_STYLE=${S3_STYLE}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 S3_DEBUG=${S3_DEBUG}
+# Proxy caching time for response code 200 and 302
+PROXY_CACHE_VALID_OK=${PROXY_CACHE_VALID_OK}
+# Proxy caching time for response code 404
+PROXY_CACHE_VALID_NOTFOUND=${PROXY_CACHE_VALID_NOTFOUND}
+# Proxy caching time for response code 403
+PROXY_CACHE_VALID_FORBIDDEN=${PROXY_CACHE_VALID_FORBIDDEN}
+# Enables or disables CORS for the S3 Gateway (true=enabled, false=disabled)
+CORS_ENABLED=${CORS_ENABLED}
 EOF
+
+# By enabling CORS, we also need to enable the OPTIONS method which
+# is not normally used as part of the gateway. The following variable
+# defines the set of acceptable headers.
+if [ "${CORS_ENABLED}" == "1" ]; then
+    cat >> "/etc/nginx/environment" << EOF
+LIMIT_METHODS_TO="GET HEAD OPTIONS"
+LIMIT_METHODS_TO_CSV="GET, HEAD, OPTIONS"
+EOF
+else
+    cat >> "/etc/nginx/environment" << EOF
+LIMIT_METHODS_TO="GET HEAD"
+LIMIT_METHODS_TO_CSV="GET, HEAD"
+EOF
+fi
+
+if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
+CORS_ALLOWED_ORIGIN="*"
+fi
 
 # Only include these env vars if we are not using a instance profile credential
 # to obtain S3 permissions.
@@ -305,6 +336,11 @@ download "common/etc/nginx/templates/gateway/v2_headers.conf.template" "/etc/ngi
 download "common/etc/nginx/templates/gateway/v2_js_vars.conf.template" "/etc/nginx/templates/gateway/v2_js_vars.conf.template"
 download "common/etc/nginx/templates/gateway/v4_headers.conf.template" "/etc/nginx/templates/gateway/v4_headers.conf.template"
 download "common/etc/nginx/templates/gateway/v4_js_vars.conf.template" "/etc/nginx/templates/gateway/v4_js_vars.conf.template"
+download "common/etc/nginx/templates/gateway/cors.conf.template" "/etc/nginx/templates/gateway/cors.conf.template"
+download "common/etc/nginx/templates/gateway/js_fetch_trusted_certificate.conf.template" "/etc/nginx/templates/gateway/js_fetch_trusted_certificate.conf.template"
+download "common/etc/nginx/templates/gateway/s3listing_location.conf.template" "/etc/nginx/templates/gateway/s3listing_location.conf.template"
+download "common/etc/nginx/templates/gateway/s3_location.conf.template" "/etc/nginx/templates/gateway/s3_location.conf.template"
+download "common/etc/nginx/templates/gateway/s3_server.conf.template" "/etc/nginx/templates/gateway/s3_server.conf.template"
 download "oss/etc/nginx/templates/upstreams.conf.template" "/etc/nginx/templates/upstreams.conf.template"
 download "oss/etc/nginx/conf.d/gateway/server_variables.conf" "/etc/nginx/conf.d/gateway/server_variables.conf"
 
