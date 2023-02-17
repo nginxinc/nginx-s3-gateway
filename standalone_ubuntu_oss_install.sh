@@ -340,6 +340,7 @@ EOF
 
 download "common/etc/nginx/include/listing.xsl" "/etc/nginx/include/listing.xsl"
 download "common/etc/nginx/include/s3gateway.js" "/etc/nginx/include/s3gateway.js"
+download "common/etc/nginx/include/lambda_gateway.js" "/etc/nginx/include/lambda_gateway.js"
 download "common/etc/nginx/templates/default.conf.template" "/etc/nginx/templates/default.conf.template"
 download "common/etc/nginx/templates/gateway/v2_headers.conf.template" "/etc/nginx/templates/gateway/v2_headers.conf.template"
 download "common/etc/nginx/templates/gateway/v2_js_vars.conf.template" "/etc/nginx/templates/gateway/v2_js_vars.conf.template"

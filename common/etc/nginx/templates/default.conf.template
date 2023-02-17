@@ -1,4 +1,5 @@
 js_import /etc/nginx/include/s3gateway.js;
+js_import /etc/nginx/include/lambda_gateway.js;
 
 # We include only the variables needed for the authentication signatures that
 # we plan to use.
@@ -20,10 +21,15 @@ map $S3_STYLE $s3_host_hdr {
 js_var $indexIsEmpty true;
 # This creates the HTTP authentication header to be sent to S3
 js_set $s3auth s3gateway.s3auth;
+js_set $lambdaAuth lambda_gateway.lambdaAuth;
 js_set $s3SecurityToken s3gateway.s3SecurityToken;
 js_set $s3uri s3gateway.s3uri;
 
 server {
+    # Enable when debugging is needed
+    error_log  /var/log/nginx/error.log  debug; # Reduce severity level as required
+    access_log /var/log/nginx/access.log main;
+
     include /etc/nginx/conf.d/gateway/server_variables.conf;
 
     # Don't display the NGINX version number because we don't want to reveal
@@ -82,12 +88,13 @@ server {
         # Redirect to the proper location based on the client request - either
         # @s3, @s3Listing or @error405.
 
-        js_content s3gateway.redirectToS3;
+        #js_content s3gateway.redirectToS3;
+        js_content lambda_gateway.redirectToLambda;
     }
 
     location /aws/credentials/retrieve {
         internal;
-        js_content s3gateway.fetchCredentials;
+        js_content lambda_gateway.fetchCredentials;
 
         include /etc/nginx/conf.d/gateway/js_fetch_trusted_certificate.conf;
     }
