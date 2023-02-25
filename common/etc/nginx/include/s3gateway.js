@@ -988,8 +988,9 @@ async function fetchCredentials(r) {
     }
 
     if (current) {
-        // AWS returns Unix timestamps in seconds, but in Date constructor we should provide timestamp in milliseconds
-        const exp = new Date(current.expiration * 1000).getTime() - maxValidityOffsetMs;
+        // If AWS returns a Unix timestamp it will be in seconds, but in Date constructor we should provide timestamp in milliseconds
+        const expireAt = typeof current.expiration == 'number' ? current.expiration * 1000 : current.expiration
+        const exp = new Date(expireAt).getTime() - maxValidityOffsetMs;
         if (NOW.getTime() < exp) {
             r.return(200);
             return;
