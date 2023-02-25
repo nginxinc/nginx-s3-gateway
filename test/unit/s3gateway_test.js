@@ -373,6 +373,7 @@ function testReadCredentialsWithAccessAndSecretKeySet() {
     let r = {};
     process.env['S3_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
     process.env['S3_SECRET_KEY'] = 'SOME_SECRET_KEY';
+    process.env['S3_SESSION_TOKEN'] = 'SOME_SESSION_TOKEN';
 
     try {
         var credentials = s3gateway.readCredentials(r);
@@ -382,7 +383,7 @@ function testReadCredentialsWithAccessAndSecretKeySet() {
         if (credentials.secretAccessKey !== process.env['S3_SECRET_KEY']) {
             throw 'static credentials do not match returned value [secretAccessKey]';
         }
-        if (credentials.sessionToken !== null) {
+        if (credentials.sessionToken !== process.env['S3_SESSION_TOKEN']) {
             throw 'static credentials do not match returned value [sessionToken]';
         }
         if (credentials.expiration !== null) {
@@ -392,6 +393,7 @@ function testReadCredentialsWithAccessAndSecretKeySet() {
     } finally {
         delete process.env.S3_ACCESS_KEY_ID;
         delete process.env.S3_SECRET_KEY;
+        delete process.env.S3_SESSION_TOKEN;
     }
 }
 
@@ -471,8 +473,10 @@ function testReadAndWriteCredentialsFromKeyValStore() {
 
     let accessKeyId = process.env['S3_ACCESS_KEY_ID'];
     let secretKey = process.env['S3_SECRET_KEY'];
+    let sessionToken = process.env['S3_SESSION_TOKEN'];
     delete process.env.S3_ACCESS_KEY_ID;
     delete process.env.S3_SECRET_KEY;
+    delete process.env.S3_SESSION_TOKEN
 
     try {
         let r = {
@@ -500,6 +504,7 @@ function testReadAndWriteCredentialsFromKeyValStore() {
     } finally {
         process.env['S3_ACCESS_KEY_ID'] = accessKeyId;
         process.env['S3_SECRET_KEY'] = secretKey;
+        process.env['S3_SESSION_TOKEN'] = sessionToken;
     }
 }
 

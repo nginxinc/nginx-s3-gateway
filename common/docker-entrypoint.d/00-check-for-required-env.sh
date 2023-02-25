@@ -52,6 +52,10 @@ else
   required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
 fi
 
+if [[ -v S3_SESSION_TOKEN ]]; then
+  echo "S3 Session token present"
+fi
+
 for name in ${required[@]}; do
   if [[ ! -v name ]]; then
       >&2 echo "Required ${name} environment variable missing"

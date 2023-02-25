@@ -1,6 +1,7 @@
 S3_BUCKET_NAME=my-bucket
 S3_ACCESS_KEY_ID=ZZZZZZZZZZZZZZZZZZZZ
 S3_SECRET_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+S3_SESSION_TOKEN=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 S3_SERVER=s3-us-east-1.amazonaws.com
 S3_SERVER_PORT=443
 S3_SERVER_PROTO=https

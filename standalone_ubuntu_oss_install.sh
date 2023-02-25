@@ -44,6 +44,10 @@ else
   uses_iam_creds=0
 fi
 
+if [[ -v S3_SESSION_TOKEN ]]; then
+  echo "S3 Session token present"
+fi
+
 for name in ${required[@]}; do
   if [ -z ${!name+x} ]; then
       >&2 echo "Required ${name} environment variable missing"
@@ -182,6 +186,8 @@ if [ $uses_iam_creds -eq 0 ]; then
 S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
 # AWS Secret access key
 S3_SECRET_KEY=${S3_SECRET_KEY}
+# AWS Session Token
+S3_SESSION_TOKEN=${S3_SESSION_TOKEN}
 EOF
 fi
 
@@ -281,6 +287,7 @@ if [ $uses_iam_creds -eq 0 ]; then
   cat >> "/etc/nginx/environment" << EOF
 env S3_ACCESS_KEY_ID;
 env S3_SECRET_KEY;
+env S3_SESSION_TOKEN;
 EOF
 fi
 
