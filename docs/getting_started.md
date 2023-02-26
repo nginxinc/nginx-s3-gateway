@@ -193,15 +193,15 @@ Alternatively, if you would like to use the latest version of
 from the latest njs source by building this image after building the parent 
 image above:
 ```
-docker build --file Dockerfile.oss --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-plus .
+docker build --file Dockerfile.plus --tag nginx-plus-s3-gateway --tag nginx-plus-s3-gateway:latest-njs-plus .
 ```
 
 After building, you can run the image by issuing the following command and
 replacing the path to the `settings` file with a file containing your specific
 environment variables.
 ```
-docker run --env-file ./settings --publish 80:80 --name nginx-s3-gateway \
-    nginx-s3-gateway:plus
+docker run --env-file ./settings --publish 80:80 --name nginx-plus-s3-gateway \
+    nginx-plus-s3-gateway:plus
 ```
 
 ## Running Using AWS Instance Profile Credentials
