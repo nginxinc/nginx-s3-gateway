@@ -30,6 +30,13 @@ server {
     # information that could be used to find an exploit.
     server_tokens off;
 
+    # Normalize location path. Remove instances of double/multipe forward slashes.
+    # Disabling merge_slashes is necessary for this feature to work.
+    # Disabling port redirection to avoid broken URLs in bridged hosts
+    port_in_redirect off;
+    merge_slashes off;
+    rewrite (.*?)//+(.*) $1/$2 redirect;
+
     # Uncomment this for a HTTP header that will let you know the cache status
     # of an object.
     # add_header X-Cache-Status $upstream_cache_status;
