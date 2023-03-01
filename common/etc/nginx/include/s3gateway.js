@@ -989,6 +989,7 @@ async function fetchCredentials(r) {
 
     if (current) {
         // If AWS returns a Unix timestamp it will be in seconds, but in Date constructor we should provide timestamp in milliseconds
+        // In some situations (including EC2 and Fargate) current.expiration will be an RFC 3339 string - see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#instance-metadata-security-credentials
         const expireAt = typeof current.expiration == 'number' ? current.expiration * 1000 : current.expiration
         const exp = new Date(expireAt).getTime() - maxValidityOffsetMs;
         if (NOW.getTime() < exp) {
