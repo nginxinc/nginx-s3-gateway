@@ -83,10 +83,52 @@ function testParseArray() {
     testParseMultipleValuesTrailingDelimiter();
 }
 
-async function test() {
-    testParseArray();
+function testAmzDatetime() {
+    printHeader('testAmzDatetime');
+    var timestamp = new Date('2020-08-03T02:01:09.004Z');
+    var eightDigitDate = utils.getEightDigitDate(timestamp);
+    var amzDatetime = utils.getAmzDatetime(timestamp, eightDigitDate);
+    var expected = '20200803T020109Z';
+
+    if (amzDatetime !== expected) {
+        throw 'Amazon date time was not created correctly.\n' +
+        'Actual:   [' + amzDatetime + ']\n' +
+        'Expected: [' + expected + ']';
+    }
 }
 
+function testEightDigitDate() {
+    printHeader('testEightDigitDate');
+    var timestamp = new Date('2020-08-03T02:01:09.004Z');
+    var eightDigitDate = utils.getEightDigitDate(timestamp);
+    var expected = '20200803';
+
+    if (eightDigitDate !== expected) {
+        throw 'Eight digit date was not created correctly.\n' +
+        'Actual:   ' + eightDigitDate + '\n' +
+        'Expected: ' + expected;
+    }
+}
+
+function testPad() {
+    printHeader('testPad');
+    var padSingleDigit = utils.padWithLeadingZeros(3, 2);
+    var expected = '03';
+
+    if (padSingleDigit !== expected) {
+        throw 'Single digit 3 was not padded with leading zero.\n' +
+        'Actual:   ' + padSingleDigit + '\n' +
+        'Expected: ' + expected;
+    }
+}
+
+async function test() {
+    testAmzDatetime();
+    testEightDigitDate();
+    testPad();
+    testParseArray();
+}
+    
 function printHeader(testName) {
     console.log(`\n## ${testName}`);
 }

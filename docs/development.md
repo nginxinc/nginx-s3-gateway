@@ -1,5 +1,22 @@
 # Development Guide
 
+## Integrating with AWS Signature
+
+Update the following files when enhancing `nginx-s3-gateway` to integrate with AWS signature whenever AWS releases a new version of signature or you have a new PR:
+
+- NGINX Proxy: [`/etc/nginx/conf.d/default.conf`](/common/etc/nginx/templates/gateway/s3_location.conf.template)
+- AWS Credentials Lib: [`/etc/nginx/include/awscredentials.js`](/common/etc/nginx/include/awscredentials.js)
+  > Note: The `fetchCredentials()` is going to be part of here soon.
+
+- AWS Signature Lib per version:
+  - [`/etc/nginx/include/awssig2.js`](/common/etc/nginx/include/awssig2.js)
+  - [`/etc/nginx/include/awssig4.js`](/common/etc/nginx/include/awssig4.js)
+
+- S3 Integration Lib: [`/etc/nginx/include/s3gateway.js`](/common/etc/nginx/include/s3gateway.js)
+- Common Lib for all of NJS: [`/etc/nginx/include/utils.js`](/common/etc/nginx/include/utils.js)
+
+![](./img/nginx-s3-gateway-signature-flow.png)
+
 ## Extending the Gateway
 
 ### Extending gateway configuration via container images

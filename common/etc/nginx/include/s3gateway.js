@@ -15,6 +15,8 @@
  */
 
 import awscred from "./awscredentials.js";
+import awssig2 from "./awssig2.js";
+import awssig4 from "./awssig4.js";
 import utils from "./utils.js";
 
 _require_env_var('S3_BUCKET_NAME');
@@ -25,7 +27,6 @@ _require_env_var('S3_REGION');
 _require_env_var('AWS_SIGS_VERSION');
 _require_env_var('S3_STYLE');
 
-const mod_hmac = require('crypto');
 const fs = require('fs');
 
 /**
@@ -59,18 +60,6 @@ const NOW = new Date();
  * @type {string}
  */
 const SERVICE = 's3';
-
-/**
- * Constant checksum for an empty HTTP body.
- * @type {string}
- */
-const EMPTY_PAYLOAD_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-
-/**
- * Constant defining the headers being signed.
- * @type {string}
- */
-const DEFAULT_SIGNED_HEADERS = 'host;x-amz-content-sha256;x-amz-date';
 
 /**
  * Constant base URI to fetch credentials together with the credentials relative URI, see
@@ -163,7 +152,7 @@ function s3date(r) {
  * @returns {string} ISO 8601 timestamp
  */
 function awsHeaderDate(r) {
-    return _amzDatetime(NOW, _eightDigitDate(NOW));
+    return utils.getAmzDatetime(NOW, utils.getEightDigitDate(NOW));
 }
 
 /**
@@ -188,12 +177,76 @@ function s3auth(r) {
 
     const credentials = awscred.readCredentials(r);
     if (sigver == '2') {
-        signature = signatureV2(r, bucket, credentials);
+        let req = _s3ReqParamsForSigV2(r, bucket);
+        signature = awssig2.signatureV2(r, req.uri, req.httpDate, credentials);
     } else {
-        signature = signatureV4(r, NOW, bucket, region, server, credentials);
+        let req = _s3ReqParamsForSigV4(r, bucket, server);
+        signature = awssig4.signatureV4(r, NOW, region, SERVICE,
+            req.uri, req.queryParams, req.host, credentials);
     }
 
     return signature;
+}
+
+/**
+ * Generate some of request parameters for AWS signature version 2
+ *
+ * @see {@link https://docs.aws.amazon.com/AmazonS3/latest/userguide/auth-request-sig-v2.html | AWS signature version 2}
+ * @param r {Request} HTTP request object
+ * @param bucket {string} S3 bucket associated with request
+ * @returns s3ReqParams {object} s3ReqParams object (host, method, uri, queryParams)
+ * @private
+ */
+function _s3ReqParamsForSigV2(r, bucket) {
+    /* If the source URI is a directory, we are sending to S3 a query string
+     * local to the root URI, so this is what we need to encode within the
+     * string to sign. For example, if we are requesting /bucket/dir1/ from
+     * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
+     * Thus, we can't put the path /dir1/ in the string to sign. */
+    let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    // To return index pages + index.html
+    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
+        uri = r.variables.uri_path + INDEX_PAGE
+    }
+ 
+    return {
+        uri: '/' + bucket + uri,
+        httpDate: s3date(r)
+    };
+}
+
+/**
+ * Generate some of request parameters for AWS signature version 4
+ *
+ * @see {@link https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html | AWS V4 Signing Process}
+ * @param r {Request} HTTP request object
+ * @param bucket {string} S3 bucket associated with request
+ * @param server {string} S3 host associated with request
+ * @returns s3ReqParams {object} s3ReqParams object (host, uri, queryParams)
+ * @private
+ */
+function _s3ReqParamsForSigV4(r, bucket, server) {
+    let host = server;
+    if (S3_STYLE === 'virtual' || S3_STYLE === 'default' || S3_STYLE === undefined) {
+        host = bucket + '.' + host;
+    }
+    const baseUri = s3BaseUri(r);
+    const queryParams = _s3DirQueryParams(r.variables.uri_path, r.method);
+    let uri;
+    if (queryParams.length > 0) {
+        if (baseUri.length > 0) {
+            uri = baseUri;
+        } else {
+            uri = '/';
+        }
+    } else {
+        uri = s3uri(r);
+    }
+    return {
+        host: host,
+        uri: uri,
+        queryParams: queryParams
+    };
 }
 
 /**
@@ -321,39 +374,6 @@ function trailslashControl(r) {
 }
 
 /**
- * Create HTTP Authorization header for authenticating with an AWS compatible
- * v2 API.
- *
- * @param r {Request} HTTP request object
- * @param bucket {string} S3 bucket associated with request
- * @param accessId {string} User access key credential
- * @param secret {string} Secret access key
- * @returns {string} HTTP Authorization header value
- */
-function signatureV2(r, bucket, credentials) {
-    const method = r.method;
-    /* If the source URI is a directory, we are sending to S3 a query string
-     * local to the root URI, so this is what we need to encode within the
-     * string to sign. For example, if we are requesting /bucket/dir1/ from
-     * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
-     * Thus, we can't put the path /dir1/ in the string to sign. */
-    let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
-    // To return index pages + index.html
-    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
-        uri = r.variables.uri_path + INDEX_PAGE
-    }
-    const hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
-    const httpDate = s3date(r);
-    const stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
-
-    utils.debug_log(r, 'AWS v2 Auth Signing String: [' + stringToSign + ']');
-
-    const s3signature = hmac.update(stringToSign).digest('base64');
-
-    return `AWS ${credentials.accessKeyId}:${s3signature}`;
-}
-
-/**
  * Processes the directory listing output as returned from S3. If
  * FOUR_O_FOUR_ON_EMPTY_BUCKET is enabled, this function will corrupt the
  * XML output by inserting the string 'junk' into the output thereby causing
@@ -387,287 +407,6 @@ function filterListResponse(r, data, flags) {
     } else {
         r.sendBuffer(data, flags);
     }
-}
-
-/**
- * Creates a string containing the headers that need to be signed as part of v4
- * signature authentication.
- *
- * @param sessionToken {string|undefined} AWS session token if present
- * @returns {string} semicolon delimited string of the headers needed for signing
- */
-function signedHeaders(sessionToken) {
-    let headers = DEFAULT_SIGNED_HEADERS;
-    if (sessionToken) {
-        headers += ';x-amz-security-token';
-    }
-    return headers;
-}
-
-/**
- * Create HTTP Authorization header for authenticating with an AWS compatible
- * v4 API.
- *
- * @param r {Request} HTTP request object
- * @param timestamp {Date} timestamp associated with request (must fall within a skew)
- * @param bucket {string} S3 bucket associated with request
- * @param region {string} API region associated with request
- * @param server {string}
- * @param credentials {object} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
- * @returns {string} HTTP Authorization header value
- */
-function signatureV4(r, timestamp, bucket, region, server, credentials) {
-    const eightDigitDate = _eightDigitDate(timestamp);
-    const amzDatetime = _amzDatetime(timestamp, eightDigitDate);
-    const signature = _buildSignatureV4(r, amzDatetime, eightDigitDate, credentials, bucket, region, server);
-    const authHeader = 'AWS4-HMAC-SHA256 Credential='
-        .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', SERVICE, '/aws4_request,',
-            'SignedHeaders=', signedHeaders(credentials.sessionToken), ',Signature=', signature);
-
-    utils.debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
-
-    return authHeader;
-}
-
-/**
- * Creates a signature for use authenticating against an AWS compatible API.
- *
- * @see {@link https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html | AWS V4 Signing Process}
- * @param r {Request} HTTP request object
- * @param amzDatetime {string} ISO8601 timestamp string to sign request with
- * @param eightDigitDate {string} date in the form of 'YYYYMMDD'
- * @param bucket {string} S3 bucket associated with request
- * @param region {string} API region associated with request
- * @returns {string} hex encoded hash of signature HMAC value
- * @private
- */
-function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region, server) {
-    let host = server;
-    if (S3_STYLE === 'virtual' || S3_STYLE === 'default' || S3_STYLE === undefined) {
-        host = bucket + '.' + host;
-    }
-    const method = r.method;
-    const baseUri = s3BaseUri(r);
-    const queryParams = _s3DirQueryParams(r.variables.uri_path, method);
-    let uri;
-    if (queryParams.length > 0) {
-        if (baseUri.length > 0) {
-            uri = baseUri;
-        } else {
-            uri = '/';
-        }
-    } else {
-        uri = s3uri(r);
-    }
-
-    const canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
-
-    utils.debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
-
-    const canonicalRequestHash = mod_hmac.createHash('sha256')
-        .update(canonicalRequest)
-        .digest('hex');
-
-    utils.debug_log(r, 'AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
-
-    const stringToSign = _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash);
-
-    utils.debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
-
-    let kSigningHash;
-
-    /* If we have a keyval zone and key defined for caching the signing key hash,
-     * then signing key caching will be enabled. By caching signing keys we can
-     * accelerate the signing process because we will have four less HMAC
-     * operations that have to be performed per incoming request. The signing
-     * key expires every day, so our cache key can persist for 24 hours safely.
-     */
-    if ("variables" in r && r.variables.cache_signing_key_enabled == 1) {
-        // cached value is in the format: [eightDigitDate]:[signingKeyHash]
-        const cached = "signing_key_hash" in r.variables ? r.variables.signing_key_hash : "";
-        const fields = _splitCachedValues(cached);
-        const cachedEightDigitDate = fields[0];
-        const cacheIsValid = fields.length === 2 && eightDigitDate === cachedEightDigitDate;
-
-        // If true, use cached value
-        if (cacheIsValid) {
-            utils.debug_log(r, 'AWS v4 Using cached Signing Key Hash');
-            /* We are forced to JSON encode the string returned from the HMAC
-             * operation because it is in a very specific format that include
-             * binary data and in order to preserve that data when persisting
-             * we encode it as JSON. By doing so we can gracefully decode it
-             * when reading from the cache. */
-            kSigningHash = Buffer.from(JSON.parse(fields[1]));
-        // Otherwise, generate a new signing key hash and store it in the cache
-        } else {
-            kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, SERVICE, region);
-            utils.debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
-            r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
-        }
-    // Otherwise, don't use caching at all (like when we are using NGINX OSS)
-    } else {
-        kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, SERVICE, region);
-    }
-
-    utils.debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
-
-    const signature = mod_hmac.createHmac('sha256', kSigningHash)
-        .update(stringToSign).digest('hex');
-
-    utils.debug_log(r, 'AWS v4 Authorization Header: [' + signature + ']');
-
-    return signature;
-}
-
-/**
- * Splits the cached values into an array with two elements or returns an
- * empty array if the input string is invalid. The first element contains
- * the eight digit date string and the second element contains a JSON string
- * of the kSigningHash.
- *
- * @param cached input string to parse
- * @returns {string[]|*[]} array containing eight digit date and kSigningHash or empty
- * @private
- */
-function _splitCachedValues(cached) {
-    const matchedPos = cached.indexOf(':', 0);
-    // Do a sanity check on the position returned, if it isn't sane, return
-    // an empty array and let the caller logic process it.
-    if (matchedPos < 0 || matchedPos + 1 > cached.length) {
-        return []
-    }
-
-    const eightDigitDate = cached.substring(0, matchedPos);
-    const kSigningHash = cached.substring(matchedPos + 1);
-
-    return [eightDigitDate, kSigningHash]
-}
-
-/**
- * Creates a string to sign by concatenating together multiple parameters required
- * by the signatures algorithm.
- *
- * @see {@link https://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html | String to Sign}
- * @param amzDatetime {string} ISO8601 timestamp string to sign request with
- * @param eightDigitDate {string} date in the form of 'YYYYMMDD'
- * @param region {string} region associated with server API
- * @param canonicalRequestHash {string} hex encoded hash of canonical request string
- * @returns {string} a concatenated string of the passed parameters formatted for signatures
- * @private
- */
-function _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash) {
-    return 'AWS4-HMAC-SHA256\n' +
-        amzDatetime + '\n' +
-        eightDigitDate + '/' + region + '/s3/aws4_request\n' +
-        canonicalRequestHash;
-}
-
-/**
- * Creates a canonical request that will later be signed
- *
- * @see {@link https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html | Creating a Canonical Request}
- * @param method {string} HTTP method
- * @param uri {string} URI associated with request
- * @param queryParams {string} query parameters associated with request
- * @param host {string} HTTP Host header value
- * @param amzDatetime {string} ISO8601 timestamp string to sign request with
- * @returns {string} string with concatenated request parameters
- * @private
- */
-function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken) {
-    let canonicalHeaders = 'host:' + host + '\n' +
-        'x-amz-content-sha256:' + EMPTY_PAYLOAD_HASH + '\n' +
-        'x-amz-date:' + amzDatetime + '\n';
-
-    if (sessionToken) {
-        canonicalHeaders += 'x-amz-security-token:' + sessionToken + '\n'
-    }
-
-    let canonicalRequest = method + '\n';
-    canonicalRequest += uri + '\n';
-    canonicalRequest += queryParams + '\n';
-    canonicalRequest += canonicalHeaders + '\n';
-    canonicalRequest += signedHeaders(sessionToken) + '\n';
-    canonicalRequest += EMPTY_PAYLOAD_HASH;
-
-    return canonicalRequest;
-}
-
-/**
- * Creates a signing key HMAC. This value is used to sign the request made to
- * the API.
- *
- * @param kSecret {string} secret access key
- * @param eightDigitDate {string} date in the form of 'YYYYMMDD'
- * @param service {string} name of service that request is for e.g. s3, iam, etc
- * @param region {string} region associated with server API
- * @returns {ArrayBuffer} signing HMAC
- * @private
- */
-function _buildSigningKeyHash(kSecret, eightDigitDate, service, region) {
-    const kDate = mod_hmac.createHmac('sha256', 'AWS4'.concat(kSecret))
-        .update(eightDigitDate).digest();
-    const kRegion = mod_hmac.createHmac('sha256', kDate)
-        .update(region).digest();
-    const kService = mod_hmac.createHmac('sha256', kRegion)
-        .update(service).digest();
-    const kSigning = mod_hmac.createHmac('sha256', kService)
-        .update('aws4_request').digest();
-
-    return kSigning;
-}
-
-/**
- * Formats a timestamp into a date string in the format 'YYYYMMDD'.
- *
- * @param timestamp {Date} timestamp used in signature
- * @returns {string} a formatted date string based on the input timestamp
- * @private
- */
-function _eightDigitDate(timestamp) {
-    const year = timestamp.getUTCFullYear();
-    const month = timestamp.getUTCMonth() + 1;
-    const day = timestamp.getUTCDate();
-
-    return ''.concat(_padWithLeadingZeros(year, 4),
-        _padWithLeadingZeros(month,2),
-        _padWithLeadingZeros(day,2));
-}
-
-/**
- * Creates a string in the ISO601 date format (YYYYMMDD'T'HHMMSS'Z') based on
- * the supplied timestamp and date. The date is not extracted from the timestamp
- * because that operation is already done once during the signing process.
- *
- * @param timestamp {Date} timestamp to extract date from
- * @param eightDigitDate {string} 'YYYYMMDD' format date string that was already extracted from timestamp
- * @returns {string} string in the format of YYYYMMDD'T'HHMMSS'Z'
- * @private
- */
-function _amzDatetime(timestamp, eightDigitDate) {
-    const hours = timestamp.getUTCHours();
-    const minutes = timestamp.getUTCMinutes();
-    const seconds = timestamp.getUTCSeconds();
-
-    return ''.concat(
-        eightDigitDate,
-        'T', _padWithLeadingZeros(hours, 2),
-        _padWithLeadingZeros(minutes, 2),
-        _padWithLeadingZeros(seconds, 2),
-        'Z');
-}
-
-/**
- * Pads the supplied number with leading zeros.
- *
- * @param num {number|string} number to pad
- * @param size number of leading zeros to pad
- * @returns {string} a string with leading zeros
- * @private
- */
-function _padWithLeadingZeros(num, size) {
-    const s = "0" + num;
-    return s.substr(s.length-size);
 }
 
 /**
@@ -974,13 +713,9 @@ export default {
     filterListResponse,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
-    _padWithLeadingZeros,
+    _s3ReqParamsForSigV2,
+    _s3ReqParamsForSigV4,
     _encodeURIComponent,
-    _eightDigitDate,
-    _amzDatetime,
-    _splitCachedValues,
-    _buildSigningKeyHash,
-    _buildSignatureV4,
     _escapeURIPath,
     _isHeaderToBeStripped
 };
