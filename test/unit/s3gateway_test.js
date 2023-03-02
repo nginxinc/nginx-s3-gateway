@@ -368,12 +368,14 @@ function testEscapeURIPathPreservesDoubleSlashes() {
     }
 }
 
-function testReadCredentialsWithAccessAndSecretKeySet() {
-    printHeader('testReadCredentialsWithAccessAndSecretKeySet');
+function testReadCredentialsWithAccessSecretKeyAndSessionTokenSet() {
+    printHeader('testReadCredentialsWithAccessSecretKeyAndSessionTokenSet');
     let r = {};
     process.env['S3_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
     process.env['S3_SECRET_KEY'] = 'SOME_SECRET_KEY';
-    process.env['S3_SESSION_TOKEN'] = 'SOME_SESSION_TOKEN';
+    if ('S3_SESSION_TOKEN' in process.env) {
+        process.env['S3_SESSION_TOKEN'] = 'SOME_SESSION_TOKEN';
+    }
 
     try {
         var credentials = s3gateway.readCredentials(r);
@@ -383,8 +385,14 @@ function testReadCredentialsWithAccessAndSecretKeySet() {
         if (credentials.secretAccessKey !== process.env['S3_SECRET_KEY']) {
             throw 'static credentials do not match returned value [secretAccessKey]';
         }
-        if (credentials.sessionToken !== process.env['S3_SESSION_TOKEN']) {
-            throw 'static credentials do not match returned value [sessionToken]';
+        if ('S3_SESSION_TOKEN' in process.env) {
+            if (credentials.sessionToken !== process.env['S3_SESSION_TOKEN']) {
+                throw 'static credentials do not match returned value [sessionToken]';
+            }
+        } else {
+            if (credentials.sessionToken !== null) {
+                throw 'static credentials do not match returned value [sessionToken]';
+            }
         }
         if (credentials.expiration !== null) {
             throw 'static credentials do not match returned value [expiration]';
@@ -710,7 +718,7 @@ async function test() {
     testEditHeaders();
     testEditHeadersHeadDirectory();
     testEscapeURIPathPreservesDoubleSlashes();
-    testReadCredentialsWithAccessAndSecretKeySet();
+    testReadCredentialsWithAccessSecretKeyAndSessionTokenSet();
     testReadCredentialsFromFilePath();
     testReadCredentialsFromNonexistentPath();
     testReadAndWriteCredentialsFromKeyValStore();
