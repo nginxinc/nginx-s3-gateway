@@ -265,7 +265,7 @@ fi
 
 ### UNIT TESTS
 
-p "Running unit tests in Docker image"
+p "Running unit tests with an access key ID and a secret key in Docker image"
 #MSYS_NO_PATHCONV=1 added to resolve automatic path conversion
 # https://github.com/docker/for-win/issues/6754#issuecomment-629702199
 MSYS_NO_PATHCONV=1 "${docker_cmd}" run \
@@ -285,6 +285,27 @@ MSYS_NO_PATHCONV=1 "${docker_cmd}" run \
   -e "AWS_SIGS_VERSION=4" \
   --entrypoint /usr/bin/njs \
   nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/s3gateway_test.js
+
+p "Running unit tests with a session token in Docker image"
+#MSYS_NO_PATHCONV=1 added to resolve automatic path conversion
+# https://github.com/docker/for-win/issues/6754#issuecomment-629702199
+MSYS_NO_PATHCONV=1 "${docker_cmd}" run \
+  --rm \
+  -v "$(pwd)/test/unit:/var/tmp" \
+  --workdir /var/tmp \
+  -e "S3_DEBUG=true" \
+  -e "S3_STYLE=virtual" \
+  -e "S3_ACCESS_KEY_ID=unit_test" \
+  -e "S3_SECRET_KEY=unit_test" \
+  -e "S3_BUCKET_NAME=unit_test" \
+  -e "S3_SERVER=unit_test" \
+  -e "S3_SERVER_PROTO=https" \
+  -e "S3_SERVER_PORT=443" \
+  -e "S3_REGION=test-1" \
+  -e "AWS_SIGS_VERSION=4" \
+  --entrypoint /usr/bin/njs \
+  nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/s3gateway_test.js
+
 
 ### INTEGRATION TESTS
 
