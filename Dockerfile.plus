@@ -28,7 +28,7 @@ RUN set -eux \
     adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 101 nginx; \
     apt-get -qq update; \
     apt-get -qq upgrade --yes; \
-    apt-get -qq install --yes ca-certificates; \
+    apt-get -qq install --yes ca-certificates curl; \
     sh -a /usr/local/bin/add_nginx_plus_repo.sh; \
     rm /usr/local/bin/add_nginx_plus_repo.sh; \
     apt-get -qq update; \
