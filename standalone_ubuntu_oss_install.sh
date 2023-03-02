@@ -300,6 +300,7 @@ EOF
     cat >> "/etc/nginx/environment" << EOF
 env S3_SESSION_TOKEN;
 EOF
+  fi
 fi
 
 cat >> /etc/nginx/nginx.conf << 'EOF'
@@ -348,7 +349,9 @@ http {
 EOF
 
 download "common/etc/nginx/include/listing.xsl" "/etc/nginx/include/listing.xsl"
+download "common/etc/nginx/include/awscredentials.js" "/etc/nginx/include/awscredentials.js"
 download "common/etc/nginx/include/s3gateway.js" "/etc/nginx/include/s3gateway.js"
+download "common/etc/nginx/include/utils.js" "/etc/nginx/include/utils.js"
 download "common/etc/nginx/templates/default.conf.template" "/etc/nginx/templates/default.conf.template"
 download "common/etc/nginx/templates/gateway/v2_headers.conf.template" "/etc/nginx/templates/gateway/v2_headers.conf.template"
 download "common/etc/nginx/templates/gateway/v2_js_vars.conf.template" "/etc/nginx/templates/gateway/v2_js_vars.conf.template"

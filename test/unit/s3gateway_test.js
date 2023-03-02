@@ -17,7 +17,6 @@
  */
 
 import s3gateway from "include/s3gateway.js";
-import fs from "fs";
 
 globalThis.ngx = {};
 
@@ -368,154 +367,6 @@ function testEscapeURIPathPreservesDoubleSlashes() {
     }
 }
 
-function testReadCredentialsWithAccessSecretKeyAndSessionTokenSet() {
-    printHeader('testReadCredentialsWithAccessSecretKeyAndSessionTokenSet');
-    let r = {};
-    process.env['S3_ACCESS_KEY_ID'] = 'SOME_ACCESS_KEY';
-    process.env['S3_SECRET_KEY'] = 'SOME_SECRET_KEY';
-    if ('S3_SESSION_TOKEN' in process.env) {
-        process.env['S3_SESSION_TOKEN'] = 'SOME_SESSION_TOKEN';
-    }
-
-    try {
-        var credentials = s3gateway.readCredentials(r);
-        if (credentials.accessKeyId !== process.env['S3_ACCESS_KEY_ID']) {
-            throw 'static credentials do not match returned value [accessKeyId]';
-        }
-        if (credentials.secretAccessKey !== process.env['S3_SECRET_KEY']) {
-            throw 'static credentials do not match returned value [secretAccessKey]';
-        }
-        if ('S3_SESSION_TOKEN' in process.env) {
-            if (credentials.sessionToken !== process.env['S3_SESSION_TOKEN']) {
-                throw 'static credentials do not match returned value [sessionToken]';
-            }
-        } else {
-            if (credentials.sessionToken !== null) {
-                throw 'static credentials do not match returned value [sessionToken]';
-            }
-        }
-        if (credentials.expiration !== null) {
-            throw 'static credentials do not match returned value [expiration]';
-        }
-
-    } finally {
-        delete process.env.S3_ACCESS_KEY_ID;
-        delete process.env.S3_SECRET_KEY;
-        delete process.env.S3_SESSION_TOKEN;
-    }
-}
-
-function testReadCredentialsFromFilePath() {
-    printHeader('testReadCredentialsFromFilePath');
-    let r = {
-        variables: {
-            cache_instance_credentials_enabled: 0
-        }
-    };
-
-    var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
-    var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
-    var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
-    var tempFile = `${tempDir}/credentials-unit-test-${uniqId}.json`;
-    var testData = '{"accessKeyId":"A","secretAccessKey":"B",' +
-        '"sessionToken":"C","expiration":"2022-02-15T04:49:08Z"}';
-    fs.writeFileSync(tempFile, testData);
-
-    try {
-        process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
-        var credentials = s3gateway.readCredentials(r);
-        var testDataAsJSON = JSON.parse(testData);
-        if (credentials.accessKeyId !== testDataAsJSON.accessKeyId) {
-            throw 'JSON test data does not match credentials [accessKeyId]';
-        }
-        if (credentials.secretAccessKey !== testDataAsJSON.secretAccessKey) {
-            throw 'JSON test data does not match credentials [secretAccessKey]';
-        }
-        if (credentials.sessionToken !== testDataAsJSON.sessionToken) {
-            throw 'JSON test data does not match credentials [sessionToken]';
-        }
-        if (credentials.expiration !== testDataAsJSON.expiration) {
-            throw 'JSON test data does not match credentials [expiration]';
-        }
-    } finally {
-        if (originalCredentialPath) {
-            process.env['S3_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
-        }
-        if (fs.statSync(tempFile, {throwIfNoEntry: false})) {
-            fs.unlinkSync(tempFile);
-        }
-    }
-}
-
-function testReadCredentialsFromNonexistentPath() {
-    printHeader('testReadCredentialsFromNonexistentPath');
-    let r = {
-        variables: {
-            cache_instance_credentials_enabled: 0
-        }
-    };
-    var originalCredentialPath = process.env['S3_CREDENTIALS_TEMP_FILE'];
-    var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
-    var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
-    var tempFile = `${tempDir}/credentials-unit-test-${uniqId}.json`;
-
-    try {
-        process.env['S3_CREDENTIALS_TEMP_FILE'] = tempFile;
-        var credentials = s3gateway.readCredentials(r);
-        if (credentials !== undefined) {
-            throw 'Credentials returned when no credentials file should be present';
-        }
-
-    } finally {
-        if (originalCredentialPath) {
-            process.env['S3_CREDENTIALS_TEMP_FILE'] = originalCredentialPath;
-        }
-        if (fs.statSync(tempFile, {throwIfNoEntry: false})) {
-            fs.unlinkSync(tempFile);
-        }
-    }
-}
-
-function testReadAndWriteCredentialsFromKeyValStore() {
-    printHeader('testReadAndWriteCredentialsFromKeyValStore');
-
-    let accessKeyId = process.env['S3_ACCESS_KEY_ID'];
-    let secretKey = process.env['S3_SECRET_KEY'];
-    let sessionToken = process.env['S3_SESSION_TOKEN'];
-    delete process.env.S3_ACCESS_KEY_ID;
-    delete process.env.S3_SECRET_KEY;
-    delete process.env.S3_SESSION_TOKEN
-
-    try {
-        let r = {
-            variables: {
-                cache_instance_credentials_enabled: 1,
-                instance_credential_json: null
-            }
-        };
-        let expectedCredentials = {
-            AccessKeyId: 'AN_ACCESS_KEY_ID',
-            Expiration: '2017-05-17T15:09:54Z',
-            RoleArn: 'TASK_ROLE_ARN',
-            SecretAccessKey: 'A_SECRET_ACCESS_KEY',
-            Token: 'A_SECURITY_TOKEN',
-        };
-
-        s3gateway.writeCredentials(r, expectedCredentials);
-        let credentials = JSON.stringify(s3gateway.readCredentials(r));
-        let expectedJson = JSON.stringify(expectedCredentials);
-
-        if (credentials !== expectedJson) {
-            console.log(`EXPECTED:\n${expectedJson}\nACTUAL:\n${credentials}`);
-            throw 'Credentials do not match expected value';
-        }
-    } finally {
-        process.env['S3_ACCESS_KEY_ID'] = accessKeyId;
-        process.env['S3_SECRET_KEY'] = secretKey;
-        process.env['S3_SESSION_TOKEN'] = sessionToken;
-    }
-}
-
 async function testEcsCredentialRetrieval() {
     printHeader('testEcsCredentialRetrieval');
     process.env['S3_ACCESS_KEY_ID'] = undefined;
@@ -718,14 +569,10 @@ async function test() {
     testEditHeaders();
     testEditHeadersHeadDirectory();
     testEscapeURIPathPreservesDoubleSlashes();
-    testReadCredentialsWithAccessSecretKeyAndSessionTokenSet();
-    testReadCredentialsFromFilePath();
-    testReadCredentialsFromNonexistentPath();
-    testReadAndWriteCredentialsFromKeyValStore();
     await testEcsCredentialRetrieval();
     await testEc2CredentialRetrieval();
     testParseArray();
 }
 
 test();
-console.log('Finished unit tests');
+console.log('Finished unit tests for s3gateway.js');

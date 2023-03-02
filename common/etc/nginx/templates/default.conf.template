@@ -1,3 +1,4 @@
+js_import /etc/nginx/include/awscredentials.js;
 js_import /etc/nginx/include/s3gateway.js;
 
 # We include only the variables needed for the authentication signatures that
@@ -20,7 +21,7 @@ map $S3_STYLE $s3_host_hdr {
 js_var $indexIsEmpty true;
 # This creates the HTTP authentication header to be sent to S3
 js_set $s3auth s3gateway.s3auth;
-js_set $s3SecurityToken s3gateway.s3SecurityToken;
+js_set $awsSessionToken awscredentials.sessionToken;
 js_set $s3uri s3gateway.s3uri;
 
 server {
@@ -111,7 +112,7 @@ server {
 
         # Set the Authorization header to the AWS Signatures credentials
         proxy_set_header Authorization $s3auth;
-        proxy_set_header X-Amz-Security-Token $s3SecurityToken;
+        proxy_set_header X-Amz-Security-Token $awsSessionToken;
 
         # We set the host as the bucket name to inform the S3 API of the bucket
         proxy_set_header Host $s3_host_hdr;
@@ -158,7 +159,7 @@ server {
 
         # Set the Authorization header to the AWS Signatures credentials
         proxy_set_header Authorization $s3auth;
-        proxy_set_header X-Amz-Security-Token $s3SecurityToken;
+        proxy_set_header X-Amz-Security-Token $awsSessionToken;
 
         # We set the host as the bucket name to inform the S3 API of the bucket
         proxy_set_header Host $s3_host_hdr;

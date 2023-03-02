@@ -54,6 +54,10 @@ and run the gateway.
 
 ```
 common/                          contains files used by both NGINX OSS and Plus configurations
+  etc/nginx/include/
+    awscredentials.js            common library to read and write credentials
+    s3gateway.js                 common library to integrate the s3 storage from NGINX OSS and Plus
+    utils.js                     common library to be reused by all of NJS codebases
 deployments/                     contains files used for deployment technologies such as
                                  CloudFormation
 docs/                            contains documentation about the project

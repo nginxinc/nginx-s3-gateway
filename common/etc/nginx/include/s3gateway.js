@@ -14,6 +14,9 @@
  *  limitations under the License.
  */
 
+import awscred from "./awscredentials.js";
+import utils from "./utils.js";
+
 _require_env_var('S3_BUCKET_NAME');
 _require_env_var('S3_SERVER');
 _require_env_var('S3_SERVER_PROTO');
@@ -30,11 +33,10 @@ const fs = require('fs');
  * about signature generation will be logged.
  * @type {boolean}
  */
-const DEBUG = _parseBoolean(process.env['S3_DEBUG']);
-const ALLOW_LISTING = _parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
-const PROVIDE_INDEX_PAGE = _parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
-const APPEND_SLASH = _parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
-const FOUR_O_FOUR_ON_EMPTY_BUCKET = _parseBoolean(process.env['FOUR_O_FOUR_ON_EMPTY_BUCKET']);
+const ALLOW_LISTING = utils.parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
+const PROVIDE_INDEX_PAGE = utils.parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
+const APPEND_SLASH = utils.parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
+const FOUR_O_FOUR_ON_EMPTY_BUCKET = utils.parseBoolean(process.env['FOUR_O_FOUR_ON_EMPTY_BUCKET']);
 const S3_STYLE = process.env['S3_STYLE'];
 
 const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = _parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
@@ -165,143 +167,6 @@ function awsHeaderDate(r) {
 }
 
 /**
- * Returns the path to the credentials temporary cache file.
- *
- * @returns {string} path on the file system to credentials cache file
- * @private
- */
-function _credentialsTempFile() {
-    if (process.env['S3_CREDENTIALS_TEMP_FILE']) {
-        return process.env['S3_CREDENTIALS_TEMP_FILE'];
-    }
-    if (process.env['TMPDIR']) {
-        return `${process.env['TMPDIR']}/credentials.json`
-    }
-
-    return '/tmp/credentials.json';
-}
-
-/**
- * Write the instance profile credentials to a caching backend.
- *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
- */
-function writeCredentials(r, credentials) {
-    /* Do not bother writing credentials if we are running in a mode where we
-       do not need instance credentials. */
-    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
-        return;
-    }
-
-    if (!credentials) {
-        throw `Cannot write invalid credentials: ${JSON.stringify(credentials)}`;
-    }
-
-    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
-        _writeCredentialsToKeyValStore(r, credentials);
-    } else {
-        _writeCredentialsToFile(credentials);
-    }
-}
-
-/**
- * Write the instance profile credentials to the NGINX Keyval store.
- *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
- * @private
- */
-function _writeCredentialsToKeyValStore(r, credentials) {
-    r.variables.instance_credential_json = JSON.stringify(credentials);
-}
-
-/**
- * Write the instance profile credentials to a file on the file system. This
- * file will be quite small and should end up in the file cache relatively
- * quickly if it is repeatedly read.
- *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
- * @private
- */
-function _writeCredentialsToFile(credentials) {
-    fs.writeFileSync(_credentialsTempFile(), JSON.stringify(credentials));
-}
-
-/**
- * Get the instance profile credentials needed to authenticated against S3 from
- * a backend cache. If the credentials cannot be found, then return undefined.
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string|null), expiration: (string|null)}} AWS instance profile credentials or undefined
- */
-function readCredentials(r) {
-    if ('S3_ACCESS_KEY_ID' in process.env && 'S3_SECRET_KEY' in process.env) {
-        const sessionToken = 'S3_SESSION_TOKEN' in process.env ?
-                              process.env['S3_SESSION_TOKEN'] : null;
-        return {
-            accessKeyId: process.env['S3_ACCESS_KEY_ID'],
-            secretAccessKey: process.env['S3_SECRET_KEY'],
-            sessionToken: sessionToken,
-            expiration: null
-        };
-    }
-
-    if ("variables" in r && r.variables.cache_instance_credentials_enabled == 1) {
-        return _readCredentialsFromKeyValStore(r);
-    } else {
-        return _readCredentialsFromFile();
-    }
-}
-
-/**
- * Read credentials from the NGINX Keyval store. If it is not found, then
- * return undefined.
- *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
- * @private
- */
-function _readCredentialsFromKeyValStore(r) {
-    const cached = r.variables.instance_credential_json;
-
-    if (!cached) {
-        return undefined;
-    }
-
-    try {
-        return JSON.parse(cached);
-    } catch (e) {
-        _debug_log(r, `Error parsing JSON value from r.variables.instance_credential_json: ${e}`);
-        return undefined;
-    }
-}
-
-/**
- * Read the contents of the credentials file into memory. If it is not
- * found, then return undefined.
- *
- * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
- * @private
- */
-function _readCredentialsFromFile() {
-    const credsFilePath = _credentialsTempFile();
-
-    try {
-        const creds = fs.readFileSync(credsFilePath);
-        return JSON.parse(creds);
-    } catch (e) {
-        /* Do not throw an exception in the case of when the
-           credentials file path is invalid in order to signal to
-           the caller that such a file has not been created yet. */
-        if (e.code === 'ENOENT') {
-            return undefined;
-        }
-        throw e;
-    }
-}
-
-/**
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
  *
@@ -321,7 +186,7 @@ function s3auth(r) {
 
     let signature;
 
-    const credentials = readCredentials(r);
+    const credentials = awscred.readCredentials(r);
     if (sigver == '2') {
         signature = signatureV2(r, bucket, credentials);
     } else {
@@ -329,20 +194,6 @@ function s3auth(r) {
     }
 
     return signature;
-}
-
-/**
- * Get the current session token from the instance profile credential cache.
- *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @returns {string} current session token or empty string
- */
-function s3SecurityToken(r) {
-    const credentials = readCredentials(r);
-    if (credentials.sessionToken) {
-        return credentials.sessionToken;
-    }
-    return '';
 }
 
 /**
@@ -358,7 +209,7 @@ function s3BaseUri(r) {
     let basePath;
 
     if (S3_STYLE === 'path') {
-        _debug_log(r, 'Using path style uri : ' + '/' + bucket);
+        utils.debug_log(r, 'Using path style uri : ' + '/' + bucket);
         basePath = '/' + bucket;
     } else {
         basePath = '';
@@ -394,7 +245,7 @@ function s3uri(r) {
         path = _escapeURIPath(basePath + uriPath);
     }
 
-    _debug_log(r, 'S3 Request URI: ' + r.method + ' ' + path);
+    utils.debug_log(r, 'S3 Request URI: ' + r.method + ' ' + path);
     return path;
 }
 
@@ -440,7 +291,7 @@ function _s3DirQueryParams(uriPath, method) {
 function redirectToS3(r) {
     // This is a read-only S3 gateway, so we do not support any other methods
     if (!(r.method === 'GET' || r.method === 'HEAD')) {
-        _debug_log(r, 'Invalid method requested: ' + r.method);
+        utils.debug_log(r, 'Invalid method requested: ' + r.method);
         r.internalRedirect("@error405");
         return;
     }
@@ -495,7 +346,7 @@ function signatureV2(r, bucket, credentials) {
     const httpDate = s3date(r);
     const stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
 
-    _debug_log(r, 'AWS v2 Auth Signing String: [' + stringToSign + ']');
+    utils.debug_log(r, 'AWS v2 Auth Signing String: [' + stringToSign + ']');
 
     const s3signature = hmac.update(stringToSign).digest('base64');
 
@@ -516,7 +367,7 @@ function signatureV2(r, bucket, credentials) {
  */
 function filterListResponse(r, data, flags) {
     if (FOUR_O_FOUR_ON_EMPTY_BUCKET) {
-        let indexIsEmpty = _parseBoolean(r.variables.indexIsEmpty);
+        let indexIsEmpty = utils.parseBoolean(r.variables.indexIsEmpty);
 
         if (indexIsEmpty && data.indexOf('<Contents') >= 0) {
             r.variables.indexIsEmpty = false;
@@ -573,7 +424,7 @@ function signatureV4(r, timestamp, bucket, region, server, credentials) {
         .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', SERVICE, '/aws4_request,',
             'SignedHeaders=', signedHeaders(credentials.sessionToken), ',Signature=', signature);
 
-    _debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
+    utils.debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
 
     return authHeader;
 }
@@ -611,17 +462,17 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
 
     const canonicalRequest = _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, creds.sessionToken);
 
-    _debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
+    utils.debug_log(r, 'AWS v4 Auth Canonical Request: [' + canonicalRequest + ']');
 
     const canonicalRequestHash = mod_hmac.createHash('sha256')
         .update(canonicalRequest)
         .digest('hex');
 
-    _debug_log(r, 'AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
+    utils.debug_log(r, 'AWS v4 Auth Canonical Request Hash: [' + canonicalRequestHash + ']');
 
     const stringToSign = _buildStringToSign(amzDatetime, eightDigitDate, region, canonicalRequestHash);
 
-    _debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
+    utils.debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
 
     let kSigningHash;
 
@@ -640,7 +491,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
 
         // If true, use cached value
         if (cacheIsValid) {
-            _debug_log(r, 'AWS v4 Using cached Signing Key Hash');
+            utils.debug_log(r, 'AWS v4 Using cached Signing Key Hash');
             /* We are forced to JSON encode the string returned from the HMAC
              * operation because it is in a very specific format that include
              * binary data and in order to preserve that data when persisting
@@ -650,7 +501,7 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
         // Otherwise, generate a new signing key hash and store it in the cache
         } else {
             kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, SERVICE, region);
-            _debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
+            utils.debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
     // Otherwise, don't use caching at all (like when we are using NGINX OSS)
@@ -658,12 +509,12 @@ function _buildSignatureV4(r, amzDatetime, eightDigitDate, creds, bucket, region
         kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, SERVICE, region);
     }
 
-    _debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
+    utils.debug_log(r, 'AWS v4 Signing Key Hash: [' + kSigningHash.toString('hex') + ']');
 
     const signature = mod_hmac.createHmac('sha256', kSigningHash)
         .update(stringToSign).digest('hex');
 
-    _debug_log(r, 'AWS v4 Authorization Header: [' + signature + ']');
+    utils.debug_log(r, 'AWS v4 Authorization Header: [' + signature + ']');
 
     return signature;
 }
@@ -874,29 +725,6 @@ function _isDirectory(path) {
 }
 
 /**
- * Parses a string to and returns a boolean value based on its value. If the
- * string can't be parsed, this method returns false.
- *
- * @param string {*} value representing a boolean
- * @returns {boolean} boolean value of string
- * @private
- */
-function _parseBoolean(string) {
-    switch(string) {
-        case "TRUE":
-        case "true":
-        case "True":
-        case "YES":
-        case "yes":
-        case "Yes":
-        case "1":
-            return true;
-        default:
-            return false;
-    }
-}
-
-/**
  * Parses a string delimited by semicolons into an array of values
  * @param string {string|null} value representing a array of strings
  * @returns {Array} a list of values
@@ -913,19 +741,6 @@ function _parseArray(string) {
     }
 
     return string.split(';')
-}
-
-/**
- * Outputs a log message to the request logger if debug messages are enabled.
- *
- * @param r {Request} HTTP request object
- * @param msg {string} message to log
- * @private
- */
-function _debug_log(r, msg) {
-    if (DEBUG && "log" in r) {
-        r.log(msg);
-    }
 }
 
 /**
@@ -982,9 +797,9 @@ async function fetchCredentials(r) {
     let current;
 
     try {
-        current = readCredentials(r);
+        current = awscred.readCredentials(r);
     } catch (e) {
-        _debug_log(r, `Could not read credentials: ${e}`);
+        utils.debug_log(r, `Could not read credentials: ${e}`);
         r.return(500);
         return;
     }
@@ -1002,14 +817,14 @@ async function fetchCredentials(r) {
 
     let credentials;
 
-    _debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
+    utils.debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
     if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
         const uri = ECS_CREDENTIAL_BASE_URI + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
         try {
             credentials = await _fetchEcsRoleCredentials(uri);
         } catch (e) {
-            _debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
+            utils.debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
             r.return(500);
             return;
         }
@@ -1018,7 +833,7 @@ async function fetchCredentials(r) {
         try {
             credentials = await _fetchWebIdentityCredentials(r)
         } catch(e) {
-            _debug_log(r, 'Could not assume role using web identity: ' + JSON.stringify(e));
+            utils.debug_log(r, 'Could not assume role using web identity: ' + JSON.stringify(e));
             r.return(500);
             return;
         }
@@ -1026,15 +841,15 @@ async function fetchCredentials(r) {
         try {
             credentials = await _fetchEC2RoleCredentials();
         } catch (e) {
-            _debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
+            utils.debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
             r.return(500);
             return;
         }
     }
     try {
-        writeCredentials(r, credentials);
+        awscred.writeCredentials(r, credentials);
     } catch (e) {
-        _debug_log(r, `Could not write credentials: ${e}`);
+        utils.debug_log(r, `Could not write credentials: ${e}`);
         r.return(500);
         return;
     }
@@ -1169,11 +984,8 @@ async function _fetchWebIdentityCredentials(r) {
 export default {
     awsHeaderDate,
     fetchCredentials,
-    readCredentials,
-    writeCredentials,
     s3date,
     s3auth,
-    s3SecurityToken,
     s3uri,
     trailslashControl,
     redirectToS3,
