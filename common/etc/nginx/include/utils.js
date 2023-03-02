@@ -74,8 +74,64 @@ function debug_log(r, msg) {
     }
 }
 
+/**
+ * Pads the supplied number with leading zeros.
+ *
+ * @param num {number|string} number to pad
+ * @param size number of leading zeros to pad
+ * @returns {string} a string with leading zeros
+ * @private
+ */
+function padWithLeadingZeros(num, size) {
+    const s = "0" + num;
+    return s.substr(s.length-size);
+}
+
+/**
+ * Creates a string in the ISO601 date format (YYYYMMDD'T'HHMMSS'Z') based on
+ * the supplied timestamp and date. The date is not extracted from the timestamp
+ * because that operation is already done once during the signing process.
+ *
+ * @param timestamp {Date} timestamp to extract date from
+ * @param eightDigitDate {string} 'YYYYMMDD' format date string that was already extracted from timestamp
+ * @returns {string} string in the format of YYYYMMDD'T'HHMMSS'Z'
+ * @private
+ */
+function getAmzDatetime(timestamp, eightDigitDate) {
+    const hours = timestamp.getUTCHours();
+    const minutes = timestamp.getUTCMinutes();
+    const seconds = timestamp.getUTCSeconds();
+
+    return ''.concat(
+        eightDigitDate,
+        'T', padWithLeadingZeros(hours, 2),
+        padWithLeadingZeros(minutes, 2),
+        padWithLeadingZeros(seconds, 2),
+        'Z');
+}
+
+/**
+ * Formats a timestamp into a date string in the format 'YYYYMMDD'.
+ *
+ * @param timestamp {Date} timestamp
+ * @returns {string} a formatted date string based on the input timestamp
+ * @private
+ */
+function getEightDigitDate(timestamp) {
+    const year = timestamp.getUTCFullYear();
+    const month = timestamp.getUTCMonth() + 1;
+    const day = timestamp.getUTCDate();
+
+    return ''.concat(padWithLeadingZeros(year, 4),
+        padWithLeadingZeros(month,2),
+        padWithLeadingZeros(day,2));
+}
+
 export default {
     debug_log,
+    getAmzDatetime,
+    getEightDigitDate,
+    padWithLeadingZeros,
     parseArray,
     parseBoolean
 }

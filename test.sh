@@ -317,11 +317,15 @@ runUnitTestWithSessionToken "utils_test.js"
 
 p "Running unit tests with an access key ID and a secret key in Docker image"
 runUnitTestWithOutSessionToken "awscredentials_test.js"
+runUnitTestWithOutSessionToken "awssig4_test.js"
 runUnitTestWithOutSessionToken "s3gateway_test.js"
+runUnitTestWithOutSessionToken "utils_test.js"
 
 p "Running unit tests with an session token in Docker image"
 runUnitTestWithSessionToken "awscredentials_test.js"
+runUnitTestWithSessionToken "awssig4_test.js"
 runUnitTestWithSessionToken "s3gateway_test.js"
+runUnitTestWithSessionToken "utils_test.js"
 
 ### INTEGRATION TESTS
 
