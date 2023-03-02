@@ -178,6 +178,10 @@ if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
 CORS_ALLOWED_ORIGIN="*"
 fi
 
+cat >> "/etc/nginx/environment" << EOF
+CORS_ALLOWED_ORIGIN=${CORS_ALLOWED_ORIGIN}
+EOF
+
 # Only include these env vars if we are not using a instance profile credential
 # to obtain S3 permissions.
 if [ $uses_iam_creds -eq 0 ]; then
