@@ -148,15 +148,15 @@ docker run --env-file ./settings --publish 80:80 --name nginx-s3-gateway \
     nginx-s3-gateway:oss
 ```
 
-In the same way, if you want to use NGINX OSS container image as a non-root, unpriviledged user,
+In the same way, if you want to use NGINX OSS container image as a non-root, unprivileged user,
 you can build it as follows:
 ```
-docker build --file Dockerfile.latest-unpriviledged --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-unpriviledged-oss .
+docker build --file Dockerfile.unprivileged --tag nginx-s3-gateway --tag nginx-s3-gateway:unprivileged-oss .
 ```
 And run the image binding the container port 8080 to 80 in the host like:
 ```
 docker run --env-file ./settings --publish 80:8080 --name nginx-s3-gateway \
-    nginx-s3-gateway:latest-unpriviledged-oss
+    nginx-s3-gateway:unprivileged-oss
 ```
 
 ### Building the NGINX Plus Container Image

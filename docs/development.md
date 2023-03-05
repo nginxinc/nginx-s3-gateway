@@ -44,5 +44,5 @@ If you invoke the test script with a plus parameter, you will need to add your
 NGINX repository keys to the `plus/etc/ssl/nginx` directory
 
 ```
-$ ./test.sh <nginx type - 'oss', 'latest-njs-oss', 'plus', or 'latest-njs-plus'>
+$ ./test.sh <nginx type - 'oss', 'latest-njs-oss', 'unprivileged', 'plus', or 'latest-njs-plus'>
 ```
