@@ -15,6 +15,7 @@
  */
 
 import awscred from "./awscredentials.js";
+import awssig2 from "./awssig2.js";
 import awssig4 from "./awssig4.js";
 import utils from "./utils.js";
 
@@ -26,7 +27,6 @@ _require_env_var('S3_REGION');
 _require_env_var('AWS_SIGS_VERSION');
 _require_env_var('S3_STYLE');
 
-const mod_hmac = require('crypto');
 const fs = require('fs');
 
 /**
@@ -177,9 +177,10 @@ function s3auth(r) {
 
     const credentials = awscred.readCredentials(r);
     if (sigver == '2') {
-        signature = signatureV2(r, bucket, credentials);
+        let req = _s3ReqParamsForSigV2(r, bucket);
+        signature = awssig2.signatureV2(r, req.uri, req.httpDate, credentials);
     } else {
-        let req = _s3canonicalReqParamsForSigV4(r, bucket, server);
+        let req = _s3ReqParamsForSigV4(r, bucket, server);
         signature = awssig4.signatureV4(r, NOW, region, SERVICE,
             req.uri, req.queryParams, req.host, credentials);
     }
@@ -188,16 +189,43 @@ function s3auth(r) {
 }
 
 /**
- * Generate some of canonical request parameters for AWS signature version 4
+ * Generate some of request parameters for AWS signature version 2
+ *
+ * @see {@link https://docs.aws.amazon.com/AmazonS3/latest/userguide/auth-request-sig-v2.html | AWS signature version 2}
+ * @param r {Request} HTTP request object
+ * @param bucket {string} S3 bucket associated with request
+ * @returns s3ReqParams {object} s3ReqParams object (host, method, uri, queryParams)
+ * @private
+ */
+function _s3ReqParamsForSigV2(r, bucket) {
+    /* If the source URI is a directory, we are sending to S3 a query string
+     * local to the root URI, so this is what we need to encode within the
+     * string to sign. For example, if we are requesting /bucket/dir1/ from
+     * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
+     * Thus, we can't put the path /dir1/ in the string to sign. */
+    let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    // To return index pages + index.html
+    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
+        uri = r.variables.uri_path + INDEX_PAGE
+    }
+ 
+    return {
+        uri: '/' + bucket + uri,
+        httpDate: s3date(r)
+    };
+}
+
+/**
+ * Generate some of request parameters for AWS signature version 4
  *
  * @see {@link https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html | AWS V4 Signing Process}
  * @param r {Request} HTTP request object
  * @param bucket {string} S3 bucket associated with request
  * @param server {string} S3 host associated with request
- * @returns canonicalReqParams {object} CanonicalReqParams object (host, method, uri, queryParams)
+ * @returns s3ReqParams {object} s3ReqParams object (host, uri, queryParams)
  * @private
  */
-function _s3canonicalReqParamsForSigV4(r, bucket, server) {
+function _s3ReqParamsForSigV4(r, bucket, server) {
     let host = server;
     if (S3_STYLE === 'virtual' || S3_STYLE === 'default' || S3_STYLE === undefined) {
         host = bucket + '.' + host;
@@ -216,7 +244,6 @@ function _s3canonicalReqParamsForSigV4(r, bucket, server) {
     }
     return {
         host: host,
-        method: r.method,
         uri: uri,
         queryParams: queryParams
     };
@@ -344,39 +371,6 @@ function trailslashControl(r) {
         }
     }
         r.internalRedirect("@error404");
-}
-
-/**
- * Create HTTP Authorization header for authenticating with an AWS compatible
- * v2 API.
- *
- * @param r {Request} HTTP request object
- * @param bucket {string} S3 bucket associated with request
- * @param accessId {string} User access key credential
- * @param secret {string} Secret access key
- * @returns {string} HTTP Authorization header value
- */
-function signatureV2(r, bucket, credentials) {
-    const method = r.method;
-    /* If the source URI is a directory, we are sending to S3 a query string
-     * local to the root URI, so this is what we need to encode within the
-     * string to sign. For example, if we are requesting /bucket/dir1/ from
-     * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
-     * Thus, we can't put the path /dir1/ in the string to sign. */
-    let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
-    // To return index pages + index.html
-    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
-        uri = r.variables.uri_path + INDEX_PAGE
-    }
-    const hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
-    const httpDate = s3date(r);
-    const stringToSign = method + '\n\n\n' + httpDate + '\n' + '/' + bucket + uri;
-
-    utils.debug_log(r, 'AWS v2 Auth Signing String: [' + stringToSign + ']');
-
-    const s3signature = hmac.update(stringToSign).digest('base64');
-
-    return `AWS ${credentials.accessKeyId}:${s3signature}`;
 }
 
 /**
@@ -719,7 +713,8 @@ export default {
     filterListResponse,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
-    _s3canonicalReqParamsForSigV4,
+    _s3ReqParamsForSigV2,
+    _s3ReqParamsForSigV4,
     _encodeURIComponent,
     _escapeURIPath,
     _isHeaderToBeStripped

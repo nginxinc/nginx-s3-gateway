@@ -67,9 +67,9 @@ function _runSignatureV4(r) {
     var service = 's3';
     var server = 's3-us-west-2.amazonaws.com';
 
-    // TODO: Generate canonical request parameters without using s3gateway
-    //       to only test awssig4.js for the purpose of common library.
-    let req = s3gateway._s3canonicalReqParamsForSigV4(r, bucket, server);
+    // TODO: Generate request parameters without using s3gateway to only test 
+    //       awssig4.js for the purpose of common library.
+    let req = s3gateway._s3ReqParamsForSigV4(r, bucket, server);
     const canonicalRequest = awssig4._buildCanonicalRequest(
         r.method, req.uri, req.queryParams, req.host, amzDatetime, creds.sessionToken);
 

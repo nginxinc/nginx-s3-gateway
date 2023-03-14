@@ -9,11 +9,8 @@ Update the following files when enhancing `nginx-s3-gateway` to integrate with A
   > Note: The `fetchCredentials()` is going to be part of here soon.
 
 - AWS Signature Lib per version:
-  - [`/etc/nginx/include/awssig4a.js`](/common/etc/nginx/include/awssig4a.js)
-  - [`/etc/nginx/include/awssig4.js`](/common/etc/nginx/include/awssig4.js)
   - [`/etc/nginx/include/awssig2.js`](/common/etc/nginx/include/awssig2.js)
-
-  > Note: The file of `awssig4.js` is only separated, and the business logic of `awssig4.js` is part of `s3gateway.js` as for now. The AWS signature ver. 4 is not supported yet. The `awsHeaderDate()` is going to be part of here soon.
+  - [`/etc/nginx/include/awssig4.js`](/common/etc/nginx/include/awssig4.js)
 
 - S3 Integration Lib: [`/etc/nginx/include/s3gateway.js`](/common/etc/nginx/include/s3gateway.js)
 - Common Lib for all of NJS: [`/etc/nginx/include/utils.js`](/common/etc/nginx/include/utils.js)
