@@ -490,71 +490,6 @@ function printHeader(testName) {
     console.log(`\n## ${testName}`);
 }
 
-function testParseArray() {
-    printHeader('testParseArray');
-
-    function testParseNull() {
-        console.log('  ## testParseNull');
-        const actual = s3gateway._parseArray(null);
-        if (!Array.isArray(actual) || actual.length > 0) {
-            throw 'Null not parsed into an empty array';
-        }
-    }
-    function testParseEmptyString() {
-        console.log('  ## testParseEmptyString');
-        const actual = s3gateway._parseArray('');
-        if (!Array.isArray(actual) || actual.length > 0) {
-            throw 'Empty string not parsed into an empty array';
-        }
-    }
-    function testParseSingleValue() {
-        console.log('  ## testParseSingleValue');
-        const value = 'Single Value';
-        const actual = s3gateway._parseArray(value);
-        if (!Array.isArray(actual) || actual.length !== 1) {
-            throw 'Single value not parsed into an array with a single element';
-        }
-        if (actual[0] !== value) {
-            throw `Unexpected array element: ${actual[0]}`
-        }
-    }
-    function testParseMultipleValues() {
-        console.log('  ## testParseMultipleValues');
-        const values = ['string 1', 'something else', 'Yet another value'];
-        const textValues = values.join(';');
-        const actual = s3gateway._parseArray(textValues);
-        if (!Array.isArray(actual) || actual.length !== values.length) {
-            throw 'Multiple values not parsed into an array with the expected length';
-        }
-        for (let i = 0; i < values.length; i++) {
-            if (values[i] !== actual[i]) {
-                throw `Unexpected array element [${i}]: ${actual[i]}`
-            }
-        }
-    }
-
-    function testParseMultipleValuesTrailingDelimiter() {
-        console.log('  ## testParseMultipleValuesTrailingDelimiter');
-        const values = ['string 1', 'something else', 'Yet another value'];
-        const textValues = values.join(';');
-        const actual = s3gateway._parseArray(textValues + ';');
-        if (!Array.isArray(actual) || actual.length !== values.length) {
-            throw 'Multiple values not parsed into an array with the expected length';
-        }
-        for (let i = 0; i < values.length; i++) {
-            if (values[i] !== actual[i]) {
-                throw `Unexpected array element [${i}]: ${actual[i]}`
-            }
-        }
-    }
-
-    testParseNull();
-    testParseEmptyString();
-    testParseSingleValue();
-    testParseMultipleValues();
-    testParseMultipleValuesTrailingDelimiter();
-}
-
 async function test() {
     testEncodeURIComponent();
     testPad();
@@ -571,7 +506,6 @@ async function test() {
     testEscapeURIPathPreservesDoubleSlashes();
     await testEcsCredentialRetrieval();
     await testEc2CredentialRetrieval();
-    testParseArray();
 }
 
 test();

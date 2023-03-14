@@ -23,6 +23,24 @@ const DEBUG = parseBoolean(process.env['S3_DEBUG']);
 
 
 /**
+ * Parses a string delimited by semicolons into an array of values
+ * @param string {string|null} value representing a array of strings
+ * @returns {Array} a list of values
+ */
+function parseArray(string) {
+    if (string == null || !string || string === ';') {
+        return [];
+    }
+
+    // Exclude trailing delimiter
+    if (string.endsWith(';')) {
+        return string.substr(0, string.length - 1).split(';');
+    }
+
+    return string.split(';')
+}
+
+/**
  * Parses a string to and returns a boolean value based on its value. If the
  * string can't be parsed, this method returns false.
  *
@@ -58,5 +76,6 @@ function debug_log(r, msg) {
 
 export default {
     debug_log,
+    parseArray,
     parseBoolean
 }

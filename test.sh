@@ -312,6 +312,9 @@ runUnitTestWithSessionToken() {
     nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/"${test_code}" 
 }
 
+p "Running unit tests for utils"
+runUnitTestWithSessionToken "utils_test.js"
+
 p "Running unit tests with an access key ID and a secret key in Docker image"
 runUnitTestWithOutSessionToken "awscredentials_test.js"
 runUnitTestWithOutSessionToken "s3gateway_test.js"

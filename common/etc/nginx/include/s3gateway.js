@@ -39,7 +39,7 @@ const APPEND_SLASH = utils.parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_D
 const FOUR_O_FOUR_ON_EMPTY_BUCKET = utils.parseBoolean(process.env['FOUR_O_FOUR_ON_EMPTY_BUCKET']);
 const S3_STYLE = process.env['S3_STYLE'];
 
-const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = _parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
+const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = utils.parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
 
 /**
  * Default filename for index pages to be read off of the backing object store.
@@ -725,25 +725,6 @@ function _isDirectory(path) {
 }
 
 /**
- * Parses a string delimited by semicolons into an array of values
- * @param string {string|null} value representing a array of strings
- * @returns {Array} a list of values
- * @private
- */
-function _parseArray(string) {
-    if (string == null || !string || string === ';') {
-        return [];
-    }
-
-    // Exclude trailing delimiter
-    if (string.endsWith(';')) {
-        return string.substr(0, string.length - 1).split(';');
-    }
-
-    return string.split(';')
-}
-
-/**
  * Checks to see if the given environment variable is present. If not, an error
  * is thrown.
  * @param envVarName {string} environment variable to check for
@@ -1001,6 +982,5 @@ export default {
     _buildSigningKeyHash,
     _buildSignatureV4,
     _escapeURIPath,
-    _parseArray,
     _isHeaderToBeStripped
 };
