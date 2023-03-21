@@ -37,7 +37,7 @@ if [[ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]]; then
 # b) Using Instance Metadata Service (IMDS) credentials, if IMDS is present at http://169.254.169.254.
 #    See https://docs.aws.amazon.com/sdkref/latest/guide/feature-imds-credentials.html.
 #    Example: We are running inside an EC2 instance.
-elif curl --output /dev/null --silent --head --fail --connect-timeout 2 "http://169.254.169.254"; then
+elif curl --output /dev/null --silent --head --fail --connect-timeout 2 --max-time 5 "http://169.254.169.254"; then
   echo "Running inside an EC2 instance, using IMDS for credentials"
 
 # c) Using assume role credentials. This is indicated by AWS_WEB_IDENTITY_TOKEN_FILE being set.
