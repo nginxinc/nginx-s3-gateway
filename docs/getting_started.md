@@ -159,6 +159,8 @@ docker run --env-file ./settings --publish 80:8080 --name nginx-s3-gateway \
     nginx-s3-gateway:unprivileged-oss
 ```
 
+It is worth noting that due to the way the startup scripts work, even the unprivileged container will not work with a read-only root filesystem or a specific uid/gid set other then the default of  `101`.
+
 ### Building the NGINX Plus Container Image
 
 In order to build the NGINX Plus container image, copy your NGINX Plus 
@@ -297,6 +299,7 @@ If you are planning to use the container image on an EKS cluster, you can use a 
 - As soon as the pods/deployments are updated, you will see the couple of Env Variables listed below in the pods.
   - `AWS_ROLE_ARN` - Contains IAM Role ARN
   - `AWS_WEB_IDENTITY_TOKEN_FILE`  - Contains the token which will be used to create temporary credentials using AWS Security Token Service.
+- You must also set the `AWS_REGION` and `JS_TRUSTED_CERT_PATH` environment variables as shown below in addition to the normal environment variables listed in the Configuration section.
 
 The following is a minimal set of resources to deploy:
 ```yaml
@@ -341,12 +344,17 @@ spec:
               value: "virtual"
             - name: S3_REGION
               value: "<aws region>"
+            - name: AWS_REGION
+              value: "<aws region>"
             - name: AWS_SIGS_VERSION
               value: "4"
             - name: ALLOW_DIRECTORY_LIST
               value: "false"
             - name: PROVIDE_INDEX_PAGE
               value: "false"
+            - name: JS_TRUSTED_CERT_PATH
+              value: "/etc/ssl/certs/Amazon_Root_CA_1.pem"
+
           ports:
             - name: http
               containerPort: 80
