@@ -6,7 +6,7 @@ FROM nginx-s3-gateway
 RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive;  \
     apt-get update -qq; \
-    apt-get install --no-install-recommends --no-install-suggests --yes make gcc libc6-dev curl expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev libpcre2-posix2 libxml2-dev libxslt1-dev; \
+    apt-get install --no-install-recommends --no-install-suggests --yes make gcc libc6-dev curl expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev libpcre2-posix2 libxml2-dev libxslt1-dev zlib1g-dev; \
     mkdir -p /tmp/nginx /tmp/njs-latest; \
     curl --retry 6 --location "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" \
         | gunzip | tar --extract --strip-components=1 --directory /tmp/nginx; \
@@ -43,7 +43,7 @@ RUN set -eux \
     make -j "$(nproc)"; \
     cp objs/ngx_stream_js_module.so /usr/lib/nginx/modules; \
     cp objs/ngx_http_js_module.so /usr/lib/nginx/modules; \
-    apt-get purge --yes --auto-remove make gcc libc6-dev expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev; \
+    apt-get purge --yes --auto-remove make gcc libc6-dev expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev zlib1g-dev; \
     rm -rf \
       /var/lib/apt/lists/* \
       /tmp/*
