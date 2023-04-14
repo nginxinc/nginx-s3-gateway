@@ -19,13 +19,13 @@ import awssig2 from "./awssig2.js";
 import awssig4 from "./awssig4.js";
 import utils from "./utils.js";
 
-_require_env_var('S3_BUCKET_NAME');
-_require_env_var('S3_SERVER');
-_require_env_var('S3_SERVER_PROTO');
-_require_env_var('S3_SERVER_PORT');
-_require_env_var('S3_REGION');
-_require_env_var('AWS_SIGS_VERSION');
-_require_env_var('S3_STYLE');
+_requireEnvVars('S3_BUCKET_NAME');
+_requireEnvVars('S3_SERVER');
+_requireEnvVars('S3_SERVER_PROTO');
+_requireEnvVars('S3_SERVER_PORT');
+_requireEnvVars('S3_REGION');
+_requireEnvVars('AWS_SIGS_VERSION');
+_requireEnvVars('S3_STYLE');
 
 const fs = require('fs');
 
@@ -208,7 +208,7 @@ function _s3ReqParamsForSigV2(r, bucket) {
     if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
         uri = r.variables.uri_path + INDEX_PAGE
     }
- 
+
     return {
         uri: '/' + bucket + uri,
         httpDate: s3date(r)
@@ -469,11 +469,11 @@ function _isDirectory(path) {
  * @param envVarName {string} environment variable to check for
  * @private
  */
-function _require_env_var(envVarName) {
+function _requireEnvVars(envVarName) {
     const isSet = envVarName in process.env;
 
     if (!isSet) {
-        throw('Required environment variable ' + envVarName + ' is missing');
+        throw(`Required environment variable ${envVarName} is missing`);
     }
 }
 
@@ -509,7 +509,7 @@ const maxValidityOffsetMs = 4.5 * 60 * 1000;
 async function fetchCredentials(r) {
     /* If we are not using an AWS instance profile to set our credentials we
        exit quickly and don't write a credentials file. */
-    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+    if (utils.areAllEnvVarsSet(['S3_ACCESS_KEY_ID', 'S3_SECRET_KEY'])) {
         r.return(200);
         return;
     }
@@ -539,8 +539,9 @@ async function fetchCredentials(r) {
 
     utils.debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
 
-    if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
-        const uri = ECS_CREDENTIAL_BASE_URI + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
+    if (utils.areAllEnvVarsSet('AWS_CONTAINER_CREDENTIALS_RELATIVE_URI')) {
+        const relative_uri = process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] || '';
+        const uri = ECS_CREDENTIAL_BASE_URI + relative_uri;
         try {
             credentials = await _fetchEcsRoleCredentials(uri);
         } catch (e) {
@@ -549,7 +550,7 @@ async function fetchCredentials(r) {
             return;
         }
     }
-    else if(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']) {
+    else if (utils.areAllEnvVarsSet('AWS_WEB_IDENTITY_TOKEN_FILE')) {
         try {
             credentials = await _fetchWebIdentityCredentials(r)
         } catch(e) {

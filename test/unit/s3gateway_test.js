@@ -204,9 +204,10 @@ function testEscapeURIPathPreservesDoubleSlashes() {
 
 async function testEcsCredentialRetrieval() {
     printHeader('testEcsCredentialRetrieval');
-    process.env['S3_ACCESS_KEY_ID'] = undefined;
+    delete process.env['S3_ACCESS_KEY_ID'];
     process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = '/example';
     globalThis.ngx.fetch = function (url) {
+        console.log('  fetching mock credentials');
         globalThis.recordedUrl = url;
 
         return Promise.resolve({
@@ -245,14 +246,14 @@ async function testEcsCredentialRetrieval() {
     await s3gateway.fetchCredentials(r);
 
     if (globalThis.recordedUrl !== 'http://169.254.170.2/example') {
-        throw 'No or wrong ECS credentials fetch URL recorded: ' + globalThis.recordedUrl;
+        throw `No or wrong ECS credentials fetch URL recorded: ${globalThis.recordedUrl}`;
     }
 }
 
 async function testEc2CredentialRetrieval() {
     printHeader('testEc2CredentialRetrieval');
-    process.env['S3_ACCESS_KEY_ID'] = undefined;
-    process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = undefined;
+    delete process.env['S3_ACCESS_KEY_ID'];
+    delete process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
     globalThis.ngx.fetch = function (url, options) {
         if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {
             return Promise.resolve({

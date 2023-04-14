@@ -122,13 +122,73 @@ function testPad() {
     }
 }
 
+function testAreAllEnvVarsSet() {
+    function testAreAllEnvVarsSetStringFound() {
+        console.log('  ## testAreAllEnvVarsSetStringFound');
+        const key = 'TEST_ENV_VAR_KEY';
+        process.env[key] = 'some value';
+        const actual = utils.areAllEnvVarsSet(key);
+        if (!actual) {
+            throw 'Environment variable that was set not indicated as present';
+        }
+    }
+
+    function testAreAllEnvVarsSetStringNotFound() {
+        console.log('  ## testAreAllEnvVarsSetStringNotFound');
+        const actual = utils.areAllEnvVarsSet('UNKNOWN_ENV_VAR_KEY');
+        if (actual) {
+            throw 'Unknown environment variable indicated as being present';
+        }
+    }
+
+    function testAreAllEnvVarsSetStringArrayFound() {
+        console.log('  ## testAreAllEnvVarsSetStringArrayFound');
+        const keys = ['TEST_ENV_VAR_KEY_1', 'TEST_ENV_VAR_KEY_2', 'TEST_ENV_VAR_KEY_3'];
+        for (let i = 0; i < keys.length; i++) {
+            process.env[keys[i]] = 'something';
+        }
+        const actual = utils.areAllEnvVarsSet(keys);
+        if (!actual) {
+            throw 'Environment variables that were set not indicated as present';
+        }
+    }
+
+    function testAreAllEnvVarsSetStringArrayNotFound() {
+        console.log('  ## testAreAllEnvVarsSetStringArrayNotFound');
+        const keys = ['UNKNOWN_ENV_VAR_KEY_1', 'UNKNOWN_ENV_VAR_KEY_2', 'UNKNOWN_ENV_VAR_KEY_3'];
+        const actual = utils.areAllEnvVarsSet(keys);
+        if (actual) {
+            throw 'Unknown environment variables that were not set indicated as present';
+        }
+    }
+
+    function testAreAllEnvVarsSetStringArrayWithSomeSet() {
+        console.log('  ## testAreAllEnvVarsSetStringArrayWithSomeSet');
+        const keys = ['TEST_ENV_VAR_KEY_1', 'UNKNOWN_ENV_VAR_KEY_2', 'UNKNOWN_ENV_VAR_KEY_3'];
+        process.env[keys[0]] = 'something';
+
+        const actual = utils.areAllEnvVarsSet(keys);
+        if (actual) {
+            throw 'Unknown environment variables that were not set indicated as present';
+        }
+    }
+
+    printHeader('testAreAllEnvVarsSet');
+    testAreAllEnvVarsSetStringFound();
+    testAreAllEnvVarsSetStringNotFound();
+    testAreAllEnvVarsSetStringArrayFound();
+    testAreAllEnvVarsSetStringArrayNotFound();
+    testAreAllEnvVarsSetStringArrayWithSomeSet();
+}
+
 async function test() {
     testAmzDatetime();
     testEightDigitDate();
     testPad();
     testParseArray();
+    testAreAllEnvVarsSet();
 }
-    
+
 function printHeader(testName) {
     console.log(`\n## ${testName}`);
 }
