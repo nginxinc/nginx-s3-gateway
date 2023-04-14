@@ -34,6 +34,9 @@ required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 if [[ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]]; then
   echo "Running inside an ECS task, using container credentials"
 
+elif [[ -v S3_SESSION_TOKEN ]]; then
+  echo "S3 Session token specified - not using IMDS for credentials"
+
 # b) Using Instance Metadata Service (IMDS) credentials, if IMDS is present at http://169.254.169.254.
 #    See https://docs.aws.amazon.com/sdkref/latest/guide/feature-imds-credentials.html.
 #    Example: We are running inside an EC2 instance.
@@ -50,10 +53,6 @@ elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
 # See https://docs.aws.amazon.com/sdkref/latest/guide/feature-static-credentials.html.
 else
   required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
-fi
-
-if [[ -v S3_SESSION_TOKEN ]]; then
-  echo "S3 Session token present"
 fi
 
 for name in ${required[@]}; do
