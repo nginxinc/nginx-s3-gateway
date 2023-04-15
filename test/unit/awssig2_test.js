@@ -37,7 +37,7 @@ function _runSignatureV2(r) {
     const httpDate = timestamp.toUTCString();
     const expected = 'AWS test-access-key-1:VviSS4cFhUC6eoB4CYqtRawzDrc=';
     let req = s3gateway._s3ReqParamsForSigV2(r, bucket);
-    let signature = awssig2.signatureV2(r, req.uri, httpDate, creds);
+    let signature = awssig2.signatureV2(r, 'GET', req.path, httpDate, creds);
 
     if (signature !== expected) {
         throw 'V2 signature hash was not created correctly.\n' +

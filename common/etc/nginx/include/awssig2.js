@@ -22,14 +22,14 @@ const mod_hmac = require('crypto');
  * Create HTTP Authorization header for authenticating with an AWS compatible
  * v2 API.
  *
- * @param r {Request} HTTP request object
+ * @param r {Request} HTTP request object (for logging only)
+ * @param method {string} The http method
  * @param uri {string} The URI-encoded version of the absolute path component URL to create a request
  * @param httpDate {string} RFC2616 timestamp used to sign the request
  * @param credentials {object} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
  * @returns {string} HTTP Authorization header value
  */
-function signatureV2(r, uri, httpDate, credentials) {
-    const method = r.method;
+function signatureV2(r, method, uri, httpDate, credentials) {
     const hmac = mod_hmac.createHmac('sha1', credentials.secretAccessKey);
     const stringToSign = method + '\n\n\n' + httpDate + '\n' + uri;
 

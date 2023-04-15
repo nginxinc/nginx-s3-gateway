@@ -41,7 +41,7 @@ function sessionToken(r) {
  */
 function readCredentials(r) {
     // TODO: Change the generic constants naming for multiple AWS services.
-    if ('S3_ACCESS_KEY_ID' in process.env && 'S3_SECRET_KEY' in process.env) {
+    if ('S3_ACCESS_KEY_ID' in process.env && 'S3_SECRET_KEY' in process.env && !('AWS_ROLE_ARN' in process.env)) {
         const sessionToken = 'S3_SESSION_TOKEN' in process.env ?
                               process.env['S3_SESSION_TOKEN'] : null;
         return {
@@ -132,7 +132,7 @@ function _credentialsTempFile() {
 function writeCredentials(r, credentials) {
     /* Do not bother writing credentials if we are running in a mode where we
        do not need instance credentials. */
-    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
+    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY'] && !('AWS_ROLE_ARN' in process.env)) {
         return;
     }
 
