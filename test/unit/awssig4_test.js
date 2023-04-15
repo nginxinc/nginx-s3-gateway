@@ -71,7 +71,7 @@ function _runSignatureV4(r) {
     //       awssig4.js for the purpose of common library.
     let req = s3gateway._s3ReqParamsForSigV4(r, bucket, server);
     const canonicalRequest = awssig4._buildCanonicalRequest(
-        r.method, req.uri, req.queryParams, req.host, amzDatetime, creds.sessionToken);
+        r.method, req.path, req.queryParams, req.host, amzDatetime, creds.sessionToken);
 
     var expected = 'cf4dd9e1d28c74e2284f938011efc8230d0c20704f56f67e4a3bfc2212026bec';
     var signature = awssig4._buildSignatureV4(

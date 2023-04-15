@@ -177,12 +177,12 @@ function s3auth(r) {
 
     const credentials = awscred.readCredentials(r);
     if (sigver == '2') {
-        let req = _s3ReqParamsForSigV2(r, bucket);
-        signature = awssig2.signatureV2(r, req.uri, req.httpDate, credentials);
+        const req = _s3ReqParamsForSigV2(r, bucket);
+        signature = awssig2.signatureV2(r, r.method, req.path, req.httpDate, credentials);
     } else {
-        let req = _s3ReqParamsForSigV4(r, bucket, server);
+        const req = _s3ReqParamsForSigV4(r, bucket, server);
         signature = awssig4.signatureV4(r, NOW, region, SERVICE,
-            req.uri, req.queryParams, req.host, credentials);
+            r.method, req.uri, req.queryParams, req.host, credentials);
     }
 
     return signature;
@@ -194,7 +194,7 @@ function s3auth(r) {
  * @see {@link https://docs.aws.amazon.com/AmazonS3/latest/userguide/auth-request-sig-v2.html | AWS signature version 2}
  * @param r {Request} HTTP request object
  * @param bucket {string} S3 bucket associated with request
- * @returns s3ReqParams {object} s3ReqParams object (host, method, uri, queryParams)
+ * @returns s3ReqParams {object} s3ReqParams object (host, method, path, queryParams)
  * @private
  */
 function _s3ReqParamsForSigV2(r, bucket) {
@@ -203,14 +203,14 @@ function _s3ReqParamsForSigV2(r, bucket) {
      * string to sign. For example, if we are requesting /bucket/dir1/ from
      * nginx, then in S3 we need to request /?delimiter=/&prefix=dir1/
      * Thus, we can't put the path /dir1/ in the string to sign. */
-    let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
+    let path = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
     // To return index pages + index.html
     if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
-        uri = r.variables.uri_path + INDEX_PAGE
+        path = r.variables.uri_path + INDEX_PAGE
     }
 
     return {
-        uri: '/' + bucket + uri,
+        path: '/' + bucket + path,
         httpDate: s3date(r)
     };
 }
@@ -222,7 +222,7 @@ function _s3ReqParamsForSigV2(r, bucket) {
  * @param r {Request} HTTP request object
  * @param bucket {string} S3 bucket associated with request
  * @param server {string} S3 host associated with request
- * @returns s3ReqParams {object} s3ReqParams object (host, uri, queryParams)
+ * @returns s3ReqParams {object} s3ReqParams object (host, path, queryParams)
  * @private
  */
 function _s3ReqParamsForSigV4(r, bucket, server) {
@@ -232,19 +232,19 @@ function _s3ReqParamsForSigV4(r, bucket, server) {
     }
     const baseUri = s3BaseUri(r);
     const queryParams = _s3DirQueryParams(r.variables.uri_path, r.method);
-    let uri;
+    let path;
     if (queryParams.length > 0) {
         if (baseUri.length > 0) {
-            uri = baseUri;
+            path = baseUri;
         } else {
-            uri = '/';
+            path = '/';
         }
     } else {
-        uri = s3uri(r);
+        path = s3uri(r);
     }
     return {
         host: host,
-        uri: uri,
+        path: path,
         queryParams: queryParams
     };
 }
@@ -509,7 +509,7 @@ const maxValidityOffsetMs = 4.5 * 60 * 1000;
 async function fetchCredentials(r) {
     /* If we are not using an AWS instance profile to set our credentials we
        exit quickly and don't write a credentials file. */
-    if (utils.areAllEnvVarsSet(['S3_ACCESS_KEY_ID', 'S3_SECRET_KEY'])) {
+    if (utils.areAllEnvVarsSet('S3_ACCESS_KEY_ID', 'S3_SECRET_KEY') && !utils.areAllEnvVarsSet('AWS_ROLE_ARN')) {
         r.return(200);
         return;
     }
@@ -555,6 +555,15 @@ async function fetchCredentials(r) {
             credentials = await _fetchWebIdentityCredentials(r)
         } catch(e) {
             utils.debug_log(r, 'Could not assume role using web identity: ' + JSON.stringify(e));
+            r.return(500);
+            return;
+        }
+    }
+    else if(utils.areAllEnvVarsSet('AWS_ROLE_ARN')) {
+        try {
+            credentials = await _fetchAssumeRoleCredentials(r);
+        } catch(e) {
+            utils.debug_log(r, `Could not assume role ${process.env['AWS_ROLE_ARN']}: ` + JSON.stringify(e));
             r.return(500);
             return;
         }
@@ -643,17 +652,7 @@ async function _fetchEC2RoleCredentials() {
     };
 }
 
-/**
- * Get the credentials by assuming calling AssumeRoleWithWebIdentity with the environment variable
- * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and HOSTNAME
- *
- * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
- * @private
- */
-async function _fetchWebIdentityCredentials(r) {
-    const arn = process.env['AWS_ROLE_ARN'];
-    const name = process.env['HOSTNAME'] || 'nginx-s3-gateway';
-
+function _getStsEndpoint() {
     let sts_endpoint = process.env['STS_ENDPOINT'];
     if (!sts_endpoint) {
         /* On EKS, the ServiceAccount can be annotated with
@@ -679,6 +678,20 @@ async function _fetchWebIdentityCredentials(r) {
             sts_endpoint = 'https://sts.amazonaws.com';
         }
     }
+    return sts_endpoint;
+}
+
+/**
+ * Get the credentials by assuming calling AssumeRoleWithWebIdentity with the environment variable
+ * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and HOSTNAME
+ *
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
+async function _fetchWebIdentityCredentials(r) {
+    const arn = process.env['AWS_ROLE_ARN'];
+    const name = process.env['HOSTNAME'] || 'nginx-s3-gateway';
+    const sts_endpoint = _getStsEndpoint();
 
     const token = fs.readFileSync(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']);
 
@@ -693,6 +706,48 @@ async function _fetchWebIdentityCredentials(r) {
 
     const resp = await response.json();
     const creds = resp.AssumeRoleWithWebIdentityResponse.AssumeRoleWithWebIdentityResult.Credentials;
+
+    return {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.SessionToken,
+        expiration: creds.Expiration,
+    };
+}
+
+/**
+ * Get the credentials by assuming calling AssumeRole with the environment variable
+ * values AWS_ROLE_ARN, SECRET_ACCESS_KEY and ACCESS_KEY_ID
+ *
+ * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @private
+ */
+async function _fetchAssumeRoleCredentials(r) {
+    const tempCreds = {
+        accessKeyId: process.env['S3_ACCESS_KEY_ID'],
+        secretAccessKey: process.env['S3_SECRET_KEY'],
+    };
+    const arn = process.env['AWS_ROLE_ARN'];
+    const name = process.env['HOSTNAME'] || 'nginx-s3-gateway';
+    const params = `Action=AssumeRole&RoleArn=${encodeURIComponent(arn)}&RoleSessionName=${encodeURIComponent(name)}&Version=2011-06-15`;
+    const sts_endpoint = _getStsEndpoint();
+    const host = sts_endpoint.slice(8);
+    const method = 'GET';
+    const region = process.env['AWS_REGION'];
+    const signature = awssig4.signatureV4(r, NOW, region, 'sts', method, '/', params, host, tempCreds);
+    const url = sts_endpoint + "?" + params;
+    const response = await ngx.fetch(url, {
+        headers: {
+            "Authorization": signature,
+            "X-Amz-Date": amzDatetime,
+            'X-Amz-Content-Sha256': awssig4.EMPTY_PAYLOAD_HASH,
+            "Accept": "application/json"
+        },
+        method: method,
+    });
+
+    const resp = await response.json();
+    const creds = resp.AssumeRoleResponse.AssumeRoleResult.Credentials;
 
     return {
         accessKeyId: creds.AccessKeyId,

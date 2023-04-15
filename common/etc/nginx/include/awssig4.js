@@ -35,21 +35,22 @@ const DEFAULT_SIGNED_HEADERS = 'host;x-amz-content-sha256;x-amz-date';
  * Create HTTP Authorization header for authenticating with an AWS compatible
  * v4 API.
  *
- * @param r {Request} HTTP request object
+ * @param r {Request} HTTP request object (for logging only)
  * @param timestamp {Date} timestamp associated with request (must fall within a skew)
  * @param region {string} API region associated with request
  * @param service {string} service code (for example, s3, lambda)
- * @param uri {string} The URI-encoded version of the absolute path component URL to create a canonical request
+ * @param method {string} The method
+ * @param path {string} The URI-encoded version of the absolute path component of the URI to create a canonical request
  * @param queryParams {string} The URL-encoded query string parameters to create a canonical request
  * @param host {string} HTTP host header value
  * @param credentials {object} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
  * @returns {string} HTTP Authorization header value
  */
-function signatureV4(r, timestamp, region, service, uri, queryParams, host, credentials) {
+function signatureV4(r, timestamp, region, service, method, path, queryParams, host, credentials) {
     const eightDigitDate = utils.getEightDigitDate(timestamp);
     const amzDatetime = utils.getAmzDatetime(timestamp, eightDigitDate);
     const canonicalRequest = _buildCanonicalRequest(
-        r.method, uri, queryParams, host, amzDatetime, credentials.sessionToken);
+        method, path, queryParams, host, amzDatetime, credentials.sessionToken);
     const signature = _buildSignatureV4(r, amzDatetime, eightDigitDate,
         credentials, region, service, canonicalRequest);
     const authHeader = 'AWS4-HMAC-SHA256 Credential='
@@ -66,14 +67,14 @@ function signatureV4(r, timestamp, region, service, uri, queryParams, host, cred
  *
  * @see {@link https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html | Creating a Canonical Request}
  * @param method {string} HTTP method
- * @param uri {string} URI associated with request
+ * @param path {string} The URI-encoded version of the absolute path component of the URI
  * @param queryParams {string} query parameters associated with request
  * @param host {string} HTTP Host header value
  * @param amzDatetime {string} ISO8601 timestamp string to sign request with
  * @returns {string} string with concatenated request parameters
  * @private
  */
-function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken) {
+function _buildCanonicalRequest(method, path, queryParams, host, amzDatetime, sessionToken) {
     let canonicalHeaders = 'host:' + host + '\n' +
         'x-amz-content-sha256:' + EMPTY_PAYLOAD_HASH + '\n' +
         'x-amz-date:' + amzDatetime + '\n';
@@ -83,7 +84,7 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
     }
 
     let canonicalRequest = method + '\n';
-    canonicalRequest += uri + '\n';
+    canonicalRequest += path + '\n';
     canonicalRequest += queryParams + '\n';
     canonicalRequest += canonicalHeaders + '\n';
     canonicalRequest += _signedHeaders(sessionToken) + '\n';
@@ -253,6 +254,7 @@ function _splitCachedValues(cached) {
 
 export default {
     signatureV4,
+    EMPTY_PAYLOAD_HASH,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
     _buildCanonicalRequest,
