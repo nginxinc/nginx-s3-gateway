@@ -34,7 +34,7 @@ required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 if [[ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]]; then
   echo "Running inside an ECS task, using container credentials"
 
-elif [[ -v S3_SESSION_TOKEN ]]; then
+elif [[ -v AWS_SESSION_TOKEN ]]; then
   echo "S3 Session token specified - not using IMDS for credentials"
 
 # b) Using Instance Metadata Service (IMDS) credentials, if IMDS is present at http://169.254.169.254.
@@ -52,7 +52,7 @@ elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
 # If none of the options above is used, require static credentials.
 # See https://docs.aws.amazon.com/sdkref/latest/guide/feature-static-credentials.html.
 else
-  required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
+  required+=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY")
 fi
 
 for name in ${required[@]}; do
@@ -101,7 +101,7 @@ if [ $failed -gt 0 ]; then
 fi
 
 echo "S3 Backend Environment"
-echo "Access Key ID: ${S3_ACCESS_KEY_ID}"
+echo "Access Key ID: ${AWS_ACCESS_KEY_ID}"
 echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
 echo "Region: ${S3_REGION}"
 echo "Addressing Style: ${S3_STYLE}"

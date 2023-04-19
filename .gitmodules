@@ -1,0 +1,3 @@
+[submodule "common/etc/nginx/include/awssig"]
+	path = common/etc/nginx/include/awssig
+	url = https://github.com/nginxinc/nginx-aws-signature.git
