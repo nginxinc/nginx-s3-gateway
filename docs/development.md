@@ -2,18 +2,24 @@
 
 ## Integrating with AWS Signature
 
+Run the script of [`submodule.sh`](../submodule.sh) to update the module of `nginx-aws-signature`.
+- Common `nginx-aws-signature` lib: [`https://github.com/nginxinc/nginx-aws-signature`](https://github.com/nginxinc/nginx-aws-signature)
+- Pull the latest version of `nginx-aws-signature` when updating new lib.
+  ```
+  cd common/etc/nginx/include/awssig
+  git pull -f
+  ```
+
 Update the following files when enhancing `nginx-s3-gateway` to integrate with AWS signature whenever AWS releases a new version of signature or you have a new PR:
 
 - NGINX Proxy: [`/etc/nginx/conf.d/default.conf`](/common/etc/nginx/templates/gateway/s3_location.conf.template)
-- AWS Credentials Lib: [`/etc/nginx/include/awscredentials.js`](/common/etc/nginx/include/awscredentials.js)
-  > Note: The `fetchCredentials()` is going to be part of here soon.
-
+- AWS Credentials Lib: [`/etc/nginx/include/awssig/core/awscredentials.js`](/common/etc/nginx/include/awssig/core/awscredentials.js)
 - AWS Signature Lib per version:
-  - [`/etc/nginx/include/awssig2.js`](/common/etc/nginx/include/awssig2.js)
-  - [`/etc/nginx/include/awssig4.js`](/common/etc/nginx/include/awssig4.js)
+  - [`/etc/nginx/include/awssig/core/awssig2.js`](/common/etc/nginx/include/awssig/core/awssig2.js)
+  - [`/etc/nginx/include/awssig/core/awssig4.js`](/common/etc/nginx/include/awssig/core/awssig4.js)
 
 - S3 Integration Lib: [`/etc/nginx/include/s3gateway.js`](/common/etc/nginx/include/s3gateway.js)
-- Common Lib for all of NJS: [`/etc/nginx/include/utils.js`](/common/etc/nginx/include/utils.js)
+- Common Lib for all of NJS: [`/etc/nginx/include/awssig/core/utils.js`](/common/etc/nginx/include/awssig/core/utils.js)
 
 ![](./img/nginx-s3-gateway-signature-flow.png)
 

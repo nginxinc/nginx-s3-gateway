@@ -276,8 +276,8 @@ runUnitTestWithOutSessionToken() {
     --workdir /var/tmp                    \
     -e "S3_DEBUG=true"                    \
     -e "S3_STYLE=virtual"                 \
-    -e "S3_ACCESS_KEY_ID=unit_test"       \
-    -e "S3_SECRET_KEY=unit_test"          \
+    -e "AWS_ACCESS_KEY_ID=unit_test"       \
+    -e "AWS_SECRET_ACCESS_KEY=unit_test"          \
     -e "S3_BUCKET_NAME=unit_test"         \
     -e "S3_SERVER=unit_test"              \
     -e "S3_SERVER_PROTO=https"            \
@@ -299,9 +299,9 @@ runUnitTestWithSessionToken() {
     --workdir /var/tmp                    \
     -e "S3_DEBUG=true"                    \
     -e "S3_STYLE=virtual"                 \
-    -e "S3_ACCESS_KEY_ID=unit_test"       \
-    -e "S3_SECRET_KEY=unit_test"          \
-    -e "S3_SESSION_TOKEN=unit_test"       \
+    -e "AWS_ACCESS_KEY_ID=unit_test"       \
+    -e "AWS_SECRET_ACCESS_KEY=unit_test"          \
+    -e "AWS_SESSION_TOKEN=unit_test"       \
     -e "S3_BUCKET_NAME=unit_test"         \
     -e "S3_SERVER=unit_test"              \
     -e "S3_SERVER_PROTO=https"            \
@@ -312,19 +312,10 @@ runUnitTestWithSessionToken() {
     nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/"${test_code}" 
 }
 
-p "Running unit tests for utils"
-runUnitTestWithSessionToken "utils_test.js"
-
 p "Running unit tests with an access key ID and a secret key in Docker image"
-runUnitTestWithOutSessionToken "awscredentials_test.js"
-runUnitTestWithOutSessionToken "awssig2_test.js"
-runUnitTestWithOutSessionToken "awssig4_test.js"
 runUnitTestWithOutSessionToken "s3gateway_test.js"
 
 p "Running unit tests with an session token in Docker image"
-runUnitTestWithSessionToken "awscredentials_test.js"
-runUnitTestWithSessionToken "awssig2_test.js"
-runUnitTestWithSessionToken "awssig4_test.js"
 runUnitTestWithSessionToken "s3gateway_test.js"
 
 ### INTEGRATION TESTS

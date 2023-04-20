@@ -40,11 +40,11 @@ elif curl --output /dev/null --silent --head --fail --connect-timeout 2 "http://
   echo "Running inside an EC2 instance, using IMDS for credentials"
   uses_iam_creds=1
 else
-  required+=("S3_ACCESS_KEY_ID" "S3_SECRET_KEY")
+  required+=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY")
   uses_iam_creds=0
 fi
 
-if [[ -v S3_SESSION_TOKEN ]]; then
+if [[ -v AWS_SESSION_TOKEN ]]; then
   echo "S3 Session token present"
 fi
 
@@ -78,7 +78,7 @@ echo "Installing using github '${branch}' branch"
 
 
 echo "S3 Backend Environment"
-echo "Access Key ID: ${S3_ACCESS_KEY_ID}"
+echo "Access Key ID: ${AWS_ACCESS_KEY_ID}"
 echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
 echo "Region: ${S3_REGION}"
 echo "Addressing Style: ${S3_STYLE}"
@@ -187,14 +187,14 @@ EOF
 if [ $uses_iam_creds -eq 0 ]; then
   cat >> "/etc/nginx/environment" << EOF
 # AWS Access key
-S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID}
+AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
 # AWS Secret access key
-S3_SECRET_KEY=${S3_SECRET_KEY}
+AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 EOF
-  if [[ -v S3_SESSION_TOKEN ]]; then
+  if [[ -v AWS_SESSION_TOKEN ]]; then
     cat >> "/etc/nginx/environment" << EOF
 # AWS Session Token
-S3_SESSION_TOKEN=${S3_SESSION_TOKEN}
+AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
 EOF
   fi
 fi
@@ -293,12 +293,12 @@ EOF
 # to obtain S3 permissions.
 if [ $uses_iam_creds -eq 0 ]; then
   cat >> "/etc/nginx/environment" << EOF
-env S3_ACCESS_KEY_ID;
-env S3_SECRET_KEY;
+env AWS_ACCESS_KEY_ID;
+env AWS_SECRET_ACCESS_KEY;
 EOF
-  if [[ -v S3_SESSION_TOKEN ]]; then
+  if [[ -v AWS_SESSION_TOKEN ]]; then
     cat >> "/etc/nginx/environment" << EOF
-env S3_SESSION_TOKEN;
+env AWS_SESSION_TOKEN;
 EOF
   fi
 fi
@@ -349,11 +349,11 @@ http {
 EOF
 
 download "common/etc/nginx/include/listing.xsl" "/etc/nginx/include/listing.xsl"
-download "common/etc/nginx/include/awscredentials.js" "/etc/nginx/include/awscredentials.js"
-download "common/etc/nginx/include/awssig2.js" "/etc/nginx/include/awssig2.js"
-download "common/etc/nginx/include/awssig4.js" "/etc/nginx/include/awssig4.js"
+download "common/etc/nginx/include/awssig/core/awscredentials.js" "/etc/nginx/include/awssig/core/awscredentials.js"
+download "common/etc/nginx/include/awssig/core/awssig2.js" "/etc/nginx/include/awssig/core/awssig2.js"
+download "common/etc/nginx/include/awssig/core/awssig4.js" "/etc/nginx/include/awssig/core/awssig4.js"
 download "common/etc/nginx/include/s3gateway.js" "/etc/nginx/include/s3gateway.js"
-download "common/etc/nginx/include/utils.js" "/etc/nginx/include/utils.js"
+download "common/etc/nginx/include/awssig/core/utils.js" "/etc/nginx/include/awssig/core/utils.js"
 download "common/etc/nginx/templates/default.conf.template" "/etc/nginx/templates/default.conf.template"
 download "common/etc/nginx/templates/gateway/v2_headers.conf.template" "/etc/nginx/templates/gateway/v2_headers.conf.template"
 download "common/etc/nginx/templates/gateway/v2_js_vars.conf.template" "/etc/nginx/templates/gateway/v2_js_vars.conf.template"

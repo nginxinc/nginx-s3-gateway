@@ -20,12 +20,24 @@ jobs:
 
       - name: Install dependencies
         run: sudo apt-get install -y wait-for-it
+
+      - name: Pull & update nginx-aws-signature submodules
+        run: |
+          git submodule update --init common/etc/nginx/include/awssig
+          git submodule absorbgitdirs
+          git -C common/etc/nginx/include/awssig config core.sparseCheckout true
+          echo 'core/*' >>.git/modules/common/etc/nginx/include/awssig/info/sparse-checkout
+          git submodule update --force --checkout common/etc/nginx/include/awssig
+
       - name: Run tests - latest njs version
         run: ./test.sh --latest-njs --type oss
+
       - name: Run tests - stable njs version
         run: ./test.sh --type oss
+
       - name: Run tests - stable njs version - unprivileged process
         run: ./test.sh --unprivileged --type oss
+
       - name: Run tests - latest njs version - unprivileged process
         run: ./test.sh --latest-njs --unprivileged --type oss
 
