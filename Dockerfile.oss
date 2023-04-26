@@ -30,6 +30,7 @@ RUN set -eux \
     apt-get update; \
     apt-get install --no-install-recommends --no-install-suggests --yes \
       curl nginx-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE}; \
+    apt-get install --yes vim procps net-tools iputils-ping; \
     apt-get remove --purge --auto-remove --yes; \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/nginx.list
 
