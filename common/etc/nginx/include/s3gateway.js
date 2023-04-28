@@ -155,6 +155,10 @@ function awsHeaderDate(r) {
     return utils.getAmzDatetime(NOW, utils.getEightDigitDate(NOW));
 }
 
+function awsContentSHA256(r) {
+    return awssig4.getPayloadHash(r.requestText);
+}
+
 /**
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
@@ -342,13 +346,6 @@ function _s3DirQueryParams(uriPath, method) {
  * @param r {Request} HTTP request object
  */
 function redirectToS3(r) {
-    // This is a read-only S3 gateway, so we do not support any other methods
-    if (!(r.method === 'GET' || r.method === 'HEAD')) {
-        utils.debug_log(r, 'Invalid method requested: ' + r.method);
-        r.internalRedirect("@error405");
-        return;
-    }
-
     const uriPath = r.variables.uri_path;
     const isDirectoryListing = ALLOW_LISTING && _isDirectory(uriPath);
 
@@ -704,6 +701,7 @@ async function _fetchWebIdentityCredentials(r) {
 
 export default {
     awsHeaderDate,
+    awsContentSHA256,
     fetchCredentials,
     s3date,
     s3auth,

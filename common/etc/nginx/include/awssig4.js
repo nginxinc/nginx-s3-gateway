@@ -48,8 +48,9 @@ const DEFAULT_SIGNED_HEADERS = 'host;x-amz-content-sha256;x-amz-date';
 function signatureV4(r, timestamp, region, service, uri, queryParams, host, credentials) {
     const eightDigitDate = utils.getEightDigitDate(timestamp);
     const amzDatetime = utils.getAmzDatetime(timestamp, eightDigitDate);
+    const payloadHash = getPayloadHash(r.requestText);
     const canonicalRequest = _buildCanonicalRequest(
-        r.method, uri, queryParams, host, amzDatetime, credentials.sessionToken);
+        r.method, uri, queryParams, host, amzDatetime, credentials.sessionToken, payloadHash);
     const signature = _buildSignatureV4(r, amzDatetime, eightDigitDate,
         credentials, region, service, canonicalRequest);
     const authHeader = 'AWS4-HMAC-SHA256 Credential='
@@ -59,6 +60,16 @@ function signatureV4(r, timestamp, region, service, uri, queryParams, host, cred
     utils.debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
 
     return authHeader;
+}
+
+function getPayloadHash(payloadString) {
+    let payloadHash = EMPTY_PAYLOAD_HASH;
+    if (typeof payloadString !== 'undefined' && payloadString.length > 0) {
+        payloadHash = mod_hmac.createHash('sha256')
+            .update(payloadString)
+            .digest('hex');
+    }
+    return payloadHash;
 }
 
 /**
@@ -73,9 +84,9 @@ function signatureV4(r, timestamp, region, service, uri, queryParams, host, cred
  * @returns {string} string with concatenated request parameters
  * @private
  */
-function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken) {
+function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken, payloadHash) {
     let canonicalHeaders = 'host:' + host + '\n' +
-        'x-amz-content-sha256:' + EMPTY_PAYLOAD_HASH + '\n' +
+        'x-amz-content-sha256:' + payloadHash + '\n' +
         'x-amz-date:' + amzDatetime + '\n';
 
     if (sessionToken) {
@@ -87,7 +98,7 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
     canonicalRequest += queryParams + '\n';
     canonicalRequest += canonicalHeaders + '\n';
     canonicalRequest += _signedHeaders(sessionToken) + '\n';
-    canonicalRequest += EMPTY_PAYLOAD_HASH;
+    canonicalRequest += payloadHash;
 
     return canonicalRequest;
 }
@@ -253,6 +264,7 @@ function _splitCachedValues(cached) {
 
 export default {
     signatureV4,
+    getPayloadHash,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
     _buildCanonicalRequest,

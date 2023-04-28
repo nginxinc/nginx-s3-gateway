@@ -16,16 +16,10 @@ ENV CORS_ENABLED 0
 # 4. Explicitly install the version of njs coded in the environment variable
 #    above.
 
-COPY common/etc /etc
-COPY common/docker-entrypoint.sh /docker-entrypoint.sh
-COPY common/docker-entrypoint.d /docker-entrypoint.d/
-COPY oss/etc /etc
-
 RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive; \
     mkdir -p /var/cache/nginx/s3_proxy; \
     chown nginx:nginx /var/cache/nginx/s3_proxy; \
-    chmod -R -v +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh; \
     echo "deb https://nginx.org/packages/mainline/debian/ $(echo $PKG_RELEASE | cut -f2 -d~) nginx" >> /etc/apt/sources.list.d/nginx.list; \
     apt-get update; \
     apt-get install --no-install-recommends --no-install-suggests --yes \
@@ -34,3 +28,9 @@ RUN set -eux \
     apt-get remove --purge --auto-remove --yes; \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/nginx.list
 
+COPY common/docker-entrypoint.sh /docker-entrypoint.sh
+COPY common/docker-entrypoint.d /docker-entrypoint.d/
+COPY oss/etc /etc
+COPY common/etc /etc
+
+RUN chmod -R -v +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh; \

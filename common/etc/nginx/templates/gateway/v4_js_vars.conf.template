@@ -2,3 +2,5 @@
 # specifies the timestamp in which the signature was generated and is used with
 # the x-amz-date header.
 js_set $awsDate s3gateway.awsHeaderDate;
+
+js_set $awsContentSHA256 s3gateway.awsContentSHA256;
