@@ -16,6 +16,7 @@
  *  limitations under the License.
  */
 
+import awscred from "include/awscredentials.js"
 import awssig4 from "include/awssig4.js";
 import s3gateway from "include/s3gateway.js";
 
@@ -204,7 +205,7 @@ function testEscapeURIPathPreservesDoubleSlashes() {
 
 async function testEcsCredentialRetrieval() {
     printHeader('testEcsCredentialRetrieval');
-    delete process.env['S3_ACCESS_KEY_ID'];
+    delete process.env['AWS_ACCESS_KEY_ID'];
     process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] = '/example';
     globalThis.ngx.fetch = function (url) {
         console.log('  fetching mock credentials');
@@ -243,7 +244,7 @@ async function testEcsCredentialRetrieval() {
         },
     };
 
-    await s3gateway.fetchCredentials(r);
+    await awscred.fetchCredentials(r);
 
     if (globalThis.recordedUrl !== 'http://169.254.170.2/example') {
         throw `No or wrong ECS credentials fetch URL recorded: ${globalThis.recordedUrl}`;
@@ -252,7 +253,7 @@ async function testEcsCredentialRetrieval() {
 
 async function testEc2CredentialRetrieval() {
     printHeader('testEc2CredentialRetrieval');
-    delete process.env['S3_ACCESS_KEY_ID'];
+    delete process.env['AWS_ACCESS_KEY_ID'];
     delete process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
     globalThis.ngx.fetch = function (url, options) {
         if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {
@@ -315,7 +316,7 @@ async function testEc2CredentialRetrieval() {
         },
     };
 
-    await s3gateway.fetchCredentials(r);
+    await awscred.fetchCredentials(r);
 
     if (!globalThis.credentialsIssued) {
         throw 'Did not reach the point where EC2 credentials were issues.';

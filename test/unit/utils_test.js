@@ -181,6 +181,7 @@ function testAreAllEnvVarsSet() {
     testAreAllEnvVarsSetStringArrayWithSomeSet();
 }
 
+
 async function test() {
     testAmzDatetime();
     testEightDigitDate();
@@ -188,7 +189,7 @@ async function test() {
     testParseArray();
     testAreAllEnvVarsSet();
 }
-
+    
 function printHeader(testName) {
     console.log(`\n## ${testName}`);
 }

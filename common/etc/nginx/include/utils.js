@@ -19,7 +19,8 @@
  * about signature generation will be logged.
  * @type {boolean}
  */
-const DEBUG = parseBoolean(process.env['S3_DEBUG']);
+const DEBUG = parseBoolean(process.env['DEBUG']);
+
 
 /**
  * Checks to see if all of the elements of the passed array are present as keys
@@ -36,10 +37,8 @@ function areAllEnvVarsSet(envVars) {
                 return false;
             }
         }
-
         return true;
     }
-
     return envVars in process.env;
 }
 
@@ -148,12 +147,28 @@ function getEightDigitDate(timestamp) {
         padWithLeadingZeros(day,2));
 }
 
+
+/**
+ * Checks to see if the given environment variable is present. If not, an error
+ * is thrown.
+ * @param envVarName {string} environment variable to check for
+ * @private
+ */
+function requireEnvVar(envVarName) {
+    const isSet = envVarName in process.env;
+
+    if (!isSet) {
+        throw('Required environment variable ' + envVarName + ' is missing');
+    }
+}
+
 export default {
+    areAllEnvVarsSet,
     debug_log,
     getAmzDatetime,
     getEightDigitDate,
     padWithLeadingZeros,
     parseArray,
     parseBoolean,
-    areAllEnvVarsSet
+    requireEnvVar
 }

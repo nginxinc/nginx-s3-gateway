@@ -1,6 +1,7 @@
 js_import /etc/nginx/include/awscredentials.js;
 js_import /etc/nginx/include/s3gateway.js;
 
+
 # We include only the variables needed for the authentication signatures that
 # we plan to use.
 include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_js_vars.conf;
@@ -23,6 +24,7 @@ js_var $indexIsEmpty true;
 js_set $s3auth s3gateway.s3auth;
 js_set $awsSessionToken awscredentials.sessionToken;
 js_set $s3uri s3gateway.s3uri;
+js_var $defaultHostName 'nginx-s3-gateway';
 
 server {
     include /etc/nginx/conf.d/gateway/server_variables.conf;
@@ -88,7 +90,7 @@ server {
 
     location /aws/credentials/retrieve {
         internal;
-        js_content s3gateway.fetchCredentials;
+        js_content awscredentials.fetchCredentials;
 
         include /etc/nginx/conf.d/gateway/js_fetch_trusted_certificate.conf;
     }

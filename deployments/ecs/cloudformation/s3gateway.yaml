@@ -239,7 +239,7 @@ Resources:
                   - amazonaws.com
             - Name: S3_STYLE
               Value: default
-            - Name: S3_DEBUG
+            - Name: DEBUG
               Value: 'false'
           Image: ghcr.io/nginxinc/nginx-s3-gateway/nginx-oss-s3-gateway:latest-njs-oss
           LogConfiguration:
