@@ -74,7 +74,6 @@ function sessionToken(r) {
  * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string|null), expiration: (string|null)}} AWS instance profile credentials or undefined
  */
 function readCredentials(r) {
-    // TODO: Change the generic constants naming for multiple AWS services.
     if ('AWS_ACCESS_KEY_ID' in process.env && 'AWS_SECRET_ACCESS_KEY' in process.env) {
         let sessionToken = 'AWS_SESSION_TOKEN' in process.env ?
             process.env['AWS_SESSION_TOKEN'] : null;
