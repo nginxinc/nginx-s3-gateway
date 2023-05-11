@@ -34,6 +34,9 @@ required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 if [[ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]]; then
   echo "Running inside an ECS task, using container credentials"
 
+elif [[ -v S3_SESSION_TOKEN ]]; then
+  echo "The S3_SESSION_TOKEN is depreciated, and assign the value to the AWS_SESSION_TOKEN"
+
 elif [[ -v AWS_SESSION_TOKEN ]]; then
   echo "S3 Session token specified - not using IMDS for credentials"
 
@@ -48,6 +51,12 @@ elif curl --output /dev/null --silent --head --fail --connect-timeout 2 --max-ti
 #    Example: We are running inside an EKS cluster with IAM roles for service accounts enabled.
 elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
   echo "Running inside EKS with IAM roles for service accounts"
+
+elif [[ -v S3_ACCESS_KEY_ID ]]; then
+  echo "The S3_ACCESS_KEY_ID is depreciated, and assign the value to the AWS_ACCESS_KEY_ID"
+
+elif [[ -v S3_SECRET_KEY ]]; then
+  echo "The S3_SECRET_KEY is depreciated, and assign the value to the AWS_SECRET_ACCESS_KEY"
 
 # If none of the options above is used, require static credentials.
 # See https://docs.aws.amazon.com/sdkref/latest/guide/feature-static-credentials.html.
