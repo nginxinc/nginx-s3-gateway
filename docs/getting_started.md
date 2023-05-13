@@ -28,6 +28,7 @@ running as a Container or as a Systemd service.
 | `S3_STYLE`                            | Yes       | `virtual`, `path`, `default` | `default` | The S3 host/path method. <li>`virtual` is the method that that uses DNS-style bucket+hostname:port. This is the `default` value. <li>`path` is a method that appends the bucket name as the first directory in the URI's path. This method is used by many S3 compatible services. <br/><br/>See this [AWS blog article](https://aws.amazon.com/blogs/aws/amazon-s3-path-deprecation-plan-the-rest-of-the-story/) for further information.            |
 | `DEBUG`                               | No        | `true`, `false`              | `false`   | Flag enabling AWS signatures debug output                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `APPEND_SLASH_FOR_POSSIBLE_DIRECTORY` | No        | `true`, `false`              | `false`   | Flag enabling the return a 302 with a `/` appended to the path. This is independent of the behavior selected in `ALLOW_DIRECTORY_LIST` or `PROVIDE_INDEX_PAGE`.                                                                                                                                                                                                                                                                                       |
+| `DIRECTORY_LISTING_PATH_PREFIX`       | No        |                              |           | In `ALLOW_DIRECTORY_LIST=true` mode [adds defined prefix to links](#configuring-directory-listing)                                                                                                                                                                                                                                                                                                                                                    |
 | `DNS_RESOLVERS`                       | No        |                              |           | DNS resolvers (separated by single spaces) to configure NGINX with                                                                                                                                                                                                                                                                                                                                                                                    |
 | `PROXY_CACHE_MAX_SIZE`                | No        |                              |           | Limits cache size                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `PROXY_CACHE_INACTIVE`                | No        |                              |           | Cached data that are not accessed during the time specified by the parameter get removed from the cache regardless of their freshness                                                                                                                                                                                                                                                                                                                 |
@@ -77,6 +78,21 @@ result in log messages like:
 
 Another limitation is that when using v2 signatures with HEAD requests, the
 gateway will not return 200 for valid folders.
+
+#### Prefixing List Results
+
+The gateway can be configured to prefix all list results with a given string.
+This is useful if you are proxying the gateway itself and wish to relocate
+the path of the files returned from the listing.
+Using the `DIRECTORY_LISTING_PATH_PREFIX` environment variable will allow
+one to add that prefix in listing page's header and links.
+
+For example, if one configures to `DIRECTORY_LISTING_PATH_PREFIX='main/'` and 
+then uses HAProxy to proxy the gateway with the 
+`http-request set-path %[path,regsub(^/main,/)]` setting, the architecture
+will look like the following: 
+
+![](./img/nginx-s3-gateway-directory-listing-path-prefix.png)
 
 ### Static Site Hosting
 
