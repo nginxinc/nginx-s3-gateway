@@ -369,7 +369,7 @@ async function _fetchEC2RoleCredentials() {
  */
 async function _fetchWebIdentityCredentials(r) {
     const arn = process.env['AWS_ROLE_ARN'];
-    const name = process.env['HOSTNAME'] || r.variables.defaultHostName;
+    const name = process.env['HOSTNAME'];
 
     let sts_endpoint = process.env['STS_ENDPOINT'];
     if (!sts_endpoint) {

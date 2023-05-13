@@ -139,13 +139,13 @@ function _buildSignatureV4(
              * we encode it as JSON. By doing so we can gracefully decode it
              * when reading from the cache. */
             kSigningHash = Buffer.from(JSON.parse(fields[1]));
-            // Otherwise, generate a new signing key hash and store it in the cache
+        // Otherwise, generate a new signing key hash and store it in the cache
         } else {
             kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, region, service);
             utils.debug_log(r, 'Writing key: ' + eightDigitDate + ':' + kSigningHash.toString('hex'));
             r.variables.signing_key_hash = eightDigitDate + ':' + JSON.stringify(kSigningHash);
         }
-        // Otherwise, don't use caching at all (like when we are using NGINX OSS)
+    // Otherwise, don't use caching at all (like when we are using NGINX OSS)
     } else {
         kSigningHash = _buildSigningKeyHash(creds.secretAccessKey, eightDigitDate, region, service);
     }

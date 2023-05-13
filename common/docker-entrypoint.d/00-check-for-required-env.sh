@@ -35,7 +35,8 @@ if [[ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]]; then
   echo "Running inside an ECS task, using container credentials"
 
 elif [[ -v S3_SESSION_TOKEN ]]; then
-  echo "The S3_SESSION_TOKEN is depreciated, and assign the value to the AWS_SESSION_TOKEN"
+  echo "Depreciated the S3_SESSION_TOKEN! Use the environment variable of AWS_SESSION_TOKEN instead"
+  failed=1
 
 elif [[ -v AWS_SESSION_TOKEN ]]; then
   echo "S3 Session token specified - not using IMDS for credentials"
@@ -51,17 +52,29 @@ elif curl --output /dev/null --silent --head --fail --connect-timeout 2 --max-ti
 #    Example: We are running inside an EKS cluster with IAM roles for service accounts enabled.
 elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
   echo "Running inside EKS with IAM roles for service accounts"
+  if [[ ! -v HOSTNAME ]]; then
+    # This environment value is used for Role Session Name. The default value is
+    # set as a nginx-s3-gateway unless the value is defined.
+    HOSTNAME="nginx-s3-gateway"
+  fi
 
 elif [[ -v S3_ACCESS_KEY_ID ]]; then
-  echo "The S3_ACCESS_KEY_ID is depreciated, and assign the value to the AWS_ACCESS_KEY_ID"
+  echo "Depreciated the S3_ACCESS_KEY_ID! Use the environment variable of AWS_ACCESS_KEY_ID instead"
+  failed=1
 
 elif [[ -v S3_SECRET_KEY ]]; then
-  echo "The S3_SECRET_KEY is depreciated, and assign the value to the AWS_SECRET_ACCESS_KEY"
+  echo "Depreciated the S3_SECRET_KEY! Use the environment variable of AWS_SECRET_ACCESS_KEY instead"
+  failed=1
 
 # If none of the options above is used, require static credentials.
 # See https://docs.aws.amazon.com/sdkref/latest/guide/feature-static-credentials.html.
 else
   required+=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY")
+fi
+
+if [[ -v S3_DEBUG ]]; then
+  echo "Depreciated the S3_DEBUG! Use the environment variable of DEBUG instead"
+  failed=1
 fi
 
 for name in ${required[@]}; do
