@@ -362,14 +362,14 @@ async function _fetchEC2RoleCredentials() {
 
 /**
  * Get the credentials by assuming calling AssumeRoleWithWebIdentity with the environment variable
- * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and HOSTNAME
+ * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and AWS_ROLE_SESSION_NAME
  *
  * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
  * @private
  */
 async function _fetchWebIdentityCredentials(r) {
     const arn = process.env['AWS_ROLE_ARN'];
-    const name = process.env['HOSTNAME'];
+    const name = process.env['AWS_ROLE_SESSION_NAME'];
 
     let sts_endpoint = process.env['STS_ENDPOINT'];
     if (!sts_endpoint) {

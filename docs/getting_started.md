@@ -51,7 +51,7 @@ file.
   
 There are few optional environment variables that can be used.
 
-* `HOSTNAME` - (optional) The value will be used for Role Session Name. The default value is nginx-s3-gateway.
+* `AWS_ROLE_SESSION_NAME` - (optional) The value will be used for Role Session Name. The default value is nginx-s3-gateway.
 * `STS_ENDPOINT` - (optional) Overrides the STS endpoint to be used in applicable setups. This is not required when running on EKS. See the EKS portion of the guide below for more details.
 * `AWS_STS_REGIONAL_ENDPOINTS` - (optional) Allows for a regional STS endpoint to be
   selected. When the regional model is selected then the STS endpoint generated will
