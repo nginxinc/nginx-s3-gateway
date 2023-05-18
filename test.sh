@@ -240,7 +240,7 @@ if [ "${nginx_type}" = "plus" ]; then
     docker buildx build -f Dockerfile.buildkit.${nginx_type} \
       --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
       --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
-      --no-cache --squash \
+      --no-cache \
       --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
   else
     docker build -f Dockerfile.${nginx_type} \
