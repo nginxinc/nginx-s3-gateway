@@ -237,7 +237,7 @@ if [ "${nginx_type}" = "plus" ]; then
   if docker buildx > /dev/null 2>&1; then
     p "Building using BuildKit"
     export DOCKER_BUILDKIT=1
-    docker build -f Dockerfile.buildkit.${nginx_type} \
+    docker buildx build -f Dockerfile.buildkit.${nginx_type} \
       --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
       --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
       --no-cache --squash \
