@@ -31,6 +31,16 @@ test_dir="${script_dir}/test"
 test_compose_config="${test_dir}/docker-compose.yaml"
 test_compose_project="ngt"
 
+is_windows="0"
+if [ -z "${OS}" ] && [ "${OS}" == "Windows_NT" ]; then
+  is_windows="1"
+elif command -v uname > /dev/null; then
+  uname_output="$(uname -s)"
+  if [[ "${uname_output}" == *"_NT-"* ]]; then
+    is_windows="1"
+  fi
+fi
+
 p() {
   printf "\033[34;1m▶\033[0m "
   echo "$1"
@@ -164,6 +174,15 @@ integration_test() {
   printf "\033[34;1m▶\033[0m"
   printf "\e[1m Integration test suite with APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=%s\e[22m\n" "$4"
 
+
+  # Write problematic files to disk if we are not on Windows. Originally,
+  # these files were checked in, but that prevented the git repository from
+  # being cloned on Windows machines.
+  if [ "$is_windows" == "0" ]; then
+    echo "Writing weird filename: ${test_dir}/data/bucket-1/a/%@!*()=$#^&|.txt"
+    echo 'We are but selling water next to a river.' > "${test_dir}"'/data/bucket-1/a/%@!*()=$#^&|.txt'
+  fi
+
   # See if Minio is already running, if it isn't then we don't need to build it
   # COMPOSE_COMPATIBILITY=true Supports older style compose filenames with _ vs -
 
@@ -285,7 +304,7 @@ runUnitTestWithOutSessionToken() {
     -e "S3_REGION=test-1"                 \
     -e "AWS_SIGS_VERSION=4"               \
     --entrypoint /usr/bin/njs             \
-    nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/"${test_code}" 
+    nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/"${test_code}"
 }
 
 runUnitTestWithSessionToken() {
@@ -309,7 +328,7 @@ runUnitTestWithSessionToken() {
     -e "S3_REGION=test-1"                 \
     -e "AWS_SIGS_VERSION=4"               \
     --entrypoint /usr/bin/njs             \
-    nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/"${test_code}" 
+    nginx-s3-gateway -t module -p '/etc/nginx' /var/tmp/"${test_code}"
 }
 
 p "Running unit tests for utils"
