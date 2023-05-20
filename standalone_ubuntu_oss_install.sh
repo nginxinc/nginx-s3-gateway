@@ -85,6 +85,8 @@ echo "Addressing Style: ${S3_STYLE}"
 echo "AWS Signatures Version: v${AWS_SIGS_VERSION}"
 echo "DNS Resolvers: ${DNS_RESOLVERS}"
 echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
+echo "Cache size limit: ${PROXY_CACHE_MAX_SIZE}"
+echo "Cache inactive timeout: ${PROXY_CACHE_INACTIVE}"
 echo "Proxy Caching Time for Valid Response: ${PROXY_CACHE_VALID_OK}"
 echo "Proxy Caching Time for Not Found Response: ${PROXY_CACHE_VALID_NOTFOUND}"
 echo "Proxy Caching Time for Forbidden Response: ${PROXY_CACHE_VALID_FORBIDDEN}"
@@ -149,6 +151,10 @@ S3_SERVER=${S3_SERVER}
 S3_STYLE=${S3_STYLE}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 DEBUG=${DEBUG}
+# Cache size limit
+PROXY_CACHE_MAX_SIZE=${PROXY_CACHE_MAX_SIZE}
+# Cached data that are not accessed during the time get removed
+PROXY_CACHE_INACTIVE=${PROXY_CACHE_INACTIVE}
 # Proxy caching time for response code 200 and 302
 PROXY_CACHE_VALID_OK=${PROXY_CACHE_VALID_OK}
 # Proxy caching time for response code 404
