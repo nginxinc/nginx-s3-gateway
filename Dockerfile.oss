@@ -29,7 +29,9 @@ RUN set -eux \
     echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/mainline/debian/ $(echo $PKG_RELEASE | cut -f2 -d~) nginx" >> /etc/apt/sources.list.d/nginx.list; \
     apt-get update; \
     apt-get install --no-install-recommends --no-install-suggests --yes \
-      curl nginx-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE}; \
+      curl \
+      libedit2 \
+      nginx-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE}; \
     apt-get remove --purge --auto-remove --yes; \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/nginx.list
 

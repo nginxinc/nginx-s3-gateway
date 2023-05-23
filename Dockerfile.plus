@@ -28,7 +28,10 @@ RUN set -eux \
     adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 101 nginx; \
     apt-get -qq update; \
     apt-get -qq upgrade --yes; \
-    apt-get -qq install --yes ca-certificates curl; \
+    apt-get -qq install --yes \
+      ca-certificates \
+      curl \
+      libedit2; \
     sh -a /usr/local/bin/add_nginx_plus_repo.sh; \
     rm /usr/local/bin/add_nginx_plus_repo.sh; \
     apt-get -qq update; \
@@ -39,7 +42,7 @@ RUN set -eux \
         nginx-plus-module-xslt=${XSLT_VERSION}~${DISTRO_VERSION} \
         gettext-base; \
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-    rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*; \
+    rm -rf /etc/apt/sources.list.d/nginx-plus.list /var/lib/apt/lists/* /var/tmp/* /tmp/*; \
     # forward request and error logs to docker log collector
     ln -sf /dev/stdout /var/log/nginx/access.log; \
     ln -sf /dev/stderr /var/log/nginx/error.log; \
