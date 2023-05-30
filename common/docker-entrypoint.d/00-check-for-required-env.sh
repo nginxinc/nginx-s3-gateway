@@ -52,10 +52,6 @@ elif curl --output /dev/null --silent --head --fail --connect-timeout 2 --max-ti
 #    Example: We are running inside an EKS cluster with IAM roles for service accounts enabled.
 elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
   echo "Running inside EKS with IAM roles for service accounts"
-  if [[ -v HOSTNAME ]]; then
-    echo "Depreciated the HOSTNAME! Use the environment variable of AWS_ROLE_SESSION_NAME instead"  
-    failed=1
-  fi
   if [[ ! -v AWS_ROLE_SESSION_NAME ]]; then
     # The default value is set as a nginx-s3-gateway unless the value is defined.
     AWS_ROLE_SESSION_NAME="nginx-s3-gateway"
