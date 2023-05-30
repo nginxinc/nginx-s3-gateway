@@ -1,0 +1,2 @@
+# Use NGINX's non-blocking DNS resolution
+resolver ${DNS_RESOLVERS};
