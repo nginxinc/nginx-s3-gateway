@@ -53,7 +53,7 @@ const maxValidityOffsetMs = 4.5 * 60 * 1000;
 
 
 /**
- * Get the current session token from either the instance profile credential 
+ * Get the current session token from either the instance profile credential
  * cache or environment variables.
  *
  * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
@@ -208,7 +208,7 @@ function _writeCredentialsToFile(credentials) {
 
 /**
  * Get the credentials needed to create AWS signatures in order to authenticate
- * to AWS service. If the gateway is being provided credentials via a instance 
+ * to AWS service. If the gateway is being provided credentials via an instance
  * profile credential as provided over the metadata endpoint, this function will:
  * 1. Try to read the credentials from cache
  * 2. Determine if the credentials are stale
@@ -258,7 +258,7 @@ async function fetchCredentials(r) {
 
     if (utils.areAllEnvVarsSet('AWS_CONTAINER_CREDENTIALS_RELATIVE_URI')) {
         const relative_uri = process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'] || '';
-        const uri = ECS_CREDENTIAL_BASE_URI + relative_uri;        
+        const uri = ECS_CREDENTIAL_BASE_URI + relative_uri;
         try {
             credentials = await _fetchEcsRoleCredentials(uri);
         } catch (e) {
@@ -420,7 +420,7 @@ async function _fetchWebIdentityCredentials(r) {
 }
 
 /**
- * Get the current timestamp. This timestamp will be used across functions in 
+ * Get the current timestamp. This timestamp will be used across functions in
  * order for there to be no variations in signatures.
  *
  * @returns {Date} The current moment as a timestamp
