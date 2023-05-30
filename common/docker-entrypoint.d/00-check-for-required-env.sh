@@ -65,6 +65,11 @@ elif [[ -v S3_SECRET_KEY ]]; then
   echo "Depreciated the S3_SECRET_KEY! Use the environment variable of AWS_SECRET_ACCESS_KEY instead"
   failed=1
 
+elif [[ -v AWS_SECRET_KEY ]]; then
+  echo "AWS_SECRET_KEY is not a valid setting! Use the environment variable of AWS_SECRET_ACCESS_KEY instead"
+  failed=1
+
+
 # If none of the options above is used, require static credentials.
 # See https://docs.aws.amazon.com/sdkref/latest/guide/feature-static-credentials.html.
 else
