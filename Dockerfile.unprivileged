@@ -1,3 +1,5 @@
+#  SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+
 # This container images makes the necessary modifications in the
 # inherited image (which could be OSS NGINX or NGINX Plus) in order
 # to allow running NGINX S3 Gateway as a non root user.
@@ -8,6 +10,7 @@ FROM nginx-s3-gateway
 # Implement changes required to run NGINX as an unprivileged user
 RUN sed -i "/^server {/a \    listen       8080;" /etc/nginx/templates/default.conf.template \
     && sed -i '/user  nginx;/d' /etc/nginx/nginx.conf \
+    && sed -i 's#http://127.0.0.1:80#http://127.0.0.1:8080#g' /etc/nginx/include/s3gateway.js \
     && sed -i 's,/var/run/nginx.pid,/tmp/nginx.pid,' /etc/nginx/nginx.conf \
     && sed -i "/^http {/a \    proxy_temp_path /tmp/proxy_temp;\n    client_body_temp_path /tmp/client_temp;\n    fastcgi_temp_path /tmp/fastcgi_temp;\n    uwsgi_temp_path /tmp/uwsgi_temp;\n    scgi_temp_path /tmp/scgi_temp;\n" /etc/nginx/nginx.conf \
 # Nginx user must own the cache and etc directory to write cache and tweak the nginx config

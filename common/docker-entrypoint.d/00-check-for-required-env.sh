@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 #  Copyright 2020 F5 Networks
+#  SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -108,11 +109,6 @@ parseBoolean() {
       ;;
   esac
 }
-
-if [ "$(parseBoolean ${ALLOW_DIRECTORY_LIST})" == "1" ] && [ "$(parseBoolean ${PROVIDE_INDEX_PAGE})" == "1" ]; then
-  >&2 echo "ALLOW_DIRECTORY_LIST and PROVIDE_INDEX_PAGE cannot be both set"
-  failed=1
-fi
 
 if [ -n "${HEADER_PREFIXES_TO_STRIP+x}" ]; then
   if [[ "${HEADER_PREFIXES_TO_STRIP}" =~ [A-Z] ]]; then
