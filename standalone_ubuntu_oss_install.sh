@@ -364,14 +364,6 @@ http {
 
     #gzip  on;
 
-    # Settings for S3 cache
-    proxy_cache_path /var/cache/nginx/s3_proxy
-    levels=1:2
-    keys_zone=s3_cache:10m
-    max_size=10g
-    inactive=60m
-    use_temp_path=off;
-
     include /etc/nginx/conf.d/*.conf;
 }
 EOF
@@ -383,6 +375,7 @@ download "common/etc/nginx/include/awssig4.js" "/etc/nginx/include/awssig4.js"
 download "common/etc/nginx/include/s3gateway.js" "/etc/nginx/include/s3gateway.js"
 download "common/etc/nginx/include/utils.js" "/etc/nginx/include/utils.js"
 download "common/etc/nginx/templates/default.conf.template" "/etc/nginx/templates/default.conf.template"
+download "common/etc/nginx/templates/cache.conf.template" "/etc/nginx/templates/cache.conf.template"
 download "common/etc/nginx/templates/gateway/v2_headers.conf.template" "/etc/nginx/templates/gateway/v2_headers.conf.template"
 download "common/etc/nginx/templates/gateway/v2_js_vars.conf.template" "/etc/nginx/templates/gateway/v2_js_vars.conf.template"
 download "common/etc/nginx/templates/gateway/v4_headers.conf.template" "/etc/nginx/templates/gateway/v4_headers.conf.template"
