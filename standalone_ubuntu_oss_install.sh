@@ -127,6 +127,7 @@ fi
 
 
 if [ "${to_install}" != "" ]; then
+  echo "▶ Installing ${to_install}"
   apt-get -qq install --yes ${to_install}
   echo "▶ Stopping nginx so that it can be configured as a S3 Gateway"
   systemctl stop nginx
@@ -135,7 +136,7 @@ fi
 echo "▶ Adding environment variables to NGINX configuration file: /etc/nginx/environment"
 cat > "/etc/nginx/environment" << EOF
 # Enables or disables directory listing for the S3 Gateway (true=enabled, false=disabled)
-ALLOW_DIRECTORY_LIST=${ALLOW_DIRECTORY_LIST}
+ALLOW_DIRECTORY_LIST=${ALLOW_DIRECTORY_LIST:-'false'}
 # Enables or disables directory listing for the S3 Gateway (true=enabled, false=disabled)
 DIRECTORY_LISTING_PATH_PREFIX=${DIRECTORY_LISTING_PATH_PREFIX:-''}
 # AWS Authentication signature version (2=v2 authentication, 4=v4 authentication)
@@ -151,26 +152,27 @@ S3_SERVER_PROTO=${S3_SERVER_PROTO}
 # S3 host to connect to
 S3_SERVER=${S3_SERVER}
 # The S3 host/path method - 'virtual', 'path' or 'default'
-S3_STYLE=${S3_STYLE}
+S3_STYLE=${S3_STYLE:-'default'}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
-DEBUG=${DEBUG}
+DEBUG=${DEBUG:-'false'}
 # Cache size limit
-PROXY_CACHE_MAX_SIZE=${PROXY_CACHE_MAX_SIZE}
+PROXY_CACHE_MAX_SIZE=${PROXY_CACHE_MAX_SIZE:-'10g'}
 # Cached data that are not accessed during the time get removed
-PROXY_CACHE_INACTIVE=${PROXY_CACHE_INACTIVE}
+PROXY_CACHE_INACTIVE=${PROXY_CACHE_INACTIVE:-'60m'}
 # Proxy caching time for response code 200 and 302
-PROXY_CACHE_VALID_OK=${PROXY_CACHE_VALID_OK}
+PROXY_CACHE_VALID_OK=${PROXY_CACHE_VALID_OK:-'1h'}
 # Proxy caching time for response code 404
-PROXY_CACHE_VALID_NOTFOUND=${PROXY_CACHE_VALID_NOTFOUND}
+PROXY_CACHE_VALID_NOTFOUND=${PROXY_CACHE_VALID_NOTFOUND:-'1m'}
 # Proxy caching time for response code 403
-PROXY_CACHE_VALID_FORBIDDEN=${PROXY_CACHE_VALID_FORBIDDEN}
+PROXY_CACHE_VALID_FORBIDDEN=${PROXY_CACHE_VALID_FORBIDDEN:-'30s'}
 # Enables or disables CORS for the S3 Gateway (true=enabled, false=disabled)
-CORS_ENABLED=${CORS_ENABLED}
+CORS_ENABLED=${CORS_ENABLED:-'false'}
 EOF
 
 # By enabling CORS, we also need to enable the OPTIONS method which
 # is not normally used as part of the gateway. The following variable
 # defines the set of acceptable headers.
+set +o nounset   # don't abort on unbound variable
 if [ "${CORS_ENABLED}" == "1" ]; then
     cat >> "/etc/nginx/environment" << EOF
 LIMIT_METHODS_TO="GET HEAD OPTIONS"
@@ -182,6 +184,7 @@ LIMIT_METHODS_TO="GET HEAD"
 LIMIT_METHODS_TO_CSV="GET, HEAD"
 EOF
 fi
+set -o nounset   # abort on unbound variable
 
 if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
 CORS_ALLOWED_ORIGIN="*"
