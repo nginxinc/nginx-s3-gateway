@@ -1,5 +1,3 @@
-#  SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-
 # This container images makes the necessary modifications in the
 # inherited image (which could be OSS NGINX or NGINX Plus) in order
 # to allow running NGINX S3 Gateway as a non root user.
