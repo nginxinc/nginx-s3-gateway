@@ -95,17 +95,21 @@ echo "CORS Enabled: ${CORS_ENABLED}"
 
 set -o nounset   # abort on unbound variable
 
+if [ ! -f /usr/share/keyrings/nginx-archive-keyring.gpg ]; then
+  echo "▶ Adding NGINX signing key"
+  key_tmp_file="$(mktemp)"
+  wget --quiet --max-redirect=3 --output-document="${key_tmp_file}" https://nginx.org/keys/nginx_signing.key
+  echo "dd4da5dc599ef9e7a7ac20a87275024b4923a917a306ab5d53fa77871220ecda  ${key_tmp_file}" | sha256sum --check
+  gpg --dearmor < "${key_tmp_file}" | tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+  rm -f "${key_tmp_file}"
+fi
+
 if [ ! -f /etc/apt/sources.list.d/nginx.list ]; then
   release="$(grep 'VERSION_CODENAME' /etc/os-release | cut --delimiter='=' --field=2)"
   echo "▶ Adding NGINX package repository"
-
-  cat > "/etc/apt/sources.list.d/nginx.list" << EOF
-deb https://nginx.org/packages/ubuntu/ $release nginx
-deb-src https://nginx.org/packages/ubuntu/ $release nginx
-EOF
-
-  key="ABF5BD827BD9BF62"
-  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $key
+  echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] \
+  http://nginx.org/packages/ubuntu ${release} nginx" \
+      | sudo tee /etc/apt/sources.list.d/nginx.list
   apt-get -qq update
 fi
 
