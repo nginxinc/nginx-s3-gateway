@@ -22,7 +22,7 @@ set -o pipefail  # don't hide errors within pipes
 nginx_server_proto="http"
 nginx_server_host="localhost"
 nginx_server_port="8989"
-minio_server="http://localhost:9090"
+
 test_server="${nginx_server_proto}://${nginx_server_host}:${nginx_server_port}"
 test_fail_exit_code=2
 no_dep_exit_code=3
@@ -30,6 +30,12 @@ script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 test_dir="${script_dir}/test"
 test_compose_config="${test_dir}/docker-compose.yaml"
 test_compose_project="ngt"
+
+minio_server="http://localhost:9090"
+minio_user="AKIAIOSFODNN7EXAMPLE"
+minio_passwd="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+minio_name="${test_compose_project}_minio_1"
+minio_bucket="bucket-1"
 
 is_windows="0"
 if [ -z "${OS}" ] && [ "${OS}" == "Windows_NT" ]; then
@@ -133,6 +139,12 @@ if ! [ -x "${curl_cmd}" ]; then
   exit ${no_dep_exit_code}
 fi
 
+mc_cmd="$(command -v mc)"
+if ! [ -x "${mc_cmd}" ]; then
+  e "required dependency not found: mc not found in the path or not executable"
+  exit ${no_dep_exit_code}
+fi
+
 wait_for_it_cmd="$(command -v wait-for-it || true)"
 if [ -x "${wait_for_it_cmd}" ]; then
   wait_for_it_installed=1
@@ -164,16 +176,7 @@ compose() {
   "${docker_compose_cmd}" -f "${test_compose_config}" -p "${test_compose_project}" "$@"
 }
 
-integration_test() {
-  printf "\033[34;1m▶\033[0m"
-  printf "\e[1m Integration test suite for v%s signatures\e[22m\n" "$1"
-  printf "\033[34;1m▶\033[0m"
-  printf "\e[1m Integration test suite with ALLOW_DIRECTORY_LIST=%s\e[22m\n" "$2"
-  printf "\033[34;1m▶\033[0m"
-  printf "\e[1m Integration test suite with PROVIDE_INDEX_PAGE=%s\e[22m\n" "$3"
-  printf "\033[34;1m▶\033[0m"
-  printf "\e[1m Integration test suite with APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=%s\e[22m\n" "$4"
-
+integration_test_data() {
 
   # Write problematic files to disk if we are not on Windows. Originally,
   # these files were checked in, but that prevented the git repository from
@@ -183,23 +186,10 @@ integration_test() {
     echo 'We are but selling water next to a river.' > "${test_dir}"'/data/bucket-1/a/%@!*()=$#^&|.txt'
   fi
 
-  # See if Minio is already running, if it isn't then we don't need to build it
-  # COMPOSE_COMPATIBILITY=true Supports older style compose filenames with _ vs -
-
-  if [ -z "$(docker ps -q -f name=${test_compose_project}_minio-_1)" ]; then
-    p "Building Docker Compose environment"
-    COMPOSE_COMPATIBILITY=true AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 PROVIDE_INDEX_PAGE=$3 APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 compose up --no-start
-
-    p "Adding test data to container"
-    echo "Copying contents of ${test_dir}/data to Docker container ${test_compose_project}_minio_1:/"
-    "${docker_cmd}" cp "${test_dir}/data" "${test_compose_project}"_minio_1:/
-    echo "Docker diff output:"
-    "${docker_cmd}" diff "${test_compose_project}"_minio_1
-  fi
-
   p "Starting Docker Compose Environment"
-  COMPOSE_COMPATIBILITY=true AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 PROVIDE_INDEX_PAGE=$3 APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 compose up -d
-
+  # COMPOSE_COMPATIBILITY=true Supports older style compose filenames with _ vs -
+  COMPOSE_COMPATIBILITY=true compose up -d
+  
   if [ "${wait_for_it_installed}" ]; then
     # Hit minio's health check end point to see if it has started up
     for (( i=1; i<=3; i++ ))
@@ -212,7 +202,32 @@ integration_test() {
         sleep 2
       fi
     done
+  fi
 
+  p "Adding test data to container"
+  "${mc_cmd}" alias set "$minio_name" "$minio_server" "$minio_user" "$minio_passwd"
+  "${mc_cmd}" mb "$minio_name/$minio_bucket"
+  echo "Copying contents of ${test_dir}/data/$minio_bucket to Docker container $minio_name"
+  "${mc_cmd}" cp -r "${test_dir}/data/$minio_bucket/" "$minio_name/"
+  echo "Docker diff output:"
+  "${docker_cmd}" diff "$minio_name"
+}
+
+integration_test() {
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite for v%s signatures\e[22m\n" "$1"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with ALLOW_DIRECTORY_LIST=%s\e[22m\n" "$2"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with PROVIDE_INDEX_PAGE=%s\e[22m\n" "$3"
+  printf "\033[34;1m▶\033[0m"
+  printf "\e[1m Integration test suite with APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=%s\e[22m\n" "$4"
+
+  p "Starting Docker Compose Environment"
+  # COMPOSE_COMPATIBILITY=true Supports older style compose filenames with _ vs -
+  COMPOSE_COMPATIBILITY=true AWS_SIGS_VERSION=$1 ALLOW_DIRECTORY_LIST=$2 PROVIDE_INDEX_PAGE=$3 APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 compose up -d
+
+  if [ "${wait_for_it_installed}" ]; then
     if [ -x "${wait_for_it_cmd}" ]; then
       "${wait_for_it_cmd}" -h "${nginx_server_host}" -p "${nginx_server_port}"
     fi
@@ -243,7 +258,8 @@ finish() {
 
   p "Cleaning up Docker compose environment"
   compose stop
-  compose rm -f
+  compose rm -f -v
+  "${mc_cmd}" alias rm "$minio_name"
 
   exit ${result}
 }
@@ -347,6 +363,8 @@ runUnitTestWithSessionToken "awssig4_test.js"
 runUnitTestWithSessionToken "s3gateway_test.js"
 
 ### INTEGRATION TESTS
+
+integration_test_data
 
 p "Testing API with AWS Signature V2 and allow directory listing off"
 integration_test 2 0 0 0
