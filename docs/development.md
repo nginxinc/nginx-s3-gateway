@@ -55,7 +55,7 @@ additional modules.
 
 ## Testing
 
-Automated tests require `docker`, `docker-compose`, `curl` and `md5sum` to be
+Automated tests require `docker`, `docker-compose`, `curl`, `mc` and `md5sum` to be
 installed. To run all unit tests and integration tests, run the following command.
 If you invoke the test script with a plus parameter, you will need to add your
 NGINX repository keys to the `plus/etc/ssl/nginx` directory
