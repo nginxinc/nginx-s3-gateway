@@ -143,7 +143,16 @@ if ! [ -x "${curl_cmd}" ]; then
   exit ${no_dep_exit_code}
 fi
 
-mc_cmd="$(command -v mc)"
+if command -v mc > /dev/null; then
+  mc_cmd="$(command -v mc)"
+elif [ -x "${script_dir}/.bin/mc" ]; then
+  mc_cmd="${script_dir}/.bin/mc"
+else
+  e "required dependency not found: mc not found in the path or not executable"
+  exit ${no_dep_exit_code}
+fi
+e "Using MinIO Client: ${mc_cmd}"
+
 if ! [ -x "${mc_cmd}" ]; then
   e "required dependency not found: mc not found in the path or not executable"
   exit ${no_dep_exit_code}
