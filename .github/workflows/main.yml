@@ -19,7 +19,27 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install dependencies
-        run: sudo apt-get install -y wait-for-it
+        run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+      - name: Restore cached binaries
+        id: cache-binaries-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: .bin
+          key: ${{ runner.os }}-binaries
+      - name: Install MinIO Client
+        run: |
+          mkdir .bin || exit 0
+          cd .bin
+          curl --retry 6 --fail --silent --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/mc.RELEASE.2023-06-19T19-31-19Z"
+          curl --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
+          mv mc.RELEASE.2023-06-19T19-31-19Z mc
+          chmod +x mc
+      - name: Save cached binaries
+        id: cache-binaries-save
+        uses: actions/cache/save@v3
+        with:
+          path: .bin
+          key: ${{ steps.cache-binaries-restore.outputs.cache-primary-key }}
       - name: Run tests - latest njs version
         run: ./test.sh --latest-njs --type oss
       - name: Run tests - stable njs version
