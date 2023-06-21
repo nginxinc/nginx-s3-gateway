@@ -121,11 +121,15 @@ if ! [ -x "${docker_cmd}" ]; then
   exit ${no_dep_exit_code}
 fi
 
-docker_compose_cmd="$(command -v docker-compose)"
-if ! [ -x "${docker_compose_cmd}" ]; then
+if docker compose > /dev/null; then
+  docker_compose_cmd="docker compose"
+elif command -v docker-compose > /dev/null; then
+  docker_compose_cmd="docker-compose"
+else
   e "required dependency not found: docker-compose not found in the path or not executable"
   exit ${no_dep_exit_code}
 fi
+e "Using Docker Compose command: ${docker_compose_cmd}"
 
 curl_cmd="$(command -v curl)"
 if ! [ -x "${curl_cmd}" ]; then
@@ -161,7 +165,7 @@ compose() {
     export NGINX_INTERNAL_PORT=80
   fi
 
-  "${docker_compose_cmd}" -f "${test_compose_config}" -p "${test_compose_project}" "$@"
+  ${docker_compose_cmd} -f "${test_compose_config}" -p "${test_compose_project}" "$@"
 }
 
 integration_test() {
