@@ -208,7 +208,9 @@ integration_test_data() {
   "${mc_cmd}" alias set "$minio_name" "$minio_server" "$minio_user" "$minio_passwd"
   "${mc_cmd}" mb "$minio_name/$minio_bucket"
   echo "Copying contents of ${test_dir}/data/$minio_bucket to Docker container $minio_name"
-  "${mc_cmd}" cp -r "${test_dir}/data/$minio_bucket/" "$minio_name/"
+  for file in "${test_dir}/data/$minio_bucket"/*; do
+    "${mc_cmd}" cp -r "${file}" "$minio_name/$minio_bucket"
+  done
   echo "Docker diff output:"
   "${docker_cmd}" diff "$minio_name"
 }
