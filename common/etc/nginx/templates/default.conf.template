@@ -203,7 +203,7 @@ server {
     location @s3Directory {
         # We include only the headers needed for the authentication signatures that
         # we plan to use.
-        include /etc/nginx/conf.d/gateway/v4_headers.conf;
+        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
 
         # Necessary for determining the correct URI to construct.
         set $forIndexPage false;
@@ -218,7 +218,7 @@ server {
 
         # Enable passing of the server name through TLS Server Name Indication extension.
         proxy_ssl_server_name on;
-        proxy_ssl_name s3.us-east-2.amazonaws.com;
+        proxy_ssl_name ${S3_SERVER};
 
         # Set the Authorization header to the AWS Signatures credentials
         proxy_set_header Authorization $s3auth;
@@ -268,7 +268,7 @@ server {
 
         # We include only the headers needed for the authentication signatures that
         # we plan to use.
-        include /etc/nginx/conf.d/gateway/v4_headers.conf;
+        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
 
         # The CORS configuration needs to be imported in several places in order for
         # it to be applied within different contexts.
@@ -280,7 +280,7 @@ server {
 
         # Enable passing of the server name through TLS Server Name Indication extension.
         proxy_ssl_server_name on;
-        proxy_ssl_name s3.us-east-2.amazonaws.com;
+        proxy_ssl_name ${S3_SERVER};
 
         # Set the Authorization header to the AWS Signatures credentials
         proxy_set_header Authorization $s3auth;
