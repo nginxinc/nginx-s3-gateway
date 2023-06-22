@@ -82,7 +82,7 @@ if [[ -v S3_DEBUG ]]; then
 fi
 
 for name in ${required[@]}; do
-  if [[ ! -v name ]]; then
+  if [[ ! -v $name ]]; then
       >&2 echo "Required ${name} environment variable missing"
       failed=1
   fi
