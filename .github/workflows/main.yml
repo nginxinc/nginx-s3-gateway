@@ -62,8 +62,23 @@ jobs:
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
       - name: Configure Github Package Registry
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+
       - name: Install dependencies
-        run: sudo apt-get install -y wait-for-it
+        run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+      - name: Restore cached binaries
+        id: cache-binaries-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: .bin
+          key: ${{ runner.os }}-binaries
+      - name: Install MinIO Client
+        run: |
+          mkdir .bin || exit 0
+          cd .bin
+          curl --retry 6 --fail --silent --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/mc.RELEASE.2023-06-19T19-31-19Z"
+          curl --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
+          mv mc.RELEASE.2023-06-19T19-31-19Z mc
+          chmod +x mc
 
       # Run tests and builds image
       - name: Run tests - latest njs version
