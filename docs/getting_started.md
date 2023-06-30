@@ -106,7 +106,7 @@ extension.
 
 ## Running as a Systemd Service
 
-A [install script](/standalone_ubuntu_oss_install.sh) for the gateway shows
+An [install script](/standalone_ubuntu_oss_install.sh) for the gateway shows
 how to install NGINX from a package repository, checkout the gateway source, 
 and configure it using the supplied environment variables.
 
@@ -114,6 +114,11 @@ To run the script copy it to your destination system, load the environment
 variables mentioned in the [configuration section](#configuration) into memory,
 and then execute the script. The script takes one optional parameter that 
 specifies the name of the branch to download files from.
+
+For example:
+```shell-session
+sudo env $(cat settings.example) ./standalone_ubuntu_oss_install.sh
+```
 
 ## Running in Containers
 
