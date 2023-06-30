@@ -256,31 +256,12 @@ auto_envsubst() {
   done
 }
 
-auto_envsubst_on_include() {
-  local include_dir="/etc/nginx/include"
-  local suffix="${NGINX_ENVSUBST_TEMPLATE_SUFFIX:-.template}"
-  local filter="${NGINX_ENVSUBST_FILTER:-}"
-
-  local template defined_envs relative_path output_path subdir
-  defined_envs=$(printf '${%s} ' $(env | cut -d= -f1))
-  if [ ! -w "$include_dir" ]; then
-    echo "$ME: ERROR: $include_dir is not writable"
-    return 0
-  fi
-  find "$include_dir" -follow -type f -name "*$suffix" -print | while read -r template; do
-    output_path="${template%$suffix}"
-    echo "$ME: Running envsubst on $template to $output_path"
-    envsubst "$defined_envs" < "$template" > "$output_path"
-  done
-}
-
 # Attempt to read DNS Resolvers from /etc/resolv.conf
 if [ -z ${DNS_RESOLVERS+x} ]; then
   export DNS_RESOLVERS="$(cat /etc/resolv.conf | grep nameserver | cut -d' ' -f2 | xargs)"
 fi
 
 auto_envsubst
-auto_envsubst_on_include
 EOF
 chmod +x /usr/local/bin/template_nginx_config.sh
 
@@ -375,7 +356,7 @@ http {
 }
 EOF
 
-download "common/etc/nginx/include/listing.xsl.template" "/etc/nginx/include/listing.xsl.template"
+download "common/etc/nginx/include/listing.xsl" "/etc/nginx/include/listing.xsl"
 download "common/etc/nginx/include/awscredentials.js" "/etc/nginx/include/awscredentials.js"
 download "common/etc/nginx/include/awssig2.js" "/etc/nginx/include/awssig2.js"
 download "common/etc/nginx/include/awssig4.js" "/etc/nginx/include/awssig4.js"
