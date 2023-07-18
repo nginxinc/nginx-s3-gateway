@@ -19,6 +19,14 @@
 set -o errexit   # abort on nonzero exit status
 set -o pipefail  # don't hide errors within pipes
 
+### Overview
+# This script does three things:
+# 1. Sets up the test environment using docker-compose and creates test data
+# 2. Runs unit tests in the ./test/unit directory which are written in Javascript
+# 3. Runs integration tests in ./test/integration which are written in bash
+#
+# The integration test runneer
+
 nginx_server_proto="http"
 nginx_server_host="localhost"
 nginx_server_port="8989"
@@ -378,6 +386,16 @@ runUnitTestWithSessionToken "awssig4_test.js"
 runUnitTestWithSessionToken "s3gateway_test.js"
 
 ### INTEGRATION TESTS
+# The arguments correspond to flags given to the integration test runner
+# integration_test 2 0 0 0
+# AWS_SIGS_VERSION=$1 : any valid AWS Sigs version. Eg: 2
+# ALLOW_DIRECTORY_LIST=$2 : boolean value denoted by 0 or 1
+# PROVIDE_INDEX_PAGE=$3 : boolean value denoted by 0 or 1
+# APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 : boolean value denoted by 0 or 1
+#
+# These are various invocations of ./test/integration/test_api.sh
+# where the flags represent different configurations for that single test
+# file.
 
 integration_test_data
 
