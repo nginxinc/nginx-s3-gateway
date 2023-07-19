@@ -320,7 +320,7 @@ function redirectToS3(r) {
     const uriPath = r.variables.uri_path;
     const isDirectoryListing = ALLOW_LISTING && _isDirectory(uriPath);
 
-    if (isDirectoryListing && r.method === 'GET') {
+    if (isDirectoryListing && (r.method === 'GET' || r.method === 'HEAD')) {
         r.internalRedirect("@s3PreListing");
     } else if ( PROVIDE_INDEX_PAGE == true ) {
         r.internalRedirect("@s3");
