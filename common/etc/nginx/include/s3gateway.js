@@ -170,7 +170,7 @@ function _s3ReqParamsForSigV2(r, bucket) {
      * Thus, we can't put the path /dir1/ in the string to sign. */
     let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
     // To return index pages + index.html
-    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
+    if (utils.parseBoolean(r.variables.forIndexPage) && _isDirectory(r.variables.uri_path)){
         uri = r.variables.uri_path + INDEX_PAGE
     }
 
@@ -196,7 +196,10 @@ function _s3ReqParamsForSigV4(r, bucket, server) {
         host = bucket + '.' + host;
     }
     const baseUri = s3BaseUri(r);
-    const queryParams = _s3DirQueryParams(r.variables.uri_path, r.method);
+    const computed_url = !utils.parseBoolean(r.variables.forIndexPage)
+        ? r.variables.uri_path
+        : r.variables.uri_path + INDEX_PAGE;
+    const queryParams = _s3DirQueryParams(computed_url, r.method);
     let uri;
     if (queryParams.length > 0) {
         if (baseUri.length > 0) {
@@ -248,7 +251,7 @@ function s3uri(r) {
     let path;
 
     // Create query parameters only if directory listing is enabled.
-    if (ALLOW_LISTING) {
+    if (ALLOW_LISTING && !utils.parseBoolean(r.variables.forIndexPage)) {
         const queryParams = _s3DirQueryParams(uriPath, r.method);
         if (queryParams.length > 0) {
             path = basePath + '?' + queryParams;
@@ -283,7 +286,7 @@ function _s3DirQueryParams(uriPath, method) {
 
     /* Return if static website. We don't want to list the files in the
        directory, we want to append the index page and get the fil. */
-    if (PROVIDE_INDEX_PAGE){
+    if (uriPath.endsWith(INDEX_PAGE)){
         return '';
     }
 
@@ -317,8 +320,8 @@ function redirectToS3(r) {
     const uriPath = r.variables.uri_path;
     const isDirectoryListing = ALLOW_LISTING && _isDirectory(uriPath);
 
-    if (isDirectoryListing && r.method === 'GET') {
-        r.internalRedirect("@s3Listing");
+    if (isDirectoryListing && (r.method === 'GET' || r.method === 'HEAD')) {
+        r.internalRedirect("@s3PreListing");
     } else if ( PROVIDE_INDEX_PAGE == true ) {
         r.internalRedirect("@s3");
     } else if ( !ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath == "/" ) {
@@ -336,6 +339,36 @@ function trailslashControl(r) {
         }
     }
         r.internalRedirect("@error404");
+}
+
+/**
+ * Checks if there is an index.html file in the directory.
+ * Redirects appropriately. Before that, it checks if
+ * directory listing is enforced or not.
+ *
+ * @param {Object} r - The HTTP request object.
+ */
+async function loadContent(r) {
+    if (!PROVIDE_INDEX_PAGE) {
+        r.internalRedirect("@s3Directory");
+        return;
+    }
+    const url = s3uri(r);
+    let reply = await ngx.fetch(
+        `http://127.0.0.1:80${url}`
+    );
+
+    if (reply.status == 200) {
+        // found index.html, so redirect to it
+        r.internalRedirect(r.variables.request_uri + INDEX_PAGE);
+    } else if (reply.status == 404) {
+        // else just list the contents of the directory
+        r.internalRedirect("@s3Directory");
+    } else {
+        r.internalRedirect("@error500");
+    }
+
+    return;
 }
 
 /**
@@ -450,6 +483,7 @@ export default {
     redirectToS3,
     editHeaders,
     filterListResponse,
+    loadContent,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
     _s3ReqParamsForSigV2,
