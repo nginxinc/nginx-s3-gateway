@@ -30,8 +30,8 @@ jobs:
         run: |
           mkdir .bin || exit 0
           cd .bin
-          curl --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
-          curl --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
+          curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
+          curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
           mv mc.RELEASE.2023-06-19T19-31-19Z mc
           chmod +x mc
       - name: Save cached binaries
@@ -75,8 +75,8 @@ jobs:
         run: |
           mkdir .bin || exit 0
           cd .bin
-          curl --retry 6 --fail --silent --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
-          curl --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
+          curl --insecure --retry 6 --fail --silent --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
+          curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
           mv mc.RELEASE.2023-06-19T19-31-19Z mc
           chmod +x mc
 
