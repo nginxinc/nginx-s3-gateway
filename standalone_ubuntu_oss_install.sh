@@ -171,6 +171,8 @@ PROXY_CACHE_VALID_NOTFOUND=${PROXY_CACHE_VALID_NOTFOUND:-'1m'}
 PROXY_CACHE_VALID_FORBIDDEN=${PROXY_CACHE_VALID_FORBIDDEN:-'30s'}
 # Enables or disables CORS for the S3 Gateway (true=enabled, false=disabled)
 CORS_ENABLED=${CORS_ENABLED:-'false'}
+# Configure portion of URL to be removed (optional)
+STRIP_LEADING_DIRECTORY_PATH=${STRIP_LEADING_DIRECTORY_PATH:-''}
 EOF
 
 # By enabling CORS, we also need to enable the OPTIONS method which
