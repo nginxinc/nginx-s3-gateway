@@ -239,6 +239,7 @@ server {
         # Apply XSL transformation to the XML returned from S3 directory listing
         # results such that we can output an HTML directory contents list.
         xslt_stylesheet /etc/nginx/include/listing.xsl;
+        xslt_string_param rootPath '${DIRECTORY_LISTING_PATH_PREFIX}';
         xslt_types application/xml;
 
         # We apply an output filter to the XML input received from S3 before it
