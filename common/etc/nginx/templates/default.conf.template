@@ -310,6 +310,10 @@ server {
     }
 
     location @error404 {
+        # The CORS configuration needs to be imported in several places in order for
+        # it to be applied within different contexts.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
         return 404;
     }
 
