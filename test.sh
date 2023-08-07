@@ -25,7 +25,9 @@ set -o pipefail  # don't hide errors within pipes
 # 2. Runs unit tests in the ./test/unit directory which are written in Javascript
 # 3. Runs integration tests in ./test/integration which are written in bash
 #
-# The integration test runneer
+# The integration test runner uses a series of flags to test different configuration
+# values. See the function definition for `integration_test` in this file
+# for details on the parameters and their allowed values.
 
 nginx_server_proto="http"
 nginx_server_host="localhost"
@@ -388,10 +390,10 @@ runUnitTestWithSessionToken "s3gateway_test.js"
 ### INTEGRATION TESTS
 # The arguments correspond to flags given to the integration test runner
 # integration_test 2 0 0 0
-# AWS_SIGS_VERSION=$1 : any valid AWS Sigs version. Eg: 2
-# ALLOW_DIRECTORY_LIST=$2 : boolean value denoted by 0 or 1
-# PROVIDE_INDEX_PAGE=$3 : boolean value denoted by 0 or 1
-# APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 : boolean value denoted by 0 or 1
+# AWS_SIGS_VERSION=$1 : any valid AWS Sigs version. Supported values are `2` or `4`
+# ALLOW_DIRECTORY_LIST=$2 : boolean value denoted by `0` or `1`
+# PROVIDE_INDEX_PAGE=$3 : boolean value denoted by `0` or `1`
+# APPEND_SLASH_FOR_POSSIBLE_DIRECTORY=$4 : boolean value denoted by `0` or `1`
 #
 # These are various invocations of ./test/integration/test_api.sh
 # where the flags represent different configurations for that single test
