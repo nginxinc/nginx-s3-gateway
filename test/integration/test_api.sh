@@ -66,8 +66,7 @@ fi
 
 # Allow for MacOS which does not support "md5sum"
 # but has "md5 -r" which can be substituted
-checksum_cmd="$(command -v md5sum || true)"
-checksum_cmd="$(command -v md5 || true)"
+checksum_cmd="$(command -v md5sum || command -v md5 || true)"
 
 if ! [ -x "${checksum_cmd}" ]; then
   e "required dependency not found: md5sum not found in the path or not executable"
