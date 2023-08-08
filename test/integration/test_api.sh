@@ -58,16 +58,27 @@ if [ -z "${test_dir}" ]; then
   e "missing second parameter: path to test data directory"
 fi
 
-curl_cmd="$(command -v curl)"
+curl_cmd="$(command -v curl || true)"
 if ! [ -x "${curl_cmd}" ]; then
   e "required dependency not found: curl not found in the path or not executable"
   exit ${no_dep_exit_code}
 fi
 
-checksum_cmd="$(command -v md5sum)"
-if ! [ -x "${curl_cmd}" ]; then
+# Allow for MacOS which does not support "md5sum"
+# but has "md5 -r" which can be substituted
+checksum_cmd="$(command -v md5sum || command -v md5 || true)"
+
+if ! [ -x "${checksum_cmd}" ]; then
   e "required dependency not found: md5sum not found in the path or not executable"
   exit ${no_dep_exit_code}
+fi
+
+# If we are using the `md5` executable
+# then use the -r flag which makes it behave the same as `md5sum`
+# this is done after the `-x` check for ability to execute
+# since it will not pass with the flag
+if [[ $checksum_cmd =~ \/md5$ ]]; then
+  checksum_cmd="${checksum_cmd} -r"
 fi
 
 assertHttpRequestEquals() {

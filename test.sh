@@ -131,7 +131,7 @@ e "${startup_message}"
 
 set -o nounset   # abort on unbound variable
 
-docker_cmd="$(command -v docker)"
+docker_cmd="$(command -v docker || true)"
 if ! [ -x "${docker_cmd}" ]; then
   e "required dependency not found: docker not found in the path or not executable"
   exit ${no_dep_exit_code}
@@ -147,7 +147,7 @@ else
 fi
 e "Using Docker Compose command: ${docker_compose_cmd}"
 
-curl_cmd="$(command -v curl)"
+curl_cmd="$(command -v curl || true)"
 if ! [ -x "${curl_cmd}" ]; then
   e "required dependency not found: curl not found in the path or not executable"
   exit ${no_dep_exit_code}
