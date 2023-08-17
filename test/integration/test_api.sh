@@ -288,6 +288,15 @@ assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir/" "data/bucket
   assertHttpRequestEquals "GET" "/statichost" "data/bucket-1/statichost/index.html"
   assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
   fi
+
+  if [ "${allow_directory_list}" == "1" ]; then
+    if [ "$append_slash" == "1" ]; then
+      assertHttpRequestEquals "GET" "test" "200"
+      assertHttpRequestEquals "GET" "test/" "200"
+      assertHttpRequestEquals "GET" "test?foo=bar" "200"
+      assertHttpRequestEquals "GET" "test/?foo=bar" "200"
+    fi
+  fi
 fi
 
 if [ "${allow_directory_list}" == "1" ]; then
@@ -299,7 +308,9 @@ if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/" "200"
   assertHttpRequestEquals "GET" "системы/" "200"
   if [ "$append_slash" == "1" ]; then
-    assertHttpRequestEquals "GET" "b" "302"
+    if [ "${index_page}" == "0" ]; then
+      assertHttpRequestEquals "GET" "b" "302"
+    fi
   else
     assertHttpRequestEquals "GET" "b" "404"
   fi
