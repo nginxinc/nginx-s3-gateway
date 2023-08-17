@@ -14,6 +14,20 @@
  *  limitations under the License.
  */
 
+// JSDoc definitions
+/**
+ * @module s3gateway
+ * @alias S3Gateway
+ */
+
+/**
+ * @typedef {Object} S3ReqParams
+ * @property {string} uri - URI to use for S3 request
+ * @property {string|undefined} httpDate - RFC2616 timestamp used to sign the request
+ * @property {string|undefined} host - S3 host to use for request
+ * @property {string|undefined} queryParams - query parameters to use with S3 request
+ */
+
 import awscred from "./awscredentials.js";
 import awssig2 from "./awssig2.js";
 import awssig4 from "./awssig4.js";
@@ -34,17 +48,39 @@ _requireEnvVars('S3_STYLE');
  * @type {boolean}
  */
 const ALLOW_LISTING = utils.parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
+/**
+ * Flag indicating if index pages should be provided for directories.
+ * @type {boolean}
+ * */
 const PROVIDE_INDEX_PAGE = utils.parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
+/**
+ * Flag that when enabled checks if requesting a folder is without trailing slash, and return 302
+ * appending a slash to it when using for static site hosting.
+ * @type {boolean}
+ * */
 const APPEND_SLASH = utils.parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
+/**
+ * Flag indicating if 404 should be returned when requesting an empty bucket.
+ * @type {boolean}
+ * */
 const FOUR_O_FOUR_ON_EMPTY_BUCKET = utils.parseBoolean(process.env['FOUR_O_FOUR_ON_EMPTY_BUCKET']);
+/**
+ * Flag indicating why type of S3 URI to use. Valid values are 'virtual' and
+ * 'path'. If not set, 'virtual' is assumed.
+ * @type {string}
+ * */
 const S3_STYLE = process.env['S3_STYLE'];
-
+/**
+ * Additional header prefixes to strip from the response before sending to the
+ * client. This is useful for removing headers that may contain sensitive
+ * information.
+ * @type {Array<String>}
+ * */
 const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = utils.parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
-
 /**
  * Default filename for index pages to be read off of the backing object store.
  * @type {string}
- */
+ * */
 const INDEX_PAGE = "index.html";
 
 /**
@@ -56,7 +92,7 @@ const SERVICE = 's3';
 /**
  * Transform the headers returned from S3 such that there isn't information
  * leakage about S3 and do other tasks needed for appropriate gateway output.
- * @param r HTTP request
+ * @param r {NginxHTTPRequest} HTTP request
  */
 function editHeaders(r) {
     const isDirectoryHeadRequest =
@@ -91,7 +127,7 @@ function editHeaders(r) {
  * Determines if a given HTTP header should be removed before being
  * sent on to the requesting client.
  * @param headerName {string} Lowercase HTTP header name
- * @param additionalHeadersToStrip {Array[string]} array of additional headers to remove
+ * @param additionalHeadersToStrip {Array<string>} array of additional headers to remove
  * @returns {boolean} true if header should be removed
  */
 function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
@@ -113,7 +149,7 @@ function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
  * Outputs the timestamp used to sign the request, so that it can be added to
  * the 'Date' header and sent by NGINX.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
  * @returns {string} RFC2616 timestamp
  */
 function s3date(r) {
@@ -124,7 +160,7 @@ function s3date(r) {
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @returns {string} AWS authentication signature
  */
 function s3auth(r) {
@@ -154,12 +190,12 @@ function s3auth(r) {
 }
 
 /**
- * Generate some of request parameters for AWS signature version 2
+ * Generate request parameters for AWS signature version 2
  *
  * @see {@link https://docs.aws.amazon.com/AmazonS3/latest/userguide/auth-request-sig-v2.html | AWS signature version 2}
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param bucket {string} S3 bucket associated with request
- * @returns s3ReqParams {object} s3ReqParams object (host, method, uri, queryParams)
+ * @returns {S3ReqParams} s3ReqParams object (host, method, uri, queryParams)
  * @private
  */
 function _s3ReqParamsForSigV2(r, bucket) {
@@ -181,13 +217,13 @@ function _s3ReqParamsForSigV2(r, bucket) {
 }
 
 /**
- * Generate some of request parameters for AWS signature version 4
+ * Generate request parameters for AWS signature version 4
  *
  * @see {@link https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html | AWS V4 Signing Process}
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param bucket {string} S3 bucket associated with request
  * @param server {string} S3 host associated with request
- * @returns s3ReqParams {object} s3ReqParams object (host, uri, queryParams)
+ * @returns {S3ReqParams} s3ReqParams object (host, uri, queryParams)
  * @private
  */
 function _s3ReqParamsForSigV4(r, bucket, server) {
@@ -222,7 +258,7 @@ function _s3ReqParamsForSigV4(r, bucket, server) {
  * path style S3 URIs to be created that do not use a subdomain to specify
  * the bucket name.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
  * @returns {string} start of the file path for the S3 object URI
  */
 function s3BaseUri(r) {
@@ -242,7 +278,7 @@ function s3BaseUri(r) {
 /**
  * Returns the s3 path given the incoming request
  *
- * @param r HTTP request
+ * @param r {NginxHTTPRequest} HTTP request
  * @returns {string} uri for s3 request
  */
 function s3uri(r) {
@@ -307,7 +343,7 @@ function _s3DirQueryParams(uriPath, method) {
  * a read (GET/HEAD) request, then we reject the request outright by returning
  * a HTTP 405 error with a list of allowed methods.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  */
 function redirectToS3(r) {
     // This is a read-only S3 gateway, so we do not support any other methods
@@ -377,9 +413,9 @@ async function loadContent(r) {
  *
  * If anyone finds a better way to do this, please submit a PR.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @param data chunked data buffer
- * @param flags contains field that indicates that a chunk is last
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
+ * @param data {NjsStringOrBuffer} chunked data buffer
+ * @param flags {NginxHTTPSendBufferOptions} contains field that indicates that a chunk is last
  */
 function filterListResponse(r, data, flags) {
     if (FOUR_O_FOUR_ON_EMPTY_BUCKET) {

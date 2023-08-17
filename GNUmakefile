@@ -22,3 +22,13 @@ help:
 .PHONY: test
 test: ## Run all tests
 	$Q $(CURDIR)/test.sh --type oss --unprivileged false --latest-njs false
+
+out:
+	$(CURDIR)/node_modules/jsdoc/jsdoc.js -c $(CURDIR)/jsdoc/conf.json || true
+
+.PHONY: jsdoc
+jsdoc: out ## Build JSDoc output
+
+.PHONY: clean
+clean: ## Clean up build artifacts
+	$Q rm -rf $(CURDIR)/out
