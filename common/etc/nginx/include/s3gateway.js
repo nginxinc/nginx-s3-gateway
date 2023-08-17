@@ -322,9 +322,9 @@ function redirectToS3(r) {
 
     if (isDirectoryListing && (r.method === 'GET' || r.method === 'HEAD')) {
         r.internalRedirect("@s3PreListing");
-    } else if ( PROVIDE_INDEX_PAGE == true ) {
+    } else if (PROVIDE_INDEX_PAGE === true) {
         r.internalRedirect("@s3");
-    } else if ( !ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath == "/" ) {
+    } else if (!ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath === "/") {
        r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
@@ -353,22 +353,20 @@ async function loadContent(r) {
         r.internalRedirect("@s3Directory");
         return;
     }
-    const url = s3uri(r);
+    const uri = s3uri(r);
     let reply = await ngx.fetch(
-        `http://127.0.0.1:80${url}`
+        `http://127.0.0.1:80${uri}`
     );
 
-    if (reply.status == 200) {
-        // found index.html, so redirect to it
-        r.internalRedirect(r.variables.request_uri + INDEX_PAGE);
-    } else if (reply.status == 404) {
-        // else just list the contents of the directory
+    if (reply.status === 200) {
+        utils.debug_log(r, `Found index file, redirecting to: ${uri}`);
+        r.internalRedirect(uri);
+    } else if (reply.status === 404) {
+        // As there was no index file found, just list the contents of the directory
         r.internalRedirect("@s3Directory");
     } else {
         r.internalRedirect("@error500");
     }
-
-    return;
 }
 
 /**
