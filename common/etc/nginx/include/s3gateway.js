@@ -333,8 +333,12 @@ function redirectToS3(r) {
 
 function trailslashControl(r) {
     if (APPEND_SLASH) {
+        // For the purposes of understanding whether this is a directory,
+        // consider the uri without query params or anchors
+        const path = r.variables.uri_path.split(/[?#]/)[0];
+
         const hasExtension = /\/[^.\/]+\.[^.]+$/;
-        if (!hasExtension.test(r.variables.uri_path)  && !_isDirectory(r.variables.uri_path)){
+        if (!hasExtension.test(path)  && !_isDirectory(path)){
             return r.internalRedirect("@trailslash");
         }
     }
@@ -447,6 +451,8 @@ function _escapeURIPath(uri) {
  * @private
  */
 function _isDirectory(path) {
+    // if (!path) return false;
+    // str.slice(-1);
     if (path === undefined) {
         return false;
     }

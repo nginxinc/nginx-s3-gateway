@@ -411,6 +411,11 @@ integration_test 2 1 0 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
+p "Testing API with AWS Signature V2 and allow directory listing on and append slash and allow index"
+integration_test 2 1 1 1
+
+compose stop nginx-s3-gateway # Restart with new config
+
 p "Testing API with AWS Signature V2 and static site on"
 integration_test 2 0 1 0
 
