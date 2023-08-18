@@ -451,18 +451,9 @@ function _escapeURIPath(uri) {
  * @private
  */
 function _isDirectory(path) {
-    // if (!path) return false;
-    // str.slice(-1);
-    if (path === undefined) {
-        return false;
-    }
-    const len = path.length;
+    if (!path) return false;
 
-    if (len < 1) {
-        return false;
-    }
-
-    return path.charAt(len - 1) === '/';
+    return path.slice(-1) === '/';
 }
 
 /**
