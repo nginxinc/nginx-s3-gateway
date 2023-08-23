@@ -63,6 +63,7 @@ if ! [ -x "${curl_cmd}" ]; then
   e "required dependency not found: curl not found in the path or not executable"
   exit ${no_dep_exit_code}
 fi
+curl_cmd="${curl_cmd} --connect-timeout 3 --max-time 30 --no-progress-meter"
 
 # Allow for MacOS which does not support "md5sum"
 # but has "md5 -r" which can be substituted
@@ -104,11 +105,11 @@ assertHttpRequestEquals() {
 
   if [ "${method}" = "HEAD" ]; then
     expected_response_code="$3"
-    actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${uri}" ${extra_arg})"
+    actual_response_code="$(${curl_cmd} -o /dev/null -w '%{http_code}' --head "${uri}" ${extra_arg})"
 
     if [ "${expected_response_code}" != "${actual_response_code}" ]; then
       e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' --head '${uri}' ${extra_arg}"
+      e "curl command: ${curl_cmd} -o /dev/null -w '%{http_code}' --head '${uri}' ${extra_arg}"
       exit ${test_fail_exit_code}
     fi
   elif [ "${method}" = "GET" ]; then
@@ -118,21 +119,21 @@ assertHttpRequestEquals() {
       checksum_output="$(${checksum_cmd} "${body_data_path}")"
       expected_checksum="${checksum_output:0:${checksum_length}}"
 
-      curl_checksum_output="$(${curl_cmd} -s -X "${method}" "${uri}" ${extra_arg} | ${checksum_cmd})"
+      curl_checksum_output="$(${curl_cmd} -X "${method}" "${uri}" ${extra_arg} | ${checksum_cmd})"
       s3_file_checksum="${curl_checksum_output:0:${checksum_length}}"
 
       if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
         e "Checksum doesn't match expectation. Request [${method} ${uri}] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
-        e "curl command: ${curl_cmd} -s -X '${method}' '${uri}' ${extra_arg} | ${checksum_cmd}"
+        e "curl command: ${curl_cmd} -X '${method}' '${uri}' ${extra_arg} | ${checksum_cmd}"
         exit ${test_fail_exit_code}
       fi
     else
       expected_response_code="$3"
-      actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' "${uri}" ${extra_arg})"
+      actual_response_code="$(${curl_cmd} -o /dev/null -w '%{http_code}' "${uri}" ${extra_arg})"
 
       if [ "${expected_response_code}" != "${actual_response_code}" ]; then
         e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-        e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}' ${extra_arg}"
+        e "curl command: ${curl_cmd} -o /dev/null -w '%{http_code}' '${uri}' ${extra_arg}"
         exit ${test_fail_exit_code}
       fi
     fi
