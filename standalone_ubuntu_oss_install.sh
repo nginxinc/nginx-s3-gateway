@@ -258,7 +258,7 @@ auto_envsubst() {
 
 # Attempt to read DNS Resolvers from /etc/resolv.conf
 if [ -z ${DNS_RESOLVERS+x} ]; then
-  export DNS_RESOLVERS="$(cat /etc/resolv.conf | grep nameserver | cut -d' ' -f2 | xargs)"
+  export DNS_RESOLVERS="$(cat /etc/resolv.conf | sed '/^[[:blank:]]*#/d;s/#.*//' | grep nameserver | cut -d' ' -f2 | xargs)"
 fi
 
 auto_envsubst

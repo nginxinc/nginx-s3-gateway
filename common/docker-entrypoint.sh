@@ -35,7 +35,7 @@ if [ -z ${DNS_RESOLVERS+x} ]; then
   resolvers=""
   for ip in $(grep nameserver /etc/resolv.conf | cut -d' ' -f2 | xargs)
   do
-    if echo "${ip}" | grep -q ':'; then
+    if echo "${ip}" | sed '/^[[:blank:]]*#/d;s/#.*//' | grep -q ':'; then
       resolvers="$resolvers [${ip}]"
     else
       resolvers="$resolvers $ip"
