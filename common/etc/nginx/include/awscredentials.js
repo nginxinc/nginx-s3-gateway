@@ -14,6 +14,20 @@
  *  limitations under the License.
  */
 
+// JSDoc definitions
+/**
+ * @module awscredentials
+ * @alias AwsCredentials
+ */
+
+/**
+ * @typedef {Object} Credentials
+ * @property {string} accessKeyId - AWS access key ID
+ * @property {string} secretAccessKey - AWS secret access key
+ * @property {string | null} sessionToken - AWS session token
+ * @property {string | null} expiration - Expiration timestamp of the credentials
+ */
+
 import utils from "./utils.js";
 
 const fs = require('fs');
@@ -33,10 +47,16 @@ const NOW = new Date();
 const ECS_CREDENTIAL_BASE_URI = 'http://169.254.170.2';
 
 /**
+ * URL to EC2 Instance Metadata Service (IMDS) token endpoint
+ * @see {@link https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html| EC2 Instance Metadata Service}
  * @type {string}
  */
 const EC2_IMDS_TOKEN_ENDPOINT = 'http://169.254.169.254/latest/api/token';
 
+/**
+ * URL to EC2 Instance Metadata Service (IMDS) security credentials endpoint
+ * @type {string}
+ */
 const EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
 
 /**
@@ -56,7 +76,7 @@ const maxValidityOffsetMs = 4.5 * 60 * 1000;
  * Get the current session token from either the instance profile credential
  * cache or environment variables.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
  * @returns {string} current session token or empty string
  */
 function sessionToken(r) {
@@ -70,8 +90,8 @@ function sessionToken(r) {
 /**
  * Get the instance profile credentials needed to authenticate against S3 from
  * a backend cache. If the credentials cannot be found, then return undefined.
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string|null), expiration: (string|null)}} AWS instance profile credentials or undefined
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {Credentials|undefined} AWS instance profile credentials or undefined
  */
 function readCredentials(r) {
     if ('AWS_ACCESS_KEY_ID' in process.env && 'AWS_SECRET_ACCESS_KEY' in process.env) {
@@ -98,8 +118,8 @@ function readCredentials(r) {
  * Read credentials from the NGINX Keyval store. If it is not found, then
  * return undefined.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {Credentials|undefined} AWS instance profile credentials or undefined
  * @private
  */
 function _readCredentialsFromKeyValStore(r) {
@@ -121,7 +141,7 @@ function _readCredentialsFromKeyValStore(r) {
  * Read the contents of the credentials file into memory. If it is not
  * found, then return undefined.
  *
- * @returns {undefined|{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials or undefined
+ * @returns {Credentials|undefined} AWS instance profile credentials or undefined
  * @private
  */
 function _readCredentialsFromFile() {
@@ -161,8 +181,8 @@ function _credentialsTempFile() {
 /**
  * Write the instance profile credentials to a caching backend.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
+ * @param credentials {Credentials} AWS instance profile credentials
  */
 function writeCredentials(r, credentials) {
     /* Do not bother writing credentials if we are running in a mode where we
@@ -185,7 +205,7 @@ function writeCredentials(r, credentials) {
 /**
  * Write the instance profile credentials to the NGINX Keyval store.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
  * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
  * @private
  */
@@ -198,8 +218,7 @@ function _writeCredentialsToKeyValStore(r, credentials) {
  * file will be quite small and should end up in the file cache relatively
  * quickly if it is repeatedly read.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @param credentials {{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}} AWS instance profile credentials
+ * @param credentials {Credentials} AWS instance profile credentials
  * @private
  */
 function _writeCredentialsToFile(credentials) {
@@ -220,7 +239,7 @@ function _writeCredentialsToFile(credentials) {
  * If the gateway is not using instance profile credentials, then this function
  * quickly exits.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @returns {Promise<void>}
  */
 async function fetchCredentials(r) {
@@ -299,7 +318,7 @@ async function fetchCredentials(r) {
  * (Elastic Container Service) metadata endpoint.
  *
  * @param credentialsUri {string} endpoint to get credentials from
- * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @returns {Promise<Credentials>}
  * @private
  */
 async function _fetchEcsRoleCredentials(credentialsUri) {
@@ -321,7 +340,7 @@ async function _fetchEcsRoleCredentials(credentialsUri) {
  * Get the credentials needed to generate AWS signatures from the EC2
  * metadata endpoint.
  *
- * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @returns {Promise<Credentials>}
  * @private
  */
 async function _fetchEC2RoleCredentials() {
@@ -364,7 +383,7 @@ async function _fetchEC2RoleCredentials() {
  * Get the credentials by assuming calling AssumeRoleWithWebIdentity with the environment variable
  * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and AWS_ROLE_SESSION_NAME
  *
- * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
+ * @returns {Promise<Credentials>}
  * @private
  */
 async function _fetchWebIdentityCredentials(r) {

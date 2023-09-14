@@ -1,0 +1,32 @@
+{
+    "compilerOptions": {
+        "target": "ES5",
+        "module": "es2015",
+        "lib": [
+          "ES2015",
+          "ES2016.Array.Include",
+          "ES2017.Object",
+          "ES2017.String",
+          "ES2015.promise"
+        ],
+        "allowJs": true,
+        "checkJs": true,
+    },
+    "include": ["./common/etc/nginx/include"],
+    "exclude": [
+        "./node_modules"
+    ],
+    "files": [
+        "./node_modules/njs-types/ngx_core.d.ts",
+        "./node_modules/njs-types/ngx_http_js_module.d.ts",
+        "./node_modules/njs-types/ngx_stream_js_module.d.ts",
+        "./node_modules/njs-types/njs_core.d.ts",
+        // "./node_modules/njs-types/njs_webapi.d.ts",
+        "./node_modules/njs-types/njs_webcrypto.d.ts",
+        "./node_modules/njs-types/njs_modules/crypto.d.ts",
+        "./node_modules/njs-types/njs_modules/fs.d.ts",
+        "./node_modules/njs-types/njs_modules/xml.d.ts",
+        "./node_modules/njs-types/njs_modules/querystring.d.ts",
+        "./node_modules/njs-types/njs_modules/zlib.d.ts",
+    ]
+}

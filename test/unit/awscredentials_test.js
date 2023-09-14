@@ -65,7 +65,7 @@ function testReadCredentialsFromFilePath() {
     printHeader('testReadCredentialsFromFilePath');
     let r = {
         variables: {
-            cache_instance_credentials_enabled: 0
+            cache_instance_credentials_enabled: '0'
         }
     };
 
@@ -107,7 +107,7 @@ function testReadCredentialsFromNonexistentPath() {
     printHeader('testReadCredentialsFromNonexistentPath');
     let r = {
         variables: {
-            cache_instance_credentials_enabled: 0
+            cache_instance_credentials_enabled: '0'
         }
     };
     var originalCredentialPath = process.env['AWS_CREDENTIALS_TEMP_FILE'];
@@ -149,7 +149,7 @@ function testReadAndWriteCredentialsFromKeyValStore() {
     try {
         let r = {
             variables: {
-                cache_instance_credentials_enabled: 1,
+                cache_instance_credentials_enabled: '1',
                 instance_credential_json: null
             }
         };
@@ -234,7 +234,7 @@ async function testEc2CredentialRetrieval() {
         delete process.env['AWS_ACCESS_KEY_ID'];
     }
     if ('AWS_CONTAINER_CREDENTIALS_RELATIVE_URI' in process.env) {
-        delete process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];    
+        delete process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
     }
     globalThis.ngx.fetch = function (url, options) {
         if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {

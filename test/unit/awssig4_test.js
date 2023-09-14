@@ -71,13 +71,13 @@ function _runSignatureV4(r) {
         queryParams : '',
         host: bucket.concat('.', server)
     }
-    const canonicalRequest = awssig4._buildCanonicalRequest(r, 
+    const canonicalRequest = awssig4._buildCanonicalRequest(r,
         r.method, req.uri, req.queryParams, req.host, amzDatetime, creds.sessionToken);
 
     var expected = '600721cacc21e3de14416de7517868381831f4709e5c5663bbf2b738e4d5abe4';
-    var signature = awssig4._buildSignatureV4(r, 
+    var signature = awssig4._buildSignatureV4(r,
         amzDatetime, eightDigitDate, creds, region, service, canonicalRequest);
-    
+
     if (signature !== expected) {
         throw 'V4 signature hash was not created correctly.\n' +
         'Actual:   [' + signature + ']\n' +
@@ -144,7 +144,7 @@ function testSignatureV4Cache() {
             "foo" : "bar"
         },
         "variables": {
-            "cache_signing_key_enabled": 1,
+            "cache_signing_key_enabled": '1',
             "request_body": "",
             "uri_path": "/a/c/ramen.jpg"
         },
