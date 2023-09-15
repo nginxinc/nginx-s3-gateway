@@ -6,9 +6,7 @@ FROM nginx-s3-gateway
 RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive;  \
     apt-get update -qq; \
-    apt-get install --no-install-recommends --no-install-suggests --yes \
-        make gcc libc6-dev curl expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev \
-        libpcre2-posix3 libxml2-dev libxslt1-dev zlib1g-dev; \
+    apt-get install --no-install-recommends --no-install-suggests --yes make gcc libc6-dev curl expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev libpcre2-posix2 libxml2-dev libxslt1-dev zlib1g-dev; \
     mkdir -p /tmp/nginx /tmp/njs-latest; \
     curl --retry 6 --location "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" \
         | gunzip | tar --extract --strip-components=1 --directory /tmp/nginx; \
@@ -21,6 +19,8 @@ RUN set -eux \
     cd /tmp/nginx; \
     ./configure \
         --add-dynamic-module=/tmp/njs-latest/nginx \
+        --without-http_gzip_module \
+        --without-http_rewrite_module \
         --prefix=/etc/nginx \
         --sbin-path=/usr/sbin/nginx \
         --modules-path=/usr/lib/nginx/modules \
@@ -36,28 +36,9 @@ RUN set -eux \
         --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
         --user=nginx --group=nginx --with-compat --with-file-aio \
         --with-stream \
+        --with-mail \
         --with-threads \
         --with-compat \
-        --with-file-aio \
-        --with-threads \
-        --with-http_addition_module \
-        --with-http_auth_request_module \
-        --with-http_dav_module \
-        --with-http_flv_module \
-        --with-http_gunzip_module \
-        --with-http_gzip_static_module \
-        --with-http_mp4_module \
-        --with-http_random_index_module \
-        --with-http_realip_module \
-        --with-http_secure_link_module \
-        --with-http_slice_module \
-        --with-http_ssl_module \
-        --with-http_stub_status_module \
-        --with-http_sub_module \
-        --with-http_v2_module \
-        --with-stream_realip_module \
-        --with-stream_ssl_module \
-        --with-stream_ssl_preread_module \
         --with-cc-opt="-g -O2 -fdebug-prefix-map=/data/builder/debuild/nginx-${NGINX_VERSION}/debian/debuild-base/nginx-${NGINX_VERSION}=. -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC"; \
     make -j "$(nproc)"; \
     cp objs/ngx_stream_js_module.so /usr/lib/nginx/modules; \

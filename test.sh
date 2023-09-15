@@ -66,25 +66,21 @@ e() {
   >&2 echo "$1"
 }
 
-usage() { e "Usage: $0 [--latest-njs <default:false>] [--latest-njs-debug <default:false>] [--unprivileged <default:false>] [--type <default:oss|plus>]" 1>&2; exit 1; }
+usage() { e "Usage: $0 [--latest-njs <default:false>] [--unprivileged <default:false>] [--type <default:oss|plus>" 1>&2; exit 1; }
 
 for arg in "$@"; do
   shift
   case "$arg" in
-    '--help')             set -- "$@" '-h'   ;;
-    '--latest-njs')       set -- "$@" '-j'   ;;
-    '--latest-njs-debug') set -- "$@" '-d'   ;;
-    '--unprivileged')     set -- "$@" '-u'   ;;
-    '--type')             set -- "$@" '-t'   ;;
-    *)                    set -- "$@" "$arg" ;;
+    '--help')           set -- "$@" '-h'   ;;
+    '--latest-njs')     set -- "$@" '-j'   ;;
+    '--unprivileged')   set -- "$@" '-u'   ;;
+    '--type')           set -- "$@" '-t'   ;;
+    *)                  set -- "$@" "$arg" ;;
   esac
 done
 
-while getopts "hdjut:" arg; do
+while getopts "hjut:" arg; do
     case "${arg}" in
-        d)
-            njs_latest_debug="1"
-            ;;
         j)
             njs_latest="1"
             ;;
@@ -113,10 +109,10 @@ else
   startup_message="Starting NGINX ${nginx_type}"
 fi
 
-if [ -z "${njs_latest}" ] && [ -z "${njs_latest_debug}" ]; then
+if [ -z "${njs_latest}" ]; then
   njs_latest="0"
   startup_message="${startup_message} with the release NJS module (default)"
-elif [[ ${njs_latest} -eq 1 ]] || [[ ${njs_latest_debug} -eq 1 ]]; then
+elif [ ${njs_latest} -eq 1 ]; then
   startup_message="${startup_message} with the latest NJS module"
 else
   startup_message="${startup_message} with the release NJS module"
@@ -315,11 +311,7 @@ else
     --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
 fi
 
-if [ ${njs_latest_debug} -eq 1 ]; then
-  p "Layering in latest NJS build and nginx with debug logging"
-  docker build -f Dockerfile.debug \
-    --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-${nginx_type} .
-elif [ ${njs_latest} -eq 1 ]; then
+if [ ${njs_latest} -eq 1 ]; then
   p "Layering in latest NJS build"
   docker build -f Dockerfile.latest-njs \
     --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-${nginx_type} .
@@ -419,13 +411,13 @@ integration_test 2 1 0 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
-p "Testing API with AWS Signature V2 and allow directory listing on and append slash and allow index"
-integration_test 2 1 1 1
+p "Testing API with AWS Signature V2 and static site on"
+integration_test 2 0 1 0
 
 compose stop nginx-s3-gateway # Restart with new config
 
-p "Testing API with AWS Signature V2 and static site on"
-integration_test 2 0 1 0
+p "Testing API with AWS Signature V2 and allow directory listing on and append slash and allow index"
+integration_test 2 1 1 1
 
 compose stop nginx-s3-gateway # Restart with new config
 
