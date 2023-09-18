@@ -322,9 +322,9 @@ function redirectToS3(r) {
 
     if (isDirectoryListing && (r.method === 'GET' || r.method === 'HEAD')) {
         r.internalRedirect("@s3PreListing");
-    } else if ( PROVIDE_INDEX_PAGE == true ) {
+    } else if (PROVIDE_INDEX_PAGE === true) {
         r.internalRedirect("@s3");
-    } else if ( !ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath == "/" ) {
+    } else if (!ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath === "/") {
        r.internalRedirect("@error404");
     } else {
         r.internalRedirect("@s3");
@@ -333,8 +333,12 @@ function redirectToS3(r) {
 
 function trailslashControl(r) {
     if (APPEND_SLASH) {
+        // For the purposes of understanding whether this is a directory,
+        // consider the uri without query params or anchors
+        const path = r.variables.uri_path.split(/[?#]/)[0];
+
         const hasExtension = /\/[^.\/]+\.[^.]+$/;
-        if (!hasExtension.test(r.variables.uri_path)  && !_isDirectory(r.variables.uri_path)){
+        if (!hasExtension.test(path)  && !_isDirectory(path)){
             return r.internalRedirect("@trailslash");
         }
     }
@@ -353,22 +357,20 @@ async function loadContent(r) {
         r.internalRedirect("@s3Directory");
         return;
     }
-    const url = s3uri(r);
+    const uri = s3uri(r);
     let reply = await ngx.fetch(
-        `http://127.0.0.1:80${url}`
+        `http://127.0.0.1:80${uri}`
     );
 
-    if (reply.status == 200) {
-        // found index.html, so redirect to it
-        r.internalRedirect(r.variables.request_uri + INDEX_PAGE);
-    } else if (reply.status == 404) {
-        // else just list the contents of the directory
+    if (reply.status === 200) {
+        utils.debug_log(r, `Found index file, redirecting to: ${uri}`);
+        r.internalRedirect(uri);
+    } else if (reply.status === 404) {
+        // As there was no index file found, just list the contents of the directory
         r.internalRedirect("@s3Directory");
     } else {
         r.internalRedirect("@error500");
     }
-
-    return;
 }
 
 /**
@@ -449,16 +451,9 @@ function _escapeURIPath(uri) {
  * @private
  */
 function _isDirectory(path) {
-    if (path === undefined) {
-        return false;
-    }
-    const len = path.length;
+    if (!path) return false;
 
-    if (len < 1) {
-        return false;
-    }
-
-    return path.charAt(len - 1) === '/';
+    return path.slice(-1) === '/';
 }
 
 /**
