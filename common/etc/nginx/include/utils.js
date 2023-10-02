@@ -15,6 +15,11 @@
  */
 
 /**
+ * @module utils
+ * @alias Utils
+ */
+
+/**
  * Flag indicating debug mode operation. If true, additional information
  * about signature generation will be logged.
  * @type {boolean}
@@ -23,10 +28,10 @@ const DEBUG = parseBoolean(process.env['DEBUG']);
 
 
 /**
- * Checks to see if all of the elements of the passed array are present as keys
+ * Checks to see if all the elements of the passed array are present as keys
  * in the running process' environment variables. Alternatively, if a single
  * string is passed, it will check for the presence of that string.
- * @param envVars {array[string]|string} array of expected keys or single expected key
+ * @param envVars {Array<String>|string} array of expected keys or single expected key
  * @returns {boolean} true if all keys are set as environment variables
  */
 function areAllEnvVarsSet(envVars) {
@@ -45,7 +50,7 @@ function areAllEnvVarsSet(envVars) {
 /**
  * Parses a string delimited by semicolons into an array of values
  * @param string {string|null} value representing a array of strings
- * @returns {Array} a list of values
+ * @returns {Array<String>} a list of values
  */
 function parseArray(string) {
     if (string == null || !string || string === ';') {
@@ -85,7 +90,7 @@ function parseBoolean(string) {
 /**
  * Outputs a log message to the request logger if debug messages are enabled.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param msg {string} message to log
  */
 function debug_log(r, msg) {
