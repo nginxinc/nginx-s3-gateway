@@ -32,11 +32,21 @@ parseBoolean() {
 
 # This line is an addition to the NGINX Docker image's entrypoint script.
 if [ -z ${DNS_RESOLVERS+x} ]; then
-   # This method of pulling individual nameservers from
-   # /etc/resolv.conf taken from the entrypoint script in the
-   # official docker image.
-   # https://github.com/nginxinc/docker-nginx/blob/master/entrypoint/15-local-resolvers.envsh
-  export DNS_RESOLVERS="$(awk 'BEGIN{ORS=" "} $1=="nameserver" {print $2}' /etc/resolv.conf)"
+    resolvers=""
+
+    # This method of pulling individual nameservers from
+    # /etc/resolv.conf taken from the entrypoint script in the
+    # official docker image.
+    # https://github.com/nginxinc/docker-nginx/blob/master/entrypoint/15-local-resolvers.envsh
+    for ip in $(awk 'BEGIN{ORS=" "} $1=="nameserver" {print $2}' /etc/resolv.conf)
+    do
+        if echo "${ip}" | grep -q ':'; then
+          resolvers="$resolvers [${ip}]"
+        else
+          resolvers="$resolvers $ip"
+        fi
+    done
+    export DNS_RESOLVERS="${resolvers}"
 fi
 
 # Normalize the CORS_ENABLED environment variable to a numeric value
