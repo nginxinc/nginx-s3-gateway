@@ -1,0 +1,15 @@
+{
+    "plugins": [
+        "node_modules/better-docs/typescript"
+    ],
+    "source": {
+        "include": ["./common/etc/nginx/include", "./node_modules/njs-types"],
+        "includePattern": "\\.(jsx|js|ts|tsx)$",
+        "excludePattern": "(^|\\/|\\\\)_"
+    },
+    "opts": {
+        "template": "./node_modules/better-docs",
+        "readme": "README.md",
+        "verbose": true
+    }
+}
