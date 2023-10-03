@@ -22,3 +22,30 @@ help:
 .PHONY: test
 test: ## Run all tests
 	$Q $(CURDIR)/test.sh --type oss --unprivileged false --latest-njs false
+
+# Check if the 'open' command exists on the system
+OPEN := $(shell command -v open 2> /dev/null)
+
+# Define the open command based on availability
+ifeq ($(OPEN),)
+	OPEN_COMMAND = xdg-open
+else
+	OPEN_COMMAND = open
+endif
+
+docs_destination_directory = "reference"
+
+.PHONY: docs
+docs:
+	npx jsdoc -c $(CURDIR)/jsdoc/conf.json -d $(CURDIR)/$(docs_destination_directory) || true
+
+.PHONY: jsdoc
+jsdoc: docs ## Build JSDoc output
+
+.PHONY: jsdoc-open
+jsdoc-open: docs
+	$(OPEN_COMMAND) $(CURDIR)/$(docs_destination_directory)/index.html
+
+.PHONY: clean
+clean: ## Clean up build artifacts
+	$Q rm -rf $(CURDIR)/$(docs_destination_directory)
