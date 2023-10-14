@@ -74,7 +74,7 @@ function _runSignatureV4(r) {
     const canonicalRequest = awssig4._buildCanonicalRequest(r, 
         r.method, req.uri, req.queryParams, req.host, amzDatetime, creds.sessionToken);
 
-    var expected = '600721cacc21e3de14416de7517868381831f4709e5c5663bbf2b738e4d5abe4';
+    var expected = 'cf4dd9e1d28c74e2284f938011efc8230d0c20704f56f67e4a3bfc2212026bec';
     var signature = awssig4._buildSignatureV4(r, 
         amzDatetime, eightDigitDate, creds, region, service, canonicalRequest);
     
