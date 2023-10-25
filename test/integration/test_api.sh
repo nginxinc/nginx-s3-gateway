@@ -25,6 +25,7 @@ signature_version=$3
 allow_directory_list=$4
 index_page=$5
 append_slash=$6
+strip_leading_directory=$7
 test_fail_exit_code=2
 no_dep_exit_code=3
 checksum_length=32
@@ -267,6 +268,10 @@ assertHttpRequestEquals "GET" "b/c/%27%281%29.txt" "data/bucket-1/b/c/'(1).txt"
 assertHttpRequestEquals "GET" "b/c/'(1).txt" "data/bucket-1/b/c/'(1).txt"
 
 assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
+
+if [ -n "${strip_leading_directory}" ]; then
+  assertHttpRequestEquals "GET" "/my-bucket/a.txt" "data/bucket-1/a.txt"
+fi
 
 # These URLs do not work unencoded
 assertHttpRequestEquals "GET" 'a/plus%2Bplus.txt' "data/bucket-1/a/plus+plus.txt"
