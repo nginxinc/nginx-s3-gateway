@@ -35,7 +35,7 @@ if [[ -v AWS_CONTAINER_CREDENTIALS_RELATIVE_URI ]]; then
   echo "Running inside an ECS task, using container credentials"
 
 elif [[ -v S3_SESSION_TOKEN ]]; then
-  echo "Depreciated the S3_SESSION_TOKEN! Use the environment variable of AWS_SESSION_TOKEN instead"
+  echo "Deprecated the S3_SESSION_TOKEN! Use the environment variable of AWS_SESSION_TOKEN instead"
   failed=1
 
 elif [[ -v AWS_SESSION_TOKEN ]]; then
@@ -58,11 +58,11 @@ elif [[ -v AWS_WEB_IDENTITY_TOKEN_FILE ]]; then
   fi
 
 elif [[ -v S3_ACCESS_KEY_ID ]]; then
-  echo "Depreciated the S3_ACCESS_KEY_ID! Use the environment variable of AWS_ACCESS_KEY_ID instead"
+  echo "Deprecated the S3_ACCESS_KEY_ID! Use the environment variable of AWS_ACCESS_KEY_ID instead"
   failed=1
 
 elif [[ -v S3_SECRET_KEY ]]; then
-  echo "Depreciated the S3_SECRET_KEY! Use the environment variable of AWS_SECRET_ACCESS_KEY instead"
+  echo "Deprecated the S3_SECRET_KEY! Use the environment variable of AWS_SECRET_ACCESS_KEY instead"
   failed=1
 
 elif [[ -v AWS_SECRET_KEY ]]; then
@@ -77,7 +77,7 @@ else
 fi
 
 if [[ -v S3_DEBUG ]]; then
-  echo "Depreciated the S3_DEBUG! Use the environment variable of DEBUG instead"
+  echo "Deprecated the S3_DEBUG! Use the environment variable of DEBUG instead"
   failed=1
 fi
 

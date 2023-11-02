@@ -10,6 +10,7 @@ ENV PROXY_CACHE_VALID_NOTFOUND "1m"
 ENV PROXY_CACHE_VALID_FORBIDDEN "30s"
 ENV CORS_ENABLED 0
 ENV DIRECTORY_LISTING_PATH_PREFIX ""
+ENV STRIP_LEADING_DIRECTORY_PATH ""
 
 # We modify the nginx base image by:
 # 1. Adding configuration files needed for proxying private S3 buckets
