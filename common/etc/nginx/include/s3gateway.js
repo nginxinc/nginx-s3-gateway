@@ -70,12 +70,6 @@ const FOUR_O_FOUR_ON_EMPTY_BUCKET = utils.parseBoolean(process.env['FOUR_O_FOUR_
  * */
 const S3_STYLE = process.env['S3_STYLE'];
 /**
- * Prefix to be prepended to all object names, allowing the serving of a
- * subset of a bucket. Default ''.
- * @type {string}
- */
-const S3_OBJECT_PREFIX = process.env['S3_OBJECT_PREFIX'] || '';
-/**
  * Additional header prefixes to strip from the response before sending to the
  * client. This is useful for removing headers that may contain sensitive
  * information.
@@ -290,10 +284,6 @@ function s3uri(r) {
     let uriPath = r.variables.uri_path;
     const basePath = s3BaseUri(r);
     let path;
-
-    if (S3_OBJECT_PREFIX) {
-        uriPath = S3_OBJECT_PREFIX + uriPath
-    }
 
     // Create query parameters only if directory listing is enabled.
     if (ALLOW_LISTING && !utils.parseBoolean(r.variables.forIndexPage)) {
