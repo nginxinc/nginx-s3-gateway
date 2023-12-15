@@ -26,6 +26,8 @@ allow_directory_list=$4
 index_page=$5
 append_slash=$6
 strip_leading_directory=$7
+prefix_leading_directory_path=$8
+
 test_fail_exit_code=2
 no_dep_exit_code=3
 checksum_length=32
@@ -158,6 +160,19 @@ for (( i=1; i<=3; i++ )); do
   sleep ${wait_time}
 done
 set -o errexit
+
+if [ -n "${prefix_leading_directory_path}" ]; then
+  assertHttpRequestEquals "GET" "/c/d.txt" "data/bucket-1/b/c/d.txt"
+
+  if [ -n "${strip_leading_directory}" ]; then
+    # When these two flags are used together, stripped value is basically
+    # replaced with the specified prefix
+    assertHttpRequestEquals "GET" "/tostrip/c/d.txt" "data/bucket-1/b/c/d.txt"
+  fi
+
+  # Exit early for this case since all tests following will fail because of the added prefix
+  exit 0
+fi
 
 # Ordinary filenames
 
