@@ -173,6 +173,8 @@ PROXY_CACHE_VALID_FORBIDDEN=${PROXY_CACHE_VALID_FORBIDDEN:-'30s'}
 CORS_ENABLED=${CORS_ENABLED:-'false'}
 # Configure portion of URL to be removed (optional)
 STRIP_LEADING_DIRECTORY_PATH=${STRIP_LEADING_DIRECTORY_PATH:-''}
+# Configure portion of URL to be added to the beginning of the requested path (optional)
+PREFIX_LEADING_DIRECTORY_PATH=${PREFIX_LEADING_DIRECTORY_PATH:-''}
 EOF
 
 # By enabling CORS, we also need to enable the OPTIONS method which

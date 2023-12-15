@@ -13,10 +13,10 @@ map $request_uri $uri_full_path {
     "~^(?P<path>.*?)(\?.*)*$"  $path;
 }
 
-# Remove a portion of request URL (if configured)
+# Remove/replace a portion of request URL (if configured)
 map $uri_full_path $uri_path {
-	"~^$STRIP_LEADING_DIRECTORY_PATH(.*)"  $1;
-    default $uri_full_path;
+	"~^$STRIP_LEADING_DIRECTORY_PATH(.*)"  $PREFIX_LEADING_DIRECTORY_PATH$1;
+    default $PREFIX_LEADING_DIRECTORY_PATH$uri_full_path;
 }
 
 map $S3_STYLE $s3_host_hdr {
