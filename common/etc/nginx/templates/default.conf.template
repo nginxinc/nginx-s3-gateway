@@ -15,8 +15,8 @@ map $request_uri $uri_full_path {
 
 # Remove/replace a portion of request URL (if configured)
 map $uri_full_path $uri_path {
-	"~^$STRIP_LEADING_DIRECTORY_PATH(.*)"  ${PREFIX_LEADING_DIRECTORY_PATH}$1;
-    default ${PREFIX_LEADING_DIRECTORY_PATH}$uri_full_path;
+	"~^$STRIP_LEADING_DIRECTORY_PATH(.*)"  $PREFIX_LEADING_DIRECTORY_PATH$1;
+    default $PREFIX_LEADING_DIRECTORY_PATH$uri_full_path;
 }
 
 # S3_HOST_HEADER is set in the startup script
