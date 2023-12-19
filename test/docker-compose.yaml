@@ -17,7 +17,7 @@ services:
       - "minio"
     restart: "no"
     environment:
-      S3_BUCKET_NAME: "bucket-1"
+      S3_BUCKET_NAME: "bucket-2"
       AWS_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE"
       AWS_SECRET_ACCESS_KEY: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
       S3_SERVER: "minio"
