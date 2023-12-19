@@ -3,18 +3,29 @@ const Minio = require("minio");
 const request = require("supertest");
 
 const FILES = {
-  "/foo/bar.txt": {
-    content: "dog",
+  "a.txt": {
+    content: "Let go, or be dragged.",
   },
-  "/foo/baz.txt": {
-    content: "cat",
+  "b/c/d.txt": {
+    content: `When thoughts arise, then do all things arise. When thoughts vanish, then do all things vanish.`,
   },
-  "/grumpy.txt": {
-    content: "bah",
+  "b/e.txt": {
+    content: "If only you could hear the sound of snow.",
   },
+  "a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt": {
+    content: `
+    "Where the is not one thing, what then?"
+    "Throw it away!"
+    "With not one thing, what there is to throw away?"
+    "Then carry it off!"
+    `
+  }
 };
 
-const BUCKET_NAME = "bucket-1";
+const BUCKET_NAME = "bucket-2";
+const GATEWAY_HOST = "localhost";
+const GATEWAY_PORT = "8989";
+const GATEWAY_BASE_URL = `http://${GATEWAY_HOST}:${GATEWAY_PORT}`;
 
 beforeAll(async () => {
   const minioClient = new Minio.Client({
@@ -44,11 +55,95 @@ async function ensureBucketWithObjects(s3Client, bucketName, objects) {
   }
 }
 
-test('adds 1 + 2 to equal 3', async () => {
-  const res = await request('http://localhost:8989')
-    .get("/foo/bar.txt")
-    .set("accept", "binary/octet-stream");
+describe("Ordinary filenames", () => {
+  test("simple url", async () => {
+    const objectPath = "a.txt";
+    const res = await request(GATEWAY_BASE_URL)
+      .get(`/${objectPath}`);
 
-  expect(res.statusCode).toBe(200);
-  expect(res.text).toBe(FILES["/foo/bar.txt"].content);
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toBe(FILES[objectPath].content);
+  });
+
+  test("many params that should be stripped", async () => {
+    const objectPath = "a.txt";
+    const res = await request(GATEWAY_BASE_URL)
+      .get("/a.txt?some=param&that=should&be=stripped#aaah")
+      .set("accept", "binary/octet-stream");
+
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toBe(FILES[objectPath].content);
+  });
+
+  test("with a more complex path", async () => {
+    const objectPath = "b/c/d.txt";
+    const res = await request(GATEWAY_BASE_URL)
+      .get("/b/c/d.txt")
+      .set("accept", "binary/octet-stream");
+
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toBe(FILES[objectPath].content);
+  });
+
+  test("with a more complex path", async () => {
+    const objectPath = "b/e.txt";
+    const res = await request(GATEWAY_BASE_URL)
+      .get("/b/c/../e.txt")
+      .set("accept", "binary/octet-stream");
+
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toBe(FILES[objectPath].content);
+  });
+
+  test("another simple path", async () => {
+    const objectPath = "b/e.txt";
+    const res = await request(GATEWAY_BASE_URL)
+      .get("/b/e.txt")
+      .set("accept", "binary/octet-stream");
+
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toBe(FILES[objectPath].content);
+  });
+
+  test("too many forward slashes", async () => {
+    const objectPath = "b/e.txt";
+    const res = await request(GATEWAY_BASE_URL)
+      .get("/b//e.txt")
+      .set("accept", "binary/octet-stream");
+
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toBe(FILES[objectPath].content);
+  });
+
+  test("very long file name", async () => {
+    const objectPath = "a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt";
+    const res = await request(GATEWAY_BASE_URL)
+      .get("/a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt")
+      .set("accept", "binary/octet-stream");
+
+    expect(res.statusCode).toBe(200);
+    expect(res.text).toBe(FILES[objectPath].content);
+  });
 });
+
+describe("strange file names and encodings", () => {
+
+})
+
+// # We try to request URLs that are properly encoded as well as URLs that
+// # are not properly encoded to understand what works and what does not.
+
+// # Weird filenames
+// assertHttpRequestEquals "HEAD" "b/c/%3D" "200"
+// assertHttpRequestEquals "HEAD" "b/c/=" "200"
+
+// assertHttpRequestEquals "HEAD" "b/c/%40" "200"
+// assertHttpRequestEquals "HEAD" "b/c/@" "200"
+
+// assertHttpRequestEquals "HEAD" "b/c/%27%281%29.txt" "200"
+// assertHttpRequestEquals "HEAD" "b/c/'(1).txt" "200"
+
+// # These URLs do not work unencoded
+// assertHttpRequestEquals "HEAD" 'a/plus%2Bplus.txt' "200"
+// assertHttpRequestEquals "HEAD" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/%25bad%25file%25name%25" "200"
+
