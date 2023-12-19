@@ -8,6 +8,9 @@ services:
       minio:
         condition: service_healthy
     image: "nginx-s3-gateway"
+    build:
+      context: ../.
+      dockerfile: Dockerfile.oss
     ports:
       - "8989:${NGINX_INTERNAL_PORT-80}/tcp"
     links:
@@ -29,7 +32,7 @@ services:
       APPEND_SLASH_FOR_POSSIBLE_DIRECTORY:
       STRIP_LEADING_DIRECTORY_PATH:
       PREFIX_LEADING_DIRECTORY_PATH:
-      AWS_SIGS_VERSION:
+      AWS_SIGS_VERSION: "4"
       STATIC_SITE_HOSTING:
       PROXY_CACHE_MAX_SIZE: "10g"
       PROXY_CACHE_SLICE_SIZE: "1m"
@@ -51,7 +54,7 @@ services:
       MINIO_ROOT_PASSWORD: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
       MINIO_REGION_NAME: "us-east-1"
       MINIO_DOMAIN: "minio"
-      MINIO_BROWSER: "off"
+      MINIO_BROWSER: "on"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
