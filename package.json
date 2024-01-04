@@ -1,7 +1,6 @@
 {
   "devDependencies": {
     "better-docs": "^2.7.2",
-    "dockerode": "^4.0.0",
     "jest": "^29.7.0",
     "jsdoc": "^4.0.2",
     "minio": "^7.1.3",

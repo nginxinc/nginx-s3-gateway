@@ -40,14 +40,14 @@ services:
       PROXY_CACHE_VALID_OK: "1h"
       PROXY_CACHE_VALID_NOTFOUND: "1m"
       PROXY_CACHE_VALID_FORBIDDEN: "30s"
-
   minio:
     image: quay.io/minio/minio:RELEASE.2023-06-09T07-32-12Z
     hostname: bucket-1.minio
     ports:
       - "9090:9000/tcp"
+      - "9091:9001/tcp"
     restart: "no"
-    command: minio server /data
+    command: minio server /data --console-address ":9001"
     environment:
       MINIO_ADDRESS: :9000
       MINIO_ROOT_USER: "AKIAIOSFODNN7EXAMPLE"
@@ -60,6 +60,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 3
+    networks:
+      - s3-gateway-test
+
+networks:
+  s3-gateway-test:
+    name: s3-gateway-test
   # It may be useful to enable minio client so that you can debug what calls
   # were made to minio by the gateway.
 #  minio-client:
