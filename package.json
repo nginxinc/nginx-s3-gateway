@@ -1,6 +1,7 @@
 {
   "devDependencies": {
     "@jest/globals": "^29.7.0",
+    "@types/convict": "^6.1.6",
     "@types/supertest": "^6.0.2",
     "better-docs": "^2.7.2",
     "convict": "^6.2.4",
