@@ -181,7 +181,8 @@ jobs:
           path: /tmp
       - name: Load image
         run: |
-          docker load --input /tmp/oss.tar 
+          docker load --input /tmp/oss.tar
+          docker image ls -a
       - name: Build and export
         uses: docker/build-push-action@v5
         with:
