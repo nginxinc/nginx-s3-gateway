@@ -108,7 +108,10 @@ jobs:
           path: /tmp
       - name: Load image
         run: |
-          docker load --input /tmp/oss.tar 
+          docker load --input /tmp/oss.tar
+          echo "Images:"
+          docker image ls -a
+          echo "--------"
       - name: Build and export
         uses: docker/build-push-action@v5
         with:
@@ -182,7 +185,9 @@ jobs:
       - name: Load image
         run: |
           docker load --input /tmp/oss.tar
+          echo "Images:"
           docker image ls -a
+          echo "--------"
       - name: Build and export
         uses: docker/build-push-action@v5
         with:
