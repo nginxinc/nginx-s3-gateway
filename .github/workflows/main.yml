@@ -40,7 +40,7 @@ jobs:
       - name: Build and export
         uses: docker/build-push-action@v5
         with:
-          file Dockerfile.oss
+          file: Dockerfile.oss
           context: .
           tags: nginx-s3-gateway , nginx-s3-gateway:oss
           outputs: type=docker,dest=/tmp/oss.tar
@@ -50,45 +50,45 @@ jobs:
           name: oss
           path: /tmp/oss.tar
 
-    test-oss:
-      runs-on: ubuntu-latest
-      needs: build-oss
+  test-oss:
+    runs-on: ubuntu-latest
+    needs: build-oss
 
-      if: github.ref != 'refs/heads/master'
-      steps:
-        - uses: actions/checkout@v4
-        - name: Install dependencies
-          run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
-        - name: Restore cached binaries
-          id: cache-binaries-restore
-          uses: actions/cache/restore@v3
-          with:
-            path: .bin
-            key: ${{ runner.os }}-binaries
-        - name: Install MinIO Client
-          run: |
-            mkdir .bin || exit 0
-            cd .bin
-            curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
-            curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
-            mv mc.RELEASE.2023-06-19T19-31-19Z mc
-            chmod +x mc
-        - name: Save cached binaries
-          id: cache-binaries-save
-          uses: actions/cache/save@v3
-          with:
-            path: .bin
-            key: ${{ steps.cache-binaries-restore.outputs.cache-primary-key }}
-        - name: Download artifact
-          uses: actions/download-artifact@v3
-          with:
-            name: oss
-            path: /tmp
-        - name: Load image
-          run: |
-            docker load --input /tmp/oss.tar          
-        - name: Run tests - stable njs version
-          run: ./test.sh --type oss
+    if: github.ref != 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+      - name: Restore cached binaries
+        id: cache-binaries-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: .bin
+          key: ${{ runner.os }}-binaries
+      - name: Install MinIO Client
+        run: |
+          mkdir .bin || exit 0
+          cd .bin
+          curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
+          curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
+          mv mc.RELEASE.2023-06-19T19-31-19Z mc
+          chmod +x mc
+      - name: Save cached binaries
+        id: cache-binaries-save
+        uses: actions/cache/save@v3
+        with:
+          path: .bin
+          key: ${{ steps.cache-binaries-restore.outputs.cache-primary-key }}
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: oss
+          path: /tmp
+      - name: Load image
+        run: |
+          docker load --input /tmp/oss.tar          
+      - name: Run tests - stable njs version
+        run: ./test.sh --type oss
 
   build-latest-njs:
     runs-on: ubuntu-latest
@@ -102,17 +102,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Download the base artifact
-          uses: actions/download-artifact@v3
-          with:
-            name: oss
-            path: /tmp
-        - name: Load image
-          run: |
-            docker load --input /tmp/oss.tar 
+        uses: actions/download-artifact@v3
+        with:
+          name: oss
+          path: /tmp
+      - name: Load image
+        run: |
+          docker load --input /tmp/oss.tar 
       - name: Build and export
         uses: docker/build-push-action@v5
         with:
-          file Dockerfile.latest-njs
+          file: Dockerfile.latest-njs
           context: .
           tags: nginx-s3-gateway , nginx-s3-gateway:latest-njs-oss
           outputs: type=docker,dest=/tmp/latest-njs.tar
@@ -122,45 +122,45 @@ jobs:
           name: latest-njs
           path: /tmp/latest-njs.tar
 
-    test-latest-njs:
-      runs-on: ubuntu-latest
-      needs: build-latest-njs:
+  test-latest-njs:
+    runs-on: ubuntu-latest
+    needs: build-latest-njs
 
-      if: github.ref != 'refs/heads/master'
-      steps:
-        - uses: actions/checkout@v4
-        - name: Install dependencies
-          run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
-        - name: Restore cached binaries
-          id: cache-binaries-restore
-          uses: actions/cache/restore@v3
-          with:
-            path: .bin
-            key: ${{ runner.os }}-binaries
-        - name: Install MinIO Client
-          run: |
-            mkdir .bin || exit 0
-            cd .bin
-            curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
-            curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
-            mv mc.RELEASE.2023-06-19T19-31-19Z mc
-            chmod +x mc
-        - name: Save cached binaries
-          id: cache-binaries-save
-          uses: actions/cache/save@v3
-          with:
-            path: .bin
-            key: ${{ steps.cache-binaries-restore.outputs.cache-primary-key }}
-        - name: Download artifact
-          uses: actions/download-artifact@v3
-          with:
-            name: latest-njs
-            path: /tmp
-        - name: Load image
-          run: |
-            docker load --input /tmp/latest-njs.tar          
-        - name: name: Run tests - latest njs version
-          run: ./test.sh --type oss
+    if: github.ref != 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+      - name: Restore cached binaries
+        id: cache-binaries-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: .bin
+          key: ${{ runner.os }}-binaries
+      - name: Install MinIO Client
+        run: |
+          mkdir .bin || exit 0
+          cd .bin
+          curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
+          curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
+          mv mc.RELEASE.2023-06-19T19-31-19Z mc
+          chmod +x mc
+      - name: Save cached binaries
+        id: cache-binaries-save
+        uses: actions/cache/save@v3
+        with:
+          path: .bin
+          key: ${{ steps.cache-binaries-restore.outputs.cache-primary-key }}
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: latest-njs
+          path: /tmp
+      - name: Load image
+        run: |
+          docker load --input /tmp/latest-njs.tar          
+      - name: Run tests - latest njs version
+        run: ./test.sh --type oss
 
 
   build-oss-unprivileged:
@@ -175,17 +175,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Download the base artifact
-          uses: actions/download-artifact@v3
-          with:
-            name: oss
-            path: /tmp
-        - name: Load image
-          run: |
-            docker load --input /tmp/oss.tar 
+        uses: actions/download-artifact@v3
+        with:
+          name: oss
+          path: /tmp
+      - name: Load image
+        run: |
+          docker load --input /tmp/oss.tar 
       - name: Build and export
         uses: docker/build-push-action@v5
         with:
-          file Dockerfile.unprivileged
+          file: Dockerfile.unprivileged
           context: .
           tags: nginx-s3-gateway , nginx-s3-gateway:unprivileged
           outputs: type=docker,dest=/tmp/unprivileged.tar
