@@ -172,132 +172,76 @@ jobs:
       - name: Run tests - latest njs version
         run: ./test.sh --latest-njs --type oss
 
+  build-unprivileged-for-test:
+    runs-on: ubuntu-latest
+    needs: test-oss
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: oss
+          path: /tmp
+      - name: Load image
+        run: |
+          docker load --input /tmp/oss.tar
+      - name: Build and load oss image
+        uses: docker/build-push-action@v5
+        with:
+          file: Dockerfile.unprivileged
+          context: .
+          tags: nginx-s3-gateway:unprivileged-oss
+          load: true
+      # Save manually here since we need to use the `docker` buildx `driver` but that can't output
+      # a file that upload-artifact likes.
+      - name: save image
+        run: |
+          docker save nginx-s3-gateway:unprivileged-oss > /tmp/unprivileged.tar
+      - name: Upload artifact - unprivileged
+        uses: actions/upload-artifact@v3
+        with:
+          name: unprivileged
+          path: /tmp/unprivileged.tar
 
-  #     - name: Build and export - unprivileged
-  #       uses: docker/build-push-action@v5
-  #       with:
-  #         file: Dockerfile.unprivileged
-  #         context: .
-  #         tags: localhost:5000/nginx-s3-gateway:unprivileged
-  #         push: false
-  #         outputs: type=oci,dest=/tmp/unprivileged.tar
-  #         platforms: linux/amd64,linux/arm64
-  #         build-contexts: |
-  #           nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway:oss
-  #     - name: Upload artifact - unprivileged
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: unprivileged
-  #         path: /tmp/unprivileged.tar
-  # test-oss:
-  #   runs-on: ubuntu-latest
-  #   if: github.ref != 'refs/heads/master'
-  #   needs: build
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     ## Start tests.  Keep things here because we can't keep the registry between jobs
-  #     ## TODO: Try saving the artifact after all are built?  What happens to the other archs?
-  #     - name: Install dependencies
-  #       run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
-  #     - name: Restore cached binaries
-  #       id: cache-binaries-restore
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: .bin
-  #         key: ${{ runner.os }}-binaries
-  #     - name: Install MinIO Client
-  #       run: |
-  #         mkdir .bin || exit 0
-  #         cd .bin
-  #         curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
-  #         curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
-  #         mv mc.RELEASE.2023-06-19T19-31-19Z mc
-  #         chmod +x mc
+  test-unprivileged:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/master'
+    needs: build-unprivileged-for-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+      - name: Restore cached binaries
+        id: cache-binaries-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: .bin
+          key: ${{ runner.os }}-binaries
+      - name: Install MinIO Client
+        run: |
+          mkdir .bin || exit 0
+          cd .bin
+          curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
+          curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
+          mv mc.RELEASE.2023-06-19T19-31-19Z mc
+          chmod +x mc
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: unprivileged
+          path: /tmp
+      - name: Load image
+        run: |
+          docker load --input /tmp/unprivileged.tar
+          docker tag nginx-s3-gateway:unprivileged-oss nginx-s3-gateway
+      - name: Run tests - unprivileged
+        run: ./test.sh --unprivileged --type oss
 
-  #     ## OSS Test. No retagging needed
-  #     - name: Download artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: oss
-  #         path: /tmp
-  #     - name: Load image
-  #       run: |
-  #         docker load --input /tmp/oss.tar
-  #     - name: Run tests - stable njs version
-  #       run: ./test.sh --type oss
-
-  # test-latest-njs:
-  #   runs-on: ubuntu-latest
-  #   if: github.ref != 'refs/heads/master'
-  #   needs: test-oss
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     ## Start tests.  Keep things here because we can't keep the registry between jobs
-  #     ## TODO: Try saving the artifact after all are built?  What happens to the other archs?
-  #     - name: Install dependencies
-  #       run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
-  #     - name: Restore cached binaries
-  #       id: cache-binaries-restore
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: .bin
-  #         key: ${{ runner.os }}-binaries
-  #     - name: Install MinIO Client
-  #       run: |
-  #         mkdir .bin || exit 0
-  #         cd .bin
-  #         curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
-  #         curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
-  #         mv mc.RELEASE.2023-06-19T19-31-19Z mc
-  #         chmod +x mc
-  #     - name: Download artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: latest-njs
-  #         path: /tmp
-  #     - name: Load image
-  #       run: |
-  #         docker load --input /tmp/latest-njs.tar
-  #         docker tag localhost:5000/nginx-s3-gateway:latest-njs-oss nginx-s3-gateway
-  #     - name: Run tests - latest njs version
-  #       run: ./test.sh --latest-njs --type oss
-
-  # test-unprivileged:
-  #   runs-on: ubuntu-latest
-  #   if: github.ref != 'refs/heads/master'
-  #   needs: test-oss
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     ## Start tests.  Keep things here because we can't keep the registry between jobs
-  #     ## TODO: Try saving the artifact after all are built?  What happens to the other archs?
-  #     - name: Install dependencies
-  #       run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
-  #     - name: Restore cached binaries
-  #       id: cache-binaries-restore
-  #       uses: actions/cache/restore@v3
-  #       with:
-  #         path: .bin
-  #         key: ${{ runner.os }}-binaries
-  #     - name: Install MinIO Client
-  #       run: |
-  #         mkdir .bin || exit 0
-  #         cd .bin
-  #         curl --insecure --retry 6 --fail --location --output mc.RELEASE.2023-06-19T19-31-19Z "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z"
-  #         curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
-  #         mv mc.RELEASE.2023-06-19T19-31-19Z mc
-  #         chmod +x mc
-  #     - name: Download artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: unprivileged
-  #         path: /tmp
-  #     - name: Load image
-  #       run: |
-  #         docker load --input /tmp/unprivileged.tar
-  #         docker tag localhost:5000/nginx-s3-gateway:unprivileged nginx-s3-gateway
-  #     - name: Run tests - stable njs version - unprivileged process
-  #       run: ./test.sh --unprivileged --type oss
-
+# After the tests are done, build multiarch and push to both github packages and dockerhub if we are on master/main
   # tag-and-push:
   #   runs-on: ubuntu-latest
   #   needs: [test-oss, test-latest-njs, test-unprivileged]
