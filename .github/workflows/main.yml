@@ -107,6 +107,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     if: github.ref != 'refs/heads/master'
+    needs: build
     steps:
       - uses: actions/checkout@v4
       ## Start tests.  Keep things here because we can't keep the registry between jobs
