@@ -52,7 +52,9 @@ jobs:
           # network=host driver-opt needed to push to local registry
           driver-opts: network=host
           platforms: linux/amd64,linux/arm64
-      - name: Build and export oss image
+      # Since we can't push and save at the same time we push to the local registry so that
+      # other builds can have access to the image (loading it does not work with buildx)
+      - name: Build and push oss image to local registry
         uses: docker/build-push-action@v5
         with:
           file: Dockerfile.oss
@@ -60,15 +62,16 @@ jobs:
           tags: localhost:5000/nginx-s3-gateway , localhost:5000/nginx-s3-gateway:oss
           push: true
           platforms: linux/amd64,linux/arm64
-      # Since the above build pushes to the registry only now we load it locally so we can save it
-      # It's not possible with push and save in one go.
-      - name: Load image oss
-        run: |
-          docker pull localhost:5000/nginx-s3-gateway
-          docker tag localhost:5000/nginx-s3-gateway nginx-s3-gateway  
-      - name: save image for upload
-        run: |
-          docker save nginx-s3-gateway > /tmp/oss.tar
+      #  Build again to export the file locally so we can save all arch versions.
+      - name: Build and export oss image
+        uses: docker/build-push-action@v5
+        with:
+          file: Dockerfile.oss
+          context: .
+          tags: localhost:5000/nginx-s3-gateway , localhost:5000/nginx-s3-gateway:oss
+          push: false
+          outputs: type=oci,dest=/tmp/oss.tar
+          platforms: linux/amd64,linux/arm64
       - name: Upload artifact - oss
         uses: actions/upload-artifact@v3
         with:
@@ -82,7 +85,7 @@ jobs:
           context: .
           tags: localhost:5000/nginx-s3-gateway:latest-njs-oss
           push: false
-          outputs: type=docker,dest=/tmp/latest-njs.tar
+          outputs: type=oci,dest=/tmp/latest-njs.tar
           platforms: linux/amd64,linux/arm64
           build-contexts: |
             nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway:oss
@@ -99,7 +102,7 @@ jobs:
           context: .
           tags: localhost:5000/nginx-s3-gateway:unprivileged
           push: false
-          outputs: type=docker,dest=/tmp/unprivileged.tar
+          outputs: type=oci,dest=/tmp/unprivileged.tar
           platforms: linux/amd64,linux/arm64
           build-contexts: |
             nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway:oss
