@@ -66,7 +66,7 @@ jobs:
           docker tag localhost:5000/nginx-s3-gateway nginx-s3-gateway  
       - name: save image for upload
         run: |
-          docker save nginx-s3-gateway > oss.tar
+          docker save nginx-s3-gateway > /tmp/oss.tar
       - name: Upload artifact - oss
         uses: actions/upload-artifact@v3
         with:
