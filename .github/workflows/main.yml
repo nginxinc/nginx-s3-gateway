@@ -58,9 +58,15 @@ jobs:
           context: .
           tags: localhost:5000/nginx-s3-gateway , localhost:5000/nginx-s3-gateway:oss
           push: true
+      # Since the above build pushes to the registry only now we load it locally so we can save it
+      # It's not possible with push and save in one go.
+      - name: Load image oss
+        run: |
+          docker pull localhost:5000/nginx-s3-gateway
+          docker tag localhost:5000/nginx-s3-gateway nginx-s3-gateway  
       - name: save image for upload
         run: |
-          docker save localhost:5000/nginx-s3-gateway > oss.tar
+          docker save nginx-s3-gateway > oss.tar
       - name: Upload artifact - oss
         uses: actions/upload-artifact@v3
         with:
