@@ -173,7 +173,7 @@ jobs:
       - name: Load image
         run: |
           docker load --input /tmp/latest-njs.tar
-          docker tag nginx-s3-gateway:latest-njs-oss nginx-s3-gateway
+          docker tag localhost:5000/nginx-s3-gateway:latest-njs-oss nginx-s3-gateway
       - name: Run tests - latest njs version
         run: ./test.sh --latest-njs --type oss
 
@@ -209,7 +209,7 @@ jobs:
       - name: Load image
         run: |
           docker load --input /tmp/unprivileged.tar
-          docker tag nginx-s3-gateway:unprivileged nginx-s3-gateway
+          docker tag localhost:5000/nginx-s3-gateway:unprivileged nginx-s3-gateway
       - name: Run tests - stable njs version - unprivileged process
         run: ./test.sh --unprivileged --type oss
 
