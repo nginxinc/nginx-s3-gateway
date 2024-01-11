@@ -4,7 +4,6 @@ name: CI
 # events but only for the master branch
 on:
   push:
-  temporarily run on every push for testing
     branches: [ master ]
   pull_request:
     branches: [ master ]
