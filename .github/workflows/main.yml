@@ -251,6 +251,9 @@ jobs:
     #   github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
+      - name: Get current date
+        id: date
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
