@@ -280,8 +280,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-${{ steps.date.outputs.date }}-new-build-test
-            ghcr.io/$GITHUB_REPOSITORY/nginx-oss-s3-gateway:latest-new-build-test
+            ghcr.io/${{ GITHUB_REPOSITORY }}/nginx-oss-s3-gateway:latest-${{ steps.date.outputs.date }}-new-build-test
+            ghcr.io/${{ GITHUB_REPOSITORY }}/nginx-oss-s3-gateway:latest-new-build-test
       
   # Dockerhub tags
   # nginxinc/nginx-s3-gateway:latest-${{ steps.date.outputs.date }}-new-build-test
