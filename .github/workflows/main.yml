@@ -51,7 +51,6 @@ jobs:
 
   test-oss:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master'
     needs: build-oss-for-test
     steps:
       - uses: actions/checkout@v4
@@ -120,7 +119,6 @@ jobs:
 
   test-latest-njs:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master'
     needs: build-latest-njs-for-test
     steps:
       - uses: actions/checkout@v4
@@ -189,7 +187,6 @@ jobs:
 
   test-unprivileged:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master'
     needs: build-unprivileged-for-test
     steps:
       - uses: actions/checkout@v4
