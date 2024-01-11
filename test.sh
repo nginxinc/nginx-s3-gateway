@@ -297,36 +297,40 @@ trap finish EXIT ERR SIGTERM SIGINT
 
 ### BUILD
 
-# p "Building NGINX S3 gateway Docker image"
-# if [ "${nginx_type}" = "plus" ]; then
-#   if docker buildx > /dev/null 2>&1; then
-#     p "Building using BuildKit"
-#     export DOCKER_BUILDKIT=1
-#     docker buildx build -f Dockerfile.buildkit.${nginx_type} \
-#       --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
-#       --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
-#       --no-cache \
-#       --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
-#   else
-#     docker build -f Dockerfile.${nginx_type} \
-#       --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
-#   fi
-# else
-#   docker build -f Dockerfile.${nginx_type} \
-#     --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
-# fi
+if [ "$CI" = "true" ]; then
+    echo "Skipping docker image build due to CI=true"
+else
+  p "Building NGINX S3 gateway Docker image"
+  if [ "${nginx_type}" = "plus" ]; then
+    if docker buildx > /dev/null 2>&1; then
+      p "Building using BuildKit"
+      export DOCKER_BUILDKIT=1
+      docker buildx build -f Dockerfile.buildkit.${nginx_type} \
+        --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
+        --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
+        --no-cache \
+        --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
+    else
+      docker build -f Dockerfile.${nginx_type} \
+        --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
+    fi
+  else
+    docker build -f Dockerfile.${nginx_type} \
+      --tag nginx-s3-gateway --tag nginx-s3-gateway:${nginx_type} .
+  fi
 
-# if [ ${njs_latest} -eq 1 ]; then
-#   p "Layering in latest NJS build"
-#   docker build -f Dockerfile.latest-njs \
-#     --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-${nginx_type} .
-# fi
+  if [ ${njs_latest} -eq 1 ]; then
+    p "Layering in latest NJS build"
+    docker build -f Dockerfile.latest-njs \
+      --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-${nginx_type} .
+  fi
 
-# if [ ${unprivileged} -eq 1 ]; then
-#   p "Layering in unprivileged build"
-#   docker build -f Dockerfile.unprivileged \
-#     --tag nginx-s3-gateway --tag nginx-s3-gateway:unprivileged-${nginx_type} .
-# fi
+  if [ ${unprivileged} -eq 1 ]; then
+    p "Layering in unprivileged build"
+    docker build -f Dockerfile.unprivileged \
+      --tag nginx-s3-gateway --tag nginx-s3-gateway:unprivileged-${nginx_type} .
+  fi
+fi
 
 ### UNIT TESTS
 
