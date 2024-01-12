@@ -31,7 +31,7 @@ env:
 
 jobs:
   build-oss-for-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
@@ -47,10 +47,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: oss
-          path: /tmp/oss.tar
+          path: $TMPDIR/oss.tar
+          retention-days: 1
+          if-no-files-found: error
 
   test-oss:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build-oss-for-test
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +85,7 @@ jobs:
         run: ./test.sh --type oss
 
   build-latest-njs-for-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: test-oss
     steps:
       - uses: actions/checkout@v4
@@ -116,9 +118,11 @@ jobs:
         with:
           name: latest-njs
           path: /tmp/latest-njs.tar
+          retention-days: 1
+          if-no-files-found: error
 
   test-latest-njs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build-latest-njs-for-test
     steps:
       - uses: actions/checkout@v4
@@ -151,7 +155,7 @@ jobs:
         run: ./test.sh --latest-njs --type oss
 
   build-unprivileged-for-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: test-oss
     steps:
       - uses: actions/checkout@v4
@@ -184,9 +188,11 @@ jobs:
         with:
           name: unprivileged
           path: /tmp/unprivileged.tar
+          retention-days: 1
+          if-no-files-found: error
 
   test-unprivileged:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build-unprivileged-for-test
     steps:
       - uses: actions/checkout@v4
@@ -220,7 +226,7 @@ jobs:
 
 # After the tests are done, build multiarch and push to both github packages and dockerhub if we are on master/main
   tag-and-push:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [test-oss, test-latest-njs, test-unprivileged]
 
     if: |
