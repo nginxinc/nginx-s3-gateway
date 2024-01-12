@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: oss
-          path: /tmp/oss.tar
+          path: ${{ runner.temp }}/oss.tar
           retention-days: 1
           if-no-files-found: error
 
@@ -77,7 +77,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: oss
-          path: /tmp
+          path: ${{ runner.temp }}
       - name: Load image
         run: |
           docker load --input /tmp/oss.tar
@@ -97,7 +97,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: oss
-          path: /tmp
+          path: ${{ runner.temp }}
       - name: Load image
         run: |
           docker load --input /tmp/oss.tar
@@ -117,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: latest-njs
-          path: /tmp/latest-njs.tar
+          path: ${{ runner.temp }}/latest-njs.tar
           retention-days: 1
           if-no-files-found: error
 
@@ -146,7 +146,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: latest-njs
-          path: /tmp
+          path: ${{ runner.temp }}
       - name: Load image
         run: |
           docker load --input /tmp/latest-njs.tar
@@ -167,7 +167,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: oss
-          path: /tmp
+          path: ${{ runner.temp }}
       - name: Load image
         run: |
           docker load --input /tmp/oss.tar
@@ -187,7 +187,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: unprivileged
-          path: /tmp/unprivileged.tar
+          path: ${{ runner.temp }}/unprivileged.tar
           retention-days: 1
           if-no-files-found: error
 
@@ -216,7 +216,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: unprivileged
-          path: /tmp
+          path: ${{ runner.temp }}
       - name: Load image
         run: |
           docker load --input /tmp/unprivileged.tar
