@@ -42,7 +42,7 @@ jobs:
           file: Dockerfile.oss
           context: .
           tags: nginx-s3-gateway , nginx-s3-gateway:oss
-          outputs: type=docker,dest=/tmp/oss.tar
+          outputs: type=docker,dest=${{ runner.temp }}/oss.tar
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
@@ -80,7 +80,7 @@ jobs:
           path: ${{ runner.temp }}
       - name: Load image
         run: |
-          docker load --input /tmp/oss.tar
+          docker load --input ${{ runner.temp }}/oss.tar
       - name: Run tests - stable njs version
         run: ./test.sh --type oss
 
@@ -100,7 +100,7 @@ jobs:
           path: ${{ runner.temp }}
       - name: Load image
         run: |
-          docker load --input /tmp/oss.tar
+          docker load --input ${{ runner.temp }}/oss.tar
       - name: Build and load oss image
         uses: docker/build-push-action@v5
         with:
@@ -112,7 +112,7 @@ jobs:
       # a file that upload-artifact likes.
       - name: save image
         run: |
-          docker save nginx-s3-gateway:latest-njs-oss > /tmp/latest-njs.tar
+          docker save nginx-s3-gateway:latest-njs-oss > ${{ runner.temp }}/latest-njs.tar
       - name: Upload artifact - latest-njs
         uses: actions/upload-artifact@v3
         with:
@@ -149,7 +149,7 @@ jobs:
           path: ${{ runner.temp }}
       - name: Load image
         run: |
-          docker load --input /tmp/latest-njs.tar
+          docker load --input ${{ runner.temp }}/latest-njs.tar
           docker tag nginx-s3-gateway:latest-njs-oss nginx-s3-gateway
       - name: Run tests - latest njs version
         run: ./test.sh --latest-njs --type oss
@@ -170,7 +170,7 @@ jobs:
           path: ${{ runner.temp }}
       - name: Load image
         run: |
-          docker load --input /tmp/oss.tar
+          docker load --input ${{ runner.temp }}/oss.tar
       - name: Build and load oss image
         uses: docker/build-push-action@v5
         with:
@@ -182,7 +182,7 @@ jobs:
       # a file that upload-artifact likes.
       - name: save image
         run: |
-          docker save nginx-s3-gateway:unprivileged-oss > /tmp/unprivileged.tar
+          docker save nginx-s3-gateway:unprivileged-oss > ${{ runner.temp }}/unprivileged.tar
       - name: Upload artifact - unprivileged
         uses: actions/upload-artifact@v3
         with:
@@ -219,7 +219,7 @@ jobs:
           path: ${{ runner.temp }}
       - name: Load image
         run: |
-          docker load --input /tmp/unprivileged.tar
+          docker load --input ${{ runner.temp }}/unprivileged.tar
           docker tag nginx-s3-gateway:unprivileged-oss nginx-s3-gateway
       - name: Run tests - unprivileged
         run: ./test.sh --unprivileged --type oss
