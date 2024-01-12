@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: oss
-          path: $TMPDIR/oss.tar
+          path: /tmp/oss.tar
           retention-days: 1
           if-no-files-found: error
 
