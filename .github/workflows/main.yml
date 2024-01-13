@@ -229,9 +229,9 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [test-oss, test-latest-njs, test-unprivileged]
 
-    # if: |
-    #   github.ref == 'refs/heads/master' ||
-    #   github.ref == 'refs/heads/main'
+    if: |
+      github.ref == 'refs/heads/master' ||
+      github.ref == 'refs/heads/main'
     services:
       registry:
         image: registry:2
