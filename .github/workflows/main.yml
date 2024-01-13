@@ -289,7 +289,7 @@ jobs:
           file: Dockerfile.latest-njs
           context: .
           build-contexts: |
-            builder=docker-image://localhost:5000/nginx-oss-s3-gateway
+            nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway
           push: true
           platforms: linux/amd64,linux/arm64
           provenance: false
@@ -303,7 +303,7 @@ jobs:
           file: Dockerfile.unprivileged
           context: .
           build-contexts: |
-            builder=docker-image://localhost:5000/nginx-oss-s3-gateway
+            nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway
           push: true
           platforms: linux/amd64,linux/arm64
           provenance: false
