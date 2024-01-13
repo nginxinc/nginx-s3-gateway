@@ -261,7 +261,7 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           provenance: false
-          tags: localhost:5000/nginx-oss-s3-gateway
+          tags: localhost:5000/nginx-oss-s3-gateway:oss
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -289,7 +289,7 @@ jobs:
           file: Dockerfile.latest-njs
           context: .
           build-contexts: |
-            nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway
+            nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway:oss
           push: true
           platforms: linux/amd64,linux/arm64
           provenance: false
@@ -297,16 +297,16 @@ jobs:
             ghcr.io/${{ github.repository }}/nginx-oss-s3-gateway:latest-njs-oss-${{ steps.date.outputs.date }}
             ghcr.io/${{ github.repository }}/nginx-oss-s3-gateway:latest-njs-oss
 
-      - name: Build and push image [unprivileged]
-        uses: docker/build-push-action@v5
-        with:
-          file: Dockerfile.unprivileged
-          context: .
-          build-contexts: |
-            nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway
-          push: true
-          platforms: linux/amd64,linux/arm64
-          provenance: false
-          tags: |
-            ghcr.io/${{ github.repository }}/nginx-oss-s3-gateway:unprivileged-oss-${{ steps.date.outputs.date }}
-            ghcr.io/${{ github.repository }}/nginx-oss-s3-gateway:unprivileged-oss
+      # - name: Build and push image [unprivileged]
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     file: Dockerfile.unprivileged
+      #     context: .
+      #     build-contexts: |
+      #       nginx-s3-gateway=docker-image://localhost:5000/nginx-s3-gateway:oss
+      #     push: true
+      #     platforms: linux/amd64,linux/arm64
+      #     provenance: false
+      #     tags: |
+      #       ghcr.io/${{ github.repository }}/nginx-oss-s3-gateway:unprivileged-oss-${{ steps.date.outputs.date }}
+      #       ghcr.io/${{ github.repository }}/nginx-oss-s3-gateway:unprivileged-oss
