@@ -332,7 +332,9 @@ server {
 
     location @trailslash {
         # 302 to request without slashes
-        rewrite ^ $scheme://$http_host$uri/$is_args$query_string redirect;
+        # Adding a ? to the end of the replacement param in `rewrite` prevents it from
+        # appending the query string.
+        rewrite ^ $scheme://$http_host$uri/$is_args$query_string? redirect;
     }
 
     # Provide a hint to the client on 405 errors of the acceptable request methods
