@@ -3,16 +3,20 @@
 # source, and installs it.
 FROM nginx-s3-gateway
 
+ADD ./pathing.patch /tmp/pathing.patch
+
 RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive;  \
     apt-get update -qq; \
-    apt-get install --no-install-recommends --no-install-suggests --yes make gcc libc6-dev curl expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev libpcre2-posix3 libxml2-dev libxslt1-dev zlib1g-dev; \
+    apt-get install --no-install-recommends --no-install-suggests --yes make git gcc libc6-dev curl expect libpcre2-dev libpcre3-dev libedit-dev libreadline-dev libssl-dev libpcre2-posix3 libxml2-dev libxslt1-dev zlib1g-dev; \
     mkdir -p /tmp/nginx /tmp/njs-latest; \
     curl --retry 6 --location "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" \
         | gunzip | tar --extract --strip-components=1 --directory /tmp/nginx; \
     curl --retry 6 --location 'https://hg.nginx.org/njs/archive/tip.tar.gz' \
         | gunzip | tar --extract --strip-components=1 --directory /tmp/njs-latest; \
+    cp /tmp/pathing.patch /tmp/njs-latest/pathing.patch; \
     cd /tmp/njs-latest; \
+    git apply pathing.patch; \
     ./configure; \
     make -j "$(nproc)"; \
     cp build/njs /usr/bin/njs; \
