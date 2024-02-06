@@ -1,5 +1,6 @@
-js_import /etc/nginx/include/awscredentials.js;
-js_import /etc/nginx/include/s3gateway.js;
+js_path /etc/nginx/include;
+js_import awscredentials.js;
+js_import s3gateway.js;
 
 
 # We include only the variables needed for the authentication signatures that

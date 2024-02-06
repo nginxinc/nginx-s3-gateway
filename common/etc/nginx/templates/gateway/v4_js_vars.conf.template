@@ -1,7 +1,8 @@
 # This header is needed when doing v4 signature authentication. It
 # specifies the timestamp in which the signature was generated and is used with
 # the x-amz-date header.
-js_import /etc/nginx/include/awssig4.js;
+js_path /etc/nginx/include;
+js_import awssig4.js;
 
 js_set $awsDate         awssig4.awsHeaderDate;
 js_set $awsPayloadHash  awssig4.awsHeaderPayloadHash;
