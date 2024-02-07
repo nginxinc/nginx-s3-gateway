@@ -46,6 +46,7 @@ minio_user="AKIAIOSFODNN7EXAMPLE"
 minio_passwd="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 minio_name="${test_compose_project}_minio_1"
 minio_bucket="bucket-1"
+CI=${CI:="false"}
 
 is_windows="0"
 if [ -z "${OS}" ] && [ "${OS}" == "Windows_NT" ]; then
