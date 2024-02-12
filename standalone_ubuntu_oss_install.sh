@@ -36,8 +36,12 @@ required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 if [ ! -z ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
   echo "Running inside an ECS task, using container credentials"
   uses_iam_creds=1
+elif TOKEN=$(curl -X PUT --silent --fail --connect-timeout 2 --max-time 2 "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600") && \
+  curl -H "X-aws-ec2-metadata-token: $TOKEN" --output /dev/null --silent --head --fail --connect-timeout 2 --max-time 5 "http://169.254.169.254"; then 
+  echo "Running inside an EC2 instance, using IMDSv2 for credentials"
+  uses_iam_creds=1
 elif curl --output /dev/null --silent --head --fail --connect-timeout 2 "http://169.254.169.254"; then
-  echo "Running inside an EC2 instance, using IMDS for credentials"
+  echo "Running inside an EC2 instance, using IMDSv1 for credentials"
   uses_iam_creds=1
 else
   required+=("AWS_ACCESS_KEY_ID" "AWS_SECRET_ACCESS_KEY")
