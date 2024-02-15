@@ -316,12 +316,12 @@ EOF
 # Only include these env vars if we are not using a instance profile credential
 # to obtain S3 permissions.
 if [ $uses_iam_creds -eq 0 ]; then
-  cat >> "/etc/nginx/nginix.conf" << EOF
+  cat >> "/etc/nginx/nginx.conf" << EOF
 env AWS_ACCESS_KEY_ID;
 env AWS_SECRET_ACCESS_KEY;
 EOF
   if [[ -v AWS_SESSION_TOKEN ]]; then
-    cat >> "/etc/nginx/nginix.conf" << EOF
+    cat >> "/etc/nginx/nginx.conf" << EOF
 env AWS_SESSION_TOKEN;
 EOF
   fi
