@@ -362,7 +362,12 @@ function redirectToS3(r) {
     } else if (!ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath === "/") {
        r.internalRedirect("@error404");
     } else {
-        r.internalRedirect("@s3");
+        if (r.headersIn["Range"]) {
+            r.internalRedirect("@s3_sliced");
+        } else {
+           r.internalRedirect("@s3"); 
+        }
+        
     }
 }
 
