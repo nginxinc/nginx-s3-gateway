@@ -114,7 +114,7 @@ server {
         proxy_cache_valid 200 302 206 ${PROXY_CACHE_VALID_OK};
         proxy_cache_key "$request_method$host$uri$slice_range";
 
-        slice             1m;
+        slice             ${PROXY_CACHE_SLICE_SIZE};
         proxy_set_header   Range $slice_range;
         include /etc/nginx/conf.d/gateway/s3_location_common.conf;
     }
