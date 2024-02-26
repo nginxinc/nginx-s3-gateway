@@ -340,7 +340,7 @@ fi
 
 runUnitTestWithOutSessionToken() {
   test_code="$1"
-
+  # Temporary hack while njs transitions to supporting -m in the cli tool
   if [ ${njs_latest} -eq 1 ]
     then
       #MSYS_NO_PATHCONV=1 added to resolve automatic path conversion
@@ -385,6 +385,7 @@ runUnitTestWithOutSessionToken() {
 
 runUnitTestWithSessionToken() {
   test_code="$1"
+  # Temporary hack while njs transitions to supporting -m in the cli tool
   if [ ${njs_latest} -eq 1 ]
     then
       #MSYS_NO_PATHCONV=1 added to resolve automatic path conversion
