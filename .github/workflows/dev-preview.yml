@@ -103,24 +103,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }}
           NODE_ID: ${{ github.event.comment.node_id }}
- 
-  notify-job:
-    runs-on: ubuntu-22.04
-    needs: [build-and-push-dev-container]
-    if: ${{ always() && contains(needs.*.result, 'failure') }}  <-- check that status of the previous job
-    steps:
-      - name: Notify on Failure
-        run: |
-          gh api graphql --silent --raw-field query="mutation AddReaction {addReaction(input:{subjectId:\"$NODE_ID\",content:THUMBS_DOWN}){reaction{content}subject{id}}}"
-          gh api graphql --silent --raw-field query="mutation RemoveReaction {removeReaction(input:{subjectId:\"$NODE_ID\",content:EYES}){reaction{content}subject{id}}}"
-          (
-            echo "**${{ github.workflow }}**"
-            echo "**Something went wrong!**"
-            echo
-            echo "**Details:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          ) | \
-          gh pr comment "${PR_NUMBER}" --repo ${{ github.repository }} -F -          
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
-          NODE_ID: ${{ github.event.comment.node_id }}
+
