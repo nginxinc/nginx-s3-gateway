@@ -158,7 +158,7 @@ assertHttpRequestEquals() {
     byte_count=$((range_end - range_start + 1)) # add one since we read through the last byte
     expected_response_code="$6"
 
-    file_checksum=$(${file_convert_command} if="$body_data_path" bs=1 skip="$range_start" count="$byte_count" 2>/dev/null | md5 -r)
+    file_checksum=$(${file_convert_command} if="$body_data_path" bs=1 skip="$range_start" count="$byte_count" 2>/dev/null | ${checksum_cmd})
     expected_checksum="${file_checksum:0:${checksum_length}}"
 
     curl_checksum_output="$(${curl_cmd} -X "GET" -r "${range_start}"-"${range_end}" "${uri}" ${extra_arg} | ${checksum_cmd})"
