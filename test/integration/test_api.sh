@@ -77,6 +77,14 @@ if ! [ -x "${checksum_cmd}" ]; then
   exit ${no_dep_exit_code}
 fi
 
+
+file_convert_command="$(command -v dd || true)"
+
+if ! [ -x "${file_convert_command}" ]; then
+  e "required dependency not found: dd not found in the path or not executable"
+  exit ${no_dep_exit_code}
+fi
+
 # If we are using the `md5` executable
 # then use the -r flag which makes it behave the same as `md5sum`
 # this is done after the `-x` check for ability to execute
@@ -140,6 +148,27 @@ assertHttpRequestEquals() {
         exit ${test_fail_exit_code}
       fi
     fi
+  # Not a real method but better than making a whole new helper or massively refactoring this one
+  elif [ "${method}" = "GET_RANGE" ]; then
+    # Call format to check for a range of byte 30 to 1000:
+    # assertHttpRequestEquals "GET_RANGE" "a.txt" "data/bucket-1/a.txt" 30 1000 "206"
+    body_data_path="${test_dir}/$3"
+    range_start="$4"
+    range_end="$5"
+    byte_count=$((range_end - range_start + 1)) # add one since we read through the last byte
+    expected_response_code="$6"
+
+    file_checksum=$(${file_convert_command} if="$body_data_path" bs=1 skip="$range_start" count="$byte_count" 2>/dev/null | ${checksum_cmd})
+    expected_checksum="${file_checksum:0:${checksum_length}}"
+
+    curl_checksum_output="$(${curl_cmd} -X "GET" -r "${range_start}"-"${range_end}" "${uri}" ${extra_arg} | ${checksum_cmd})"
+    s3_file_checksum="${curl_checksum_output:0:${checksum_length}}"
+    
+    if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
+        e "Checksum doesn't match expectation. Request [GET ${uri} Range: "${range_start}"-"${range_end}"] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
+        e "curl command: ${curl_cmd} -X "GET" -r "${range_start}"-"${range_end}" "${uri}" ${extra_arg} | ${checksum_cmd}"
+        exit ${test_fail_exit_code}
+    fi
   else
     e "Method unsupported: [${method}]"
   fi
@@ -175,7 +204,6 @@ if [ -n "${prefix_leading_directory_path}" ]; then
 fi
 
 # Ordinary filenames
-
 assertHttpRequestEquals "HEAD" "a.txt" "200"
 assertHttpRequestEquals "HEAD" "a.txt?some=param&that=should&be=stripped#aaah" "200"
 assertHttpRequestEquals "HEAD" "b/c/d.txt" "200"
@@ -183,6 +211,9 @@ assertHttpRequestEquals "HEAD" "b/c/../e.txt" "200"
 assertHttpRequestEquals "HEAD" "b/e.txt" "200"
 assertHttpRequestEquals "HEAD" "b//e.txt" "200"
 assertHttpRequestEquals "HEAD" "a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt" "200"
+
+# Byte range requests
+assertHttpRequestEquals "GET_RANGE" 'a/plus%2Bplus.txt' "data/bucket-1/a/plus+plus.txt" 30 1000 "206"
 
 # We try to request URLs that are properly encoded as well as URLs that
 # are not properly encoded to understand what works and what does not.

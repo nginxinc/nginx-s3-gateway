@@ -83,7 +83,7 @@ server {
         # CORS is implemented by returning the appropriate headers as part of
         # the response to an OPTIONS request. If you want to customize the
         # CORS response, the cors.conf.template file can be overwritten and
-        # extended to meet one's needs.
+        # extended to meet your needs.
         include /etc/nginx/conf.d/gateway/cors.conf;
 
         auth_request /aws/credentials/retrieve;
@@ -101,51 +101,22 @@ server {
         include /etc/nginx/conf.d/gateway/js_fetch_trusted_certificate.conf;
     }
 
+    # This is the primary location that proxies the request to s3
+    # See the included s3_location_common.conf file for all logic
     location @s3 {
-        # We include only the headers needed for the authentication signatures that
-        # we plan to use.
-        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+        include /etc/nginx/conf.d/gateway/s3_location_common.conf;
+    }
 
-        # The CORS configuration needs to be imported in several places in order for
-        # it to be applied within different contexts.
-        include /etc/nginx/conf.d/gateway/cors.conf;
+    # Same as the primary location above but handling and caching
+    # byte range requests efficiently
+    location @s3_sliced {
+        proxy_cache s3_cache_slices;
+        proxy_cache_valid 200 302 206 ${PROXY_CACHE_VALID_OK};
+        proxy_cache_key "$request_method$host$uri$slice_range";
 
-        # Don't allow any headers from the client - we don't want them messing
-        # with S3 at all.
-        proxy_pass_request_headers off;
-
-        # Enable passing of the server name through TLS Server Name Indication extension.
-        proxy_ssl_server_name on;
-        proxy_ssl_name ${S3_SERVER};
-
-        # Set the Authorization header to the AWS Signatures credentials
-        proxy_set_header Authorization $s3auth;
-        proxy_set_header X-Amz-Security-Token $awsSessionToken;
-
-        # We set the host as the bucket name to inform the S3 API of the bucket
-        proxy_set_header Host $s3_host_hdr;
-
-        # Use keep alive connections in order to improve performance
-        proxy_http_version 1.1;
-        proxy_set_header Connection '';
-
-        # We strip off all of the AWS specific headers from the server so that
-        # there is nothing identifying the object as having originated in an
-        # object store.
-        js_header_filter s3gateway.editHeaders;
-
-        # Catch all errors from S3 and sanitize them so that the user can't
-        # gain intelligence about the S3 bucket being proxied.
-        proxy_intercept_errors on;
-
-        # Comment out this line to receive the error messages returned by S3
-        error_page 400 401 402 403 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
-
-        error_page 404 @trailslashControl;
-
-        proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
-
-        include /etc/nginx/conf.d/gateway/s3_location.conf;
+        slice             ${PROXY_CACHE_SLICE_SIZE};
+        proxy_set_header   Range $slice_range;
+        include /etc/nginx/conf.d/gateway/s3_location_common.conf;
     }
 
     location @s3PreListing {

@@ -92,6 +92,7 @@ echo "Directory Listing Enabled: ${ALLOW_DIRECTORY_LIST}"
 echo "Directory Listing path prefix: ${DIRECTORY_LISTING_PATH_PREFIX}"
 echo "Cache size limit: ${PROXY_CACHE_MAX_SIZE}"
 echo "Cache inactive timeout: ${PROXY_CACHE_INACTIVE}"
+echo "Slice of slice for byte range requests: ${PROXY_CACHE_SLICE_SIZE}"
 echo "Proxy Caching Time for Valid Response: ${PROXY_CACHE_VALID_OK}"
 echo "Proxy Caching Time for Not Found Response: ${PROXY_CACHE_VALID_NOTFOUND}"
 echo "Proxy Caching Time for Forbidden Response: ${PROXY_CACHE_VALID_FORBIDDEN}"
@@ -167,6 +168,8 @@ DEBUG=${DEBUG:-'false'}
 PROXY_CACHE_MAX_SIZE=${PROXY_CACHE_MAX_SIZE:-'10g'}
 # Cached data that are not accessed during the time get removed
 PROXY_CACHE_INACTIVE=${PROXY_CACHE_INACTIVE:-'60m'}
+# Request slice size
+PROXY_CACHE_SLICE_SIZE=${PROXY_CACHE_SLICE_SIZE:-'1m'}
 # Proxy caching time for response code 200 and 302
 PROXY_CACHE_VALID_OK=${PROXY_CACHE_VALID_OK:-'1h'}
 # Proxy caching time for response code 404
