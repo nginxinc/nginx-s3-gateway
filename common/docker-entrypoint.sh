@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 #  Copyright 2020 F5 Networks
 #
@@ -16,8 +16,6 @@
 #
 
 # vim:sw=4:ts=4:et
-
-set -e
 
 parseBoolean() {
   case "$1" in
