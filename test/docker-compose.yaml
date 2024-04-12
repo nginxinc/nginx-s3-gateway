@@ -22,6 +22,7 @@ services:
       S3_SERVER_PROTO: "http"
       S3_REGION: "us-east-1"
       DEBUG: "true"
+      S3_SERVICE: "s3"
       S3_STYLE: "virtual"
       ALLOW_DIRECTORY_LIST:
       PROVIDE_INDEX_PAGE:

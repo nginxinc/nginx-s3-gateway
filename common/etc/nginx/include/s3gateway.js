@@ -32,6 +32,7 @@ import awssig2 from "./awssig2.js";
 import awssig4 from "./awssig4.js";
 import utils from "./utils.js";
 
+_requireEnvVars('S3_SERVICE');
 _requireEnvVars('S3_BUCKET_NAME');
 _requireEnvVars('S3_SERVER');
 _requireEnvVars('S3_SERVER_PROTO');
@@ -84,9 +85,10 @@ const INDEX_PAGE = "index.html";
 
 /**
  * Constant defining the service requests are being signed for.
+ * can be 's3' or 's3express'.
  * @type {string}
  */
-const SERVICE = 's3';
+const SERVICE = process.env['S3_SERVICE'];
 
 /**
  * Transform the headers returned from S3 such that there isn't information

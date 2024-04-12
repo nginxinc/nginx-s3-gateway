@@ -41,6 +41,13 @@ auto_envsubst() {
     echo >&3 "$ME: Running envsubst on $template to $output_path"
     envsubst "$defined_envs" < "$template" > "$output_path"
   done
+
+  # Special logic for S3 Express
+  if [ "${S3_SERVICE}" == 's3express' ]; then
+    echo >&3 "$ME: Detected 's3express' configuration. Proceeding with configuration file updates."
+    mv /etc/nginx/conf.d/default_s3express.conf /etc/nginx/conf.d/default.conf
+    mv /etc/nginx/conf.d/upstreams_s3express.conf /etc/nginx/conf.d/upstreams.conf
+  fi
 }
 
 auto_envsubst

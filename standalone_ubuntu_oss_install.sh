@@ -30,7 +30,7 @@ fi
 
 failed=0
 
-required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
+required=("S3_SERVICE" "S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 "S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION")
 
 if [ ! -z ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
@@ -83,6 +83,7 @@ echo "Installing using github '${branch}' branch"
 
 echo "S3 Backend Environment"
 echo "Access Key ID: ${AWS_ACCESS_KEY_ID}"
+echo "Service: ${S3_SERVICE}"
 echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
 echo "Region: ${S3_REGION}"
 echo "Addressing Style: ${S3_STYLE}"
@@ -150,6 +151,8 @@ ALLOW_DIRECTORY_LIST=${ALLOW_DIRECTORY_LIST:-'false'}
 DIRECTORY_LISTING_PATH_PREFIX=${DIRECTORY_LISTING_PATH_PREFIX:-''}
 # AWS Authentication signature version (2=v2 authentication, 4=v4 authentication)
 AWS_SIGS_VERSION=${AWS_SIGS_VERSION}
+# Name of S3 service - 's3' or 's3express'
+S3_SERVICE=${S3_SERVICE:-'s3'}
 # Name of S3 bucket to proxy requests to
 S3_BUCKET_NAME=${S3_BUCKET_NAME}
 # Region associated with API
@@ -331,6 +334,7 @@ EOF
 fi
 
 cat >> /etc/nginx/nginx.conf << 'EOF'
+env S3_SERVICE;
 env S3_BUCKET_NAME;
 env S3_SERVER;
 env S3_SERVER_PORT;
