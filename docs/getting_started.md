@@ -124,6 +124,37 @@ Setting your slice size too small can have performance impacts since NGINX perfo
 
 You may make byte-range requests and normal requests for the same file and NGINX will automatically handle them differently.  The caches for file chunks and normal file requests are separate on disk.
 
+## Usage with AWS S3 Express One Zone
+The gateway may be used to proxy files in the AWS S3 Express One Zone product (also called Directory Buckets).
+
+To do so, be sure that `S3_STYLE` is set to `virtual`. Additionally, the `S3_SERVER` configuration must be set a combination of the bucket name and the [Zonal Endpoint](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-networking.html#s3-express-endpoints).
+
+### Directory Bucket Names
+See the [official documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html) for the most up to date rules on Directory Bucket naming.
+
+Directory Buckets must have names matching this format:
+```
+bucket-base-name--azid--x-s3
+```
+For example:
+```
+bucket-base-name--usw2-az1--x-s3
+```
+### Final Configuration
+The bucket name must be prepended to the zonal endpoint like this
+```
+bucket-base-name--usw2-az1--x-s3.s3express-usw2-az1.us-west-2.amazonaws.com
+```
+The above is the value that must be provided to the `S3_SERVER` variable.
+Additionally, the `S3_BUCKET_NAME` must be set to the full bucket name with the suffix:
+```
+bucket-base-name--usw2-az1--x-s3
+```
+Buckets created in the AWS UI don't require manual specification of a suffix but it must be included in the gateway configuration.
+
+### Trying it Out
+A sample Terraform script to provision a bucket is provided in `/deployments/s3_express`.
+
 ## Running as a Systemd Service
 
 An [install script](/standalone_ubuntu_oss_install.sh) for the gateway shows
