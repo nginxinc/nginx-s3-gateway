@@ -86,7 +86,7 @@ const INDEX_PAGE = "index.html";
  * Constant defining the service requests are being signed for.
  * @type {string}
  */
-const SERVICE = 's3';
+const SERVICE = 's3express';
 
 /**
  * Transform the headers returned from S3 such that there isn't information

@@ -1,8 +1,8 @@
 S3_BUCKET_NAME=my-bucket-name--usw2-az1--x-s3
-AWS_ACCESS_KEY_ID=<access_key>
-AWS_SECRET_ACCESS_KEY=<secret_access_key>
-AWS_SESSION_TOKEN=<session token>
-S3_SERVER=my-bucket-name--usw2-az1--x-s3.s3express-usw2-az1.us-west-2.amazonaws.com
+AWS_ACCESS_KEY_ID=ZZZZZZZZZZZZZZZZZZZZ
+AWS_SECRET_ACCESS_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+AWS_SESSION_TOKEN=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+S3_SERVER=s3express-usw2-az1.us-west-2.amazonaws.com
 S3_SERVER_PORT=443
 S3_SERVER_PROTO=https
 S3_REGION=us-west-2
