@@ -165,12 +165,7 @@ function s3date(r) {
 function s3auth(r) {
     const bucket = process.env['S3_BUCKET_NAME'];
     const region = process.env['S3_REGION'];
-    let server;
-    if (S3_STYLE === 'path') {
-        server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
-    } else {
-        server = process.env['S3_SERVER'];
-    }
+    const host = r.variables.s3_host;
     const sigver = process.env['AWS_SIGS_VERSION'];
 
     let signature;
@@ -180,7 +175,7 @@ function s3auth(r) {
         let req = _s3ReqParamsForSigV2(r, bucket);
         signature = awssig2.signatureV2(r, req.uri, req.httpDate, credentials);
     } else {
-        let req = _s3ReqParamsForSigV4(r, bucket, server);
+        let req = _s3ReqParamsForSigV4(r, bucket, host);
         signature = awssig4.signatureV4(r, awscred.Now(), region, SERVICE,
             req.uri, req.queryParams, req.host, credentials);
     }
@@ -221,15 +216,11 @@ function _s3ReqParamsForSigV2(r, bucket) {
  * @see {@link https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html | AWS V4 Signing Process}
  * @param r {NginxHTTPRequest} HTTP request object
  * @param bucket {string} S3 bucket associated with request
- * @param server {string} S3 host associated with request
+ * @param host {string} S3 host associated with request
  * @returns {S3ReqParams} s3ReqParams object (host, uri, queryParams)
  * @private
  */
-function _s3ReqParamsForSigV4(r, bucket, server) {
-    let host = server;
-    if (S3_STYLE === 'virtual' || S3_STYLE === 'default' || S3_STYLE === undefined) {
-        host = bucket + '.' + host;
-    }
+function _s3ReqParamsForSigV4(r, bucket, host) {
     const baseUri = s3BaseUri(r);
     const computed_url = !utils.parseBoolean(r.variables.forIndexPage)
         ? r.variables.uri_path

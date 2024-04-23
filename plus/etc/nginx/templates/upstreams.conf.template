@@ -9,5 +9,5 @@ upstream storage_urls {
 
     # Be sure to specify the port in the S3_SERVER and be sure that port
     # corresponds to the https/http in the proxy_pass directive.
-    server ${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT} resolve;
+    server ${FINAL_S3_SERVER} resolve;
 }

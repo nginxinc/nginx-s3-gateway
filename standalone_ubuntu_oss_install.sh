@@ -199,6 +199,13 @@ LIMIT_METHODS_TO="GET HEAD"
 LIMIT_METHODS_TO_CSV="GET, HEAD"
 EOF
 fi
+
+if [ "${S3_STYLE}" == "path" ]; then
+  FINAL_S3_SERVER="${S3_SERVER}:${S3_SERVER_PORT}"
+else
+  FINAL_S3_SERVER="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+fi
+
 set -o nounset   # abort on unbound variable
 
 if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then

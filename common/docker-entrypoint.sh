@@ -68,6 +68,12 @@ if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
   export CORS_ALLOWED_ORIGIN="*"
 fi
 
+if [ "${S3_STYLE}" == "path" ]; then
+  export FINAL_S3_SERVER="${S3_SERVER}:${S3_SERVER_PORT}"
+else
+  export FINAL_S3_SERVER="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+fi
+
 # Nothing is modified under this line
 
 if [ -z "${NGINX_ENTRYPOINT_QUIET_LOGS:-}" ]; then
