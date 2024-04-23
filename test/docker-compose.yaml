@@ -23,6 +23,7 @@ services:
       S3_REGION: "us-east-1"
       DEBUG: "true"
       S3_STYLE: "virtual"
+      S3_SERVICE: "s3"
       ALLOW_DIRECTORY_LIST:
       PROVIDE_INDEX_PAGE:
       APPEND_SLASH_FOR_POSSIBLE_DIRECTORY:

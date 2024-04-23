@@ -22,7 +22,7 @@ set -e
 
 failed=0
 
-required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
+required=("S3_SERVICE" "S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 "S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION"
 "CORS_ENABLED")
 
@@ -122,6 +122,7 @@ if [ $failed -gt 0 ]; then
 fi
 
 echo "S3 Backend Environment"
+echo "Service: ${S3_SERVICE}"
 echo "Access Key ID: ${AWS_ACCESS_KEY_ID}"
 echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
 echo "Region: ${S3_REGION}"
