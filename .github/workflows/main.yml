@@ -54,6 +54,9 @@ jobs:
   test-oss:
     runs-on: ubuntu-22.04
     needs: build-oss-for-test
+    strategy:
+      matrix:
+        path_style: [virtual, virtual-v2]
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
@@ -82,7 +85,7 @@ jobs:
         run: |
           docker load --input ${{ runner.temp }}/oss.tar
       - name: Run tests - stable njs version
-        run: ./test.sh --type oss
+        run: S3_STYLE=${{ matrix.path_style }} ./test.sh --type oss
 
   build-latest-njs-for-test:
     runs-on: ubuntu-22.04
