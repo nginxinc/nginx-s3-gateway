@@ -87,7 +87,7 @@ const INDEX_PAGE = "index.html";
  * Constant defining the service requests are being signed for.
  * @type {string}
  */
-const SERVICE = process.env['S3_SERVICE'];
+const SERVICE = process.env['S3_SERVICE'] || "s3";
 
 /**
  * Transform the headers returned from S3 such that there isn't information
