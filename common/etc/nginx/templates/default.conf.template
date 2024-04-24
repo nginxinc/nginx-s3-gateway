@@ -19,7 +19,7 @@ map $uri_full_path $uri_path {
     default $PREFIX_LEADING_DIRECTORY_PATH$uri_full_path;
 }
 
-# FINAL_S3_SERVER is set in the startup script
+# S3_HOST_HEADER is set in the startup script
 # (either ./common/docker-entrypoint.sh or ./standalone_ubuntu_oss_install.sh)
 # based on the S3_STYLE configuration option.
 js_var $s3_host ${S3_HOST_HEADER};
