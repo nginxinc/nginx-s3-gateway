@@ -202,10 +202,30 @@ LIMIT_METHODS_TO_CSV="GET, HEAD"
 EOF
 fi
 
-if [ "${S3_STYLE}" == "path" ]; then
-  FINAL_S3_SERVER="${S3_SERVER}:${S3_SERVER_PORT}"
+# This is the primary logic to determine the s3 host used for the
+# upstream (the actual proxying action) as well as the `Host` header
+#
+# It is currently slightly more complex than necessary because we are transitioning
+# to a new logic which is defined by "virtual-v2". "virtual-v2" is the recommended setting
+# for all deployments.
+
+# S3_UPSTREAM needs the port specified. The port must
+# correspond to https/http in the proxy_pass directive.
+if [ "${S3_STYLE}" == "virtual-v2" ]; then
+  cat >> "/etc/nginx/environment" << EOF
+S3_UPSTREAM="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+S3_HOST_HEADER="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+EOF
+elif [ "${S3_STYLE}" == "path" ]; then
+  cat >> "/etc/nginx/environment" << EOF
+S3_UPSTREAM="${S3_SERVER}:${S3_SERVER_PORT}"
+S3_HOST_HEADER="${S3_SERVER}:${S3_SERVER_PORT}"
+EOF
 else
-  FINAL_S3_SERVER="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+  cat >> "/etc/nginx/environment" << EOF
+S3_UPSTREAM="${S3_SERVER}:${S3_SERVER_PORT}"
+S3_HOST_HEADER="${S3_BUCKET_NAME}.${S3_SERVER}"
+EOF
 fi
 
 set -o nounset   # abort on unbound variable

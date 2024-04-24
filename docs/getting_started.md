@@ -25,7 +25,7 @@ running as a Container or as a Systemd service.
 | `S3_SERVER_PORT`                      | Yes       |                              |           | SSL/TLS port to connect to                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `S3_SERVER_PROTO`                     | Yes       | `http`, `https`              |           | Protocol to used connect to S3 server                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `S3_SERVER`                           | Yes       |                              |           | S3 host to connect to                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `S3_STYLE`                            | Yes       | `virtual`, `path`, `default` | `default` | The S3 host/path method. <li>`virtual` is the method that that uses DNS-style bucket+hostname:port. This is the `default` value. <li>`path` is a method that appends the bucket name as the first directory in the URI's path. This method is used by many S3 compatible services. <br/><br/>See this [AWS blog article](https://aws.amazon.com/blogs/aws/amazon-s3-path-deprecation-plan-the-rest-of-the-story/) for further information.                   |
+| `S3_STYLE`                            | Yes       | `virtual-v2` `virtual`, `path`, `default` | `default` | The S3 host/path method. <li>`virtual` and `virtual-v2` represent the method that that uses DNS-style bucket+hostname:port. `virtual` is the `default` value. **`virtual-v2` is the recommended value and will replace `virtual` completely in later version.** `virtual-v2` brings the implementation up to the latest recommendations from the AWS documentation and is required to support S3 Express One Zone. See below for details<li>`path` is a method that appends the bucket name as the first directory in the URI's path. This method is used by many S3 compatible services. <br/><br/>See this [AWS blog article](https://aws.amazon.com/blogs/aws/amazon-s3-path-deprecation-plan-the-rest-of-the-story/) for further information.                   |
 
 | `S3_SERVICE`                | Yes        |`s3`, `s3express`                              | `s3`     | Configures the gateway to interface with either normal S3 buckets or S3 Express One Zone                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
@@ -65,6 +65,26 @@ There are few optional environment variables that can be used.
   selected. When the regional model is selected then the STS endpoint generated will
   be coded to the current AWS region. This environment variable will be ignored if
   `STS_ENDPOINT` is set. Valid options are: `global` (default) or `regional`.
+
+### Choosing a `S3_STYLE` Setting
+If you are using AWS S3 or S3 Express One Zone, use `virtual-v2`. We are maintaining `virtual` temporarily until we hear from the community that `virtual-v2` does not cause issues - or we introduce a versioning system that allows us to safely flag breaking changes.  **`virtual-v2` is not expected to be a breaking change** but we are being cautious.
+
+A full reference for S3 addressing styles may be found [here](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+
+Here is the difference between `virtual` and `virtual-v2`:
+#### virtual
+* Proxied endpoint: `S3_SERVER:S3_SERVER_PORT`
+* `Host` header: `S3_BUCKET_NAME}.S3_SERVER`
+* `host` field in the [S3 V4 `CanonicalHeaders`](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html): `S3_BUCKET_NAME}.S3_SERVER`
+
+#### virtual-v2
+All items are set to the same value:
+* Proxied endpoint: `S3_BUCKET_NAME.S3_SERVER:S3_SERVER_PORT`
+* `Host` header: `S3_BUCKET_NAME.S3_SERVER:S3_SERVER_PORT`
+* `host` field in the [S3 V4 `CanonicalHeaders`](https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html): `S3_BUCKET_NAME.S3_SERVER:S3_SERVER_PORT`
+
+#### path
+`path` style routing does not prepend the bucket name to the host, and includes it as the first segment in the request path.  AWS is actively trying to move away from this method. Some S3 compatible object stores may require that you use this setting - but try to avoid it if your object store works with `virtual-v2`.
 
 
 ### Configuring Directory Listing
