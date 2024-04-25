@@ -102,4 +102,4 @@ Please see the [contributing guide](https://github.com/nginxinc/nginx-s3-gateway
 
 [Apache License, Version 2.0](https://github.com/nginxinc/nginx-s3-gateway/blob/main/LICENSE)
 
-&copy; [F5, Inc.](https://www.f5.com/) 2024
+&copy; [F5, Inc.](https://www.f5.com/) 2020 - 2024
