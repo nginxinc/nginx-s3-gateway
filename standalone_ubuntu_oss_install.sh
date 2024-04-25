@@ -30,7 +30,7 @@ fi
 
 failed=0
 
-required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
+required=("S3_SERVICE" "S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 "S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION")
 
 if [ ! -z ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
@@ -162,6 +162,8 @@ S3_SERVER_PROTO=${S3_SERVER_PROTO}
 S3_SERVER=${S3_SERVER}
 # The S3 host/path method - 'virtual', 'path' or 'default'
 S3_STYLE=${S3_STYLE:-'default'}
+# Name of S3 service - 's3' or 's3express'
+S3_SERVICE=${S3_SERVICE:-'s3'}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 DEBUG=${DEBUG:-'false'}
 # Cache size limit
@@ -199,6 +201,33 @@ LIMIT_METHODS_TO="GET HEAD"
 LIMIT_METHODS_TO_CSV="GET, HEAD"
 EOF
 fi
+
+# This is the primary logic to determine the s3 host used for the
+# upstream (the actual proxying action) as well as the `Host` header
+#
+# It is currently slightly more complex than necessary because we are transitioning
+# to a new logic which is defined by "virtual-v2". "virtual-v2" is the recommended setting
+# for all deployments.
+
+# S3_UPSTREAM needs the port specified. The port must
+# correspond to https/http in the proxy_pass directive.
+if [ "${S3_STYLE}" == "virtual-v2" ]; then
+  cat >> "/etc/nginx/environment" << EOF
+S3_UPSTREAM="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+S3_HOST_HEADER="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+EOF
+elif [ "${S3_STYLE}" == "path" ]; then
+  cat >> "/etc/nginx/environment" << EOF
+S3_UPSTREAM="${S3_SERVER}:${S3_SERVER_PORT}"
+S3_HOST_HEADER="${S3_SERVER}:${S3_SERVER_PORT}"
+EOF
+else
+  cat >> "/etc/nginx/environment" << EOF
+S3_UPSTREAM="${S3_SERVER}:${S3_SERVER_PORT}"
+S3_HOST_HEADER="${S3_BUCKET_NAME}.${S3_SERVER}"
+EOF
+fi
+
 set -o nounset   # abort on unbound variable
 
 if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
@@ -339,6 +368,7 @@ env S3_REGION;
 env AWS_SIGS_VERSION;
 env DEBUG;
 env S3_STYLE;
+env S3_SERVICE;
 env ALLOW_DIRECTORY_LIST;
 
 events {

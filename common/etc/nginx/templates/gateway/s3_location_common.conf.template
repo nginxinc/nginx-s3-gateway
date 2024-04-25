@@ -19,7 +19,7 @@ proxy_set_header Authorization $s3auth;
 proxy_set_header X-Amz-Security-Token $awsSessionToken;
 
 # We set the host as the bucket name to inform the S3 API of the bucket
-proxy_set_header Host $s3_host_hdr;
+proxy_set_header Host $s3_host;
 
 # Use keep alive connections in order to improve performance
 proxy_http_version 1.1;
