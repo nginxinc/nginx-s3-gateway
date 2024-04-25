@@ -8,13 +8,16 @@ services:
       minio:
         condition: service_healthy
     image: "nginx-s3-gateway"
+    build:
+      context: ../.
+      dockerfile: Dockerfile.oss
     ports:
       - "8989:${NGINX_INTERNAL_PORT-80}/tcp"
     links:
       - "minio"
     restart: "no"
     environment:
-      S3_BUCKET_NAME: "bucket-1"
+      S3_BUCKET_NAME: "bucket-2"
       AWS_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE"
       AWS_SECRET_ACCESS_KEY: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
       S3_SERVER: "minio"
@@ -27,9 +30,9 @@ services:
       ALLOW_DIRECTORY_LIST:
       PROVIDE_INDEX_PAGE:
       APPEND_SLASH_FOR_POSSIBLE_DIRECTORY:
-      STRIP_LEADING_DIRECTORY_PATH:
-      PREFIX_LEADING_DIRECTORY_PATH:
-      AWS_SIGS_VERSION:
+      STRIP_LEADING_DIRECTORY_PATH: ""
+      PREFIX_LEADING_DIRECTORY_PATH: ""
+      AWS_SIGS_VERSION: "4"
       STATIC_SITE_HOSTING:
       PROXY_CACHE_MAX_SIZE: "10g"
       PROXY_CACHE_SLICE_SIZE: "1m"
@@ -37,26 +40,32 @@ services:
       PROXY_CACHE_VALID_OK: "1h"
       PROXY_CACHE_VALID_NOTFOUND: "1m"
       PROXY_CACHE_VALID_FORBIDDEN: "30s"
-
   minio:
     image: quay.io/minio/minio:RELEASE.2023-06-09T07-32-12Z
     hostname: bucket-1.minio
     ports:
       - "9090:9000/tcp"
+      - "9091:9001/tcp"
     restart: "no"
-    command: minio server /data
+    command: minio server /data --console-address ":9001"
     environment:
       MINIO_ADDRESS: :9000
       MINIO_ROOT_USER: "AKIAIOSFODNN7EXAMPLE"
       MINIO_ROOT_PASSWORD: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
       MINIO_REGION_NAME: "us-east-1"
       MINIO_DOMAIN: "minio"
-      MINIO_BROWSER: "off"
+      MINIO_BROWSER: "on"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
       timeout: 3s
       retries: 3
+    networks:
+      - s3-gateway-test
+
+networks:
+  s3-gateway-test:
+    name: s3-gateway-test
   # It may be useful to enable minio client so that you can debug what calls
   # were made to minio by the gateway.
 #  minio-client:
