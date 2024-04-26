@@ -262,6 +262,8 @@ jobs:
     needs: [test-oss, test-latest-njs, test-unprivileged]
     if: |
       github.ref == 'refs/heads/main'
+    permissions:
+      packages: write
     services:
       registry:
         image: registry:2
