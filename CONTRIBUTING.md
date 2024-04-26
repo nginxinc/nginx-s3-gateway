@@ -28,12 +28,18 @@ To report a bug, open an issue on GitHub with the label `bug` using the availabl
 
 To suggest a feature or enhancement, please create an issue on GitHub with the label `enhancement` using the available [feature request template](/.github/feature_request_template.md). Please ensure the feature or enhancement has not already been suggested.
 
-### Open a Pull Request
+### Open a Pull Request (PR)
 
-- Fork the repo, create a branch, implement your changes, add any relevant tests, submit a PR when your changes are **tested** and ready for review.
-- Fill in [our pull request template](/.github/pull_request_template.md).
+- Fork the repo, create a branch, implement your changes, add any relevant tests, and submit a PR when your changes are **tested** and ready for review.
+- Fill in the [PR template](/.github/pull_request_template.md).
 
 **Note:** If you'd like to implement a new feature, please consider creating a [feature request issue](/.github/feature_request_template.md) first to start a discussion about the feature.
+
+#### F5 Contributor License Agreement (CLA)
+
+F5 requires all external contributors to agree to the terms of the F5 CLA (available [here](https://github.com/f5/.github/blob/main/CLA/cla-markdown.md)) before any of their changes can be incorporated into an F5 Open Source repository.
+
+If you have not yet agreed to the F5 CLA terms and submit a PR to this repository, a bot will prompt you to view and agree to the F5 CLA. You will have to agree to the F5 CLA terms through a comment in the PR before any of your changes can be merged. Your agreement signature will be safely stored by F5 and no longer be required in future PRs.
 
 ## Code Guidelines
 
