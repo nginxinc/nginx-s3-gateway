@@ -6,7 +6,7 @@ Describe the use case and detail of the change. If this PR addresses an issue on
 
 Before creating a PR, run through this checklist and mark each as complete:
 
-- [ ] I have read the [`contributing guidelines`](/CONTRIBUTING.md).
+- [ ] I have read the [contributing guidelines](/CONTRIBUTING.md).
 - [ ] If applicable, I have added tests that prove my fix is effective or that my feature works.
 - [ ] If applicable, I have checked that any relevant tests pass after adding my changes.
 - [ ] I have updated any relevant documentation (e.g. [`README.md`](/README.md)).

@@ -1,50 +1,47 @@
+---
 name: CI
-
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
 on:
   push:
-    branches: [ master ]
+    branches: [main]
   pull_request:
-    branches: [ master ]
-
-
+    branches: [main]
 env:
   CI: true
-
+permissions: read-all
 
 # Job progression.  We make sure that the base image [oss] builds and passes tests before kicking off the other builds
-
-    #                                ┌──────────────────┐        ┌────────────────┐      ┌────────────────┐
-    # ┌─────────┐     ┌─────────┬────► Build Latest NJS ├────────►Test Latest NJS ├─────►│Push Latest NJS │
-    # │Build OSS├────►│Test OSS │    └──────────────────┘        └────────────────┘      └────────────────┘
-    # └─────────┘     └──┬──────┤
-    #                    │      │    ┌──────────────────┐       ┌──────────────────┐     ┌─────────────────┐
-    #                    │      └────►Build Unprivileged├───────►Test Unprivileged ├────►│Push Unprivileged│
-    #                    │           └──────────────────┘       └──────────────────┘     ├────────┬────────┘
-    #                    │                                                               ├────────┤
-    #                    └──────────────────────────────────────────────────────────────►│Push OSS│
-    #                                                                                    └────────┘
-
-# As a last step, if we are on the main/master branch, multi-architecture images will be built and pushed to github packages
-# and docker hub
+#                                ┌──────────────────┐        ┌────────────────┐      ┌────────────────┐
+# ┌─────────┐     ┌─────────┬────► Build Latest NJS ├────────►Test Latest NJS ├─────►│Push Latest NJS │
+# │Build OSS├────►│Test OSS │    └──────────────────┘        └────────────────┘      └────────────────┘
+# └─────────┘     └──┬──────┤
+#                    │      │    ┌──────────────────┐       ┌──────────────────┐     ┌─────────────────┐
+#                    │      └────►Build Unprivileged├───────►Test Unprivileged ├────►│Push Unprivileged│
+#                    │           └──────────────────┘       └──────────────────┘     ├────────┬────────┘
+#                    │                                                               ├────────┤
+#                    └──────────────────────────────────────────────────────────────►│Push OSS│
+#                                                                                    └────────┘
+# As a last step (only if run from main) multi-architecture images are built and pushed to Docker Hub and the GitHub Container Registry
 
 jobs:
   build-oss-for-test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the codebase
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+
       - name: Build and export
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           file: Dockerfile.oss
           context: .
           tags: nginx-s3-gateway , nginx-s3-gateway:oss
           outputs: type=docker,dest=${{ runner.temp }}/oss.tar
+
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: oss
           path: ${{ runner.temp }}/oss.tar
@@ -58,15 +55,19 @@ jobs:
       matrix:
         path_style: [virtual, virtual-v2]
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the codebase
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
+
       - name: Install MinIO Client
         run: |
           mkdir .bin || exit 0
@@ -77,13 +78,15 @@ jobs:
           chmod +x mc
 
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: oss
           path: ${{ runner.temp }}
+
       - name: Load image
         run: |
           docker load --input ${{ runner.temp }}/oss.tar
+
       - name: Run tests - stable njs version
         run: S3_STYLE=${{ matrix.path_style }} ./test.sh --type oss
 
@@ -91,33 +94,39 @@ jobs:
     runs-on: ubuntu-22.04
     needs: test-oss
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the codebase
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
         with:
           driver: docker
+
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: oss
           path: ${{ runner.temp }}
+
       - name: Load image
         run: |
           docker load --input ${{ runner.temp }}/oss.tar
+
       - name: Build and load oss image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           file: Dockerfile.latest-njs
           context: .
           tags: nginx-s3-gateway:latest-njs-oss
           load: true
-      # Save manually here since we need to use the `docker` buildx `driver` but that can't output
-      # a file that upload-artifact likes.
-      - name: save image
+
+      # Save manually here since we need to use `docker` buildx but that can't output a file that upload-artifact likes.
+      - name: Export image to a tar
         run: |
           docker save nginx-s3-gateway:latest-njs-oss > ${{ runner.temp }}/latest-njs.tar
+
       - name: Upload artifact - latest-njs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: latest-njs
           path: ${{ runner.temp }}/latest-njs.tar
@@ -128,15 +137,19 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build-latest-njs-for-test
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the codebase
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
+
       - name: Install MinIO Client
         run: |
           mkdir .bin || exit 0
@@ -145,15 +158,18 @@ jobs:
           curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
           mv mc.RELEASE.2023-06-19T19-31-19Z mc
           chmod +x mc
+
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: latest-njs
           path: ${{ runner.temp }}
+
       - name: Load image
         run: |
           docker load --input ${{ runner.temp }}/latest-njs.tar
           docker tag nginx-s3-gateway:latest-njs-oss nginx-s3-gateway
+
       - name: Run tests - latest njs version
         run: ./test.sh --latest-njs --type oss
 
@@ -161,33 +177,39 @@ jobs:
     runs-on: ubuntu-22.04
     needs: test-oss
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the codebase
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
         with:
           driver: docker
+
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: oss
           path: ${{ runner.temp }}
+
       - name: Load image
         run: |
           docker load --input ${{ runner.temp }}/oss.tar
+
       - name: Build and load oss image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           file: Dockerfile.unprivileged
           context: .
           tags: nginx-s3-gateway:unprivileged-oss
           load: true
-      # Save manually here since we need to use the `docker` buildx `driver` but that can't output
-      # a file that upload-artifact likes.
-      - name: save image
+
+      # Save manually here since we need to use `docker` buildx but that can't output a file that upload-artifact likes.
+      - name: Export image to a tar
         run: |
           docker save nginx-s3-gateway:unprivileged-oss > ${{ runner.temp }}/unprivileged.tar
+
       - name: Upload artifact - unprivileged
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: unprivileged
           path: ${{ runner.temp }}/unprivileged.tar
@@ -198,15 +220,19 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build-unprivileged-for-test
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the codebase
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
+
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
+
       - name: Install MinIO Client
         run: |
           mkdir .bin || exit 0
@@ -215,49 +241,53 @@ jobs:
           curl --insecure --retry 6 --fail --silent --location "https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/archive/mc.RELEASE.2023-06-19T19-31-19Z.sha256sum" | sha256sum --check -
           mv mc.RELEASE.2023-06-19T19-31-19Z mc
           chmod +x mc
+
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: unprivileged
           path: ${{ runner.temp }}
+
       - name: Load image
         run: |
           docker load --input ${{ runner.temp }}/unprivileged.tar
           docker tag nginx-s3-gateway:unprivileged-oss nginx-s3-gateway
+
       - name: Run tests - unprivileged
         run: ./test.sh --unprivileged --type oss
 
-# After the tests are done, build multiarch and push to both github packages and dockerhub if we are on master/main
+# As a last step (only if run from main) multi-architecture images are built and pushed to Docker Hub and the GitHub Container Registry
   tag-and-push:
     runs-on: ubuntu-22.04
     needs: [test-oss, test-latest-njs, test-unprivileged]
-
     if: |
-      github.ref == 'refs/heads/master' ||
       github.ref == 'refs/heads/main'
+    permissions:
+      packages: write
     services:
       registry:
         image: registry:2
         ports:
           - 5000:5000
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out the codebase
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+
       - name: Get current date
         id: date
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+
       - name: Set up Docker Buildx for local image build and push
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
         with:
-          platforms: linux/amd64,linux/arm64
           driver-opts: network=host
 
-      # Do an initial build of the base image and push to a local registry for downstream
-      # images because the `docker-container` driver can't find local images with `load`
+      # Do an initial build of the base image and push to a local registry for downstream images because the `docker-container` driver can't find local images with `load`.
       - name: Build and push image [oss] to local registry for downstream
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           file: Dockerfile.oss
           context: .
@@ -267,21 +297,21 @@ jobs:
           tags: localhost:5000/nginx-oss-s3-gateway:oss
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      # This second invocation of build/push should just use the existing build cache
+      # This second invocation of the build/push should just use the existing build cache.
       - name: Build and push image [oss]
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           file: Dockerfile.oss
           context: .
@@ -295,7 +325,7 @@ jobs:
             nginxinc/nginx-s3-gateway:latest
 
       - name: Build and push image [latest-njs]
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           file: Dockerfile.latest-njs
           context: .
@@ -311,7 +341,7 @@ jobs:
             nginxinc/nginx-s3-gateway:latest-njs-oss
 
       - name: Build and push image [unprivileged]
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
         with:
           file: Dockerfile.unprivileged
           context: .
