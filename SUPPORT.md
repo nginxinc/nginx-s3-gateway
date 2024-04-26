@@ -30,7 +30,7 @@ Want to get in touch with the NGINX development team directly? Try using the rel
 
 ## Contributing
 
-Please see the [contributing guide](https://github.com/nginxinc/nginx-s3-gateway/blob/main/CONTRIBUTING.md) for guidelines on how to best contribute to this project.
+Please see the [contributing guide](/CONTRIBUTING.md) for guidelines on how to best contribute to this project.
 
 ## Community Support
 

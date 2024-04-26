@@ -1,7 +1,7 @@
 [![CI](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml/badge.svg)](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](https://github.com/nginxinc/nginx-s3-gateway/blob/main/SUPPORT.md))
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](https://github.com/nginxinc/nginx-s3-gateway/main/CODE_OF_CONDUCT.md)
+[![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](/SUPPORT.md))
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](/CODE_OF_CONDUCT.md)
 
 # NGINX S3 Gateway
 
@@ -96,10 +96,10 @@ extending or testing the gateway.
 
 ## Contributing
 
-Please see the [contributing guide](https://github.com/nginxinc/nginx-s3-gateway/blob/main/CONTRIBUTING.md) for guidelines on how to best contribute to this project.
+Please see the [contributing guide](/CONTRIBUTING.md) for guidelines on how to best contribute to this project.
 
 ## License
 
-[Apache License, Version 2.0](https://github.com/nginxinc/nginx-s3-gateway/blob/main/LICENSE)
+[Apache License, Version 2.0](/LICENSE)
 
 &copy; [F5, Inc.](https://www.f5.com/) 2020 - 2024

@@ -10,11 +10,11 @@ The following is a set of guidelines for contributing to this project. We really
 
 [Code Guidelines](#code-guidelines)
 
-[Code of Conduct](https://github.com/nginxinc/nginx-s3-gateway/blob/main/CODE_OF_CONDUCT.md)
+[Code of Conduct](/CODE_OF_CONDUCT.md)
 
 ## Getting Started
 
-Follow our [Getting Started Guide](https://github.com/nginxinc/nginx-s3-gateway/blob/main/README.md#Getting-Started) to get this project up and running.
+Follow our [Getting Started Guide](/README.md#Getting-Started) to get this project up and running.
 
 <!-- ### Project Structure (OPTIONAL) -->
 
@@ -22,18 +22,18 @@ Follow our [Getting Started Guide](https://github.com/nginxinc/nginx-s3-gateway/
 
 ### Report a Bug
 
-To report a bug, open an issue on GitHub with the label `bug` using the available bug report issue template. Please ensure the bug has not already been reported. **If the bug is a potential security vulnerability, please report it using our [security policy](https://github.com/nginxinc/nginx-s3-gateway/blob/main/SECURITY.md).**
+To report a bug, open an issue on GitHub with the label `bug` using the available bug report issue template. Please ensure the bug has not already been reported. **If the bug is a potential security vulnerability, please report it using our [security policy](/SECURITY.md).**
 
 ### Suggest a Feature or Enhancement
 
-To suggest a feature or enhancement, please create an issue on GitHub with the label `enhancement` using the available [feature request template](https://github.com/nginxinc/nginx-s3-gateway/blob/main/.github/feature_request_template.md). Please ensure the feature or enhancement has not already been suggested.
+To suggest a feature or enhancement, please create an issue on GitHub with the label `enhancement` using the available [feature request template](/.github/feature_request_template.md). Please ensure the feature or enhancement has not already been suggested.
 
 ### Open a Pull Request
 
 - Fork the repo, create a branch, implement your changes, add any relevant tests, submit a PR when your changes are **tested** and ready for review.
-- Fill in [our pull request template](https://github.com/nginxinc/nginx-s3-gateway/blob/main/.github/pull_request_template.md).
+- Fill in [our pull request template](/.github/pull_request_template.md).
 
-**Note:** If you'd like to implement a new feature, please consider creating a [feature request issue](https://github.com/nginxinc/nginx-s3-gateway/blob/main/.github/feature_request_template.md) first to start a discussion about the feature.
+**Note:** If you'd like to implement a new feature, please consider creating a [feature request issue](/.github/feature_request_template.md) first to start a discussion about the feature.
 
 ## Code Guidelines
 
