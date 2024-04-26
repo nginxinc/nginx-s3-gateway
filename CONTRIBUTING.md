@@ -14,7 +14,7 @@ The following is a set of guidelines for contributing to this project. We really
 
 ## Getting Started
 
-Follow our [Getting Started Guide](/README.md#Getting-Started) to get this project up and running.
+Follow the instructions on the README's [Getting Started Guide](/README.md#Getting-Started) section to get this project up and running.
 
 <!-- ### Project Structure (OPTIONAL) -->
 
