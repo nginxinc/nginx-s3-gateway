@@ -1,13 +1,13 @@
-[![CI](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml/badge.svg)](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml) 
-[![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](https://github.com/nginxinc/nginx-s3-gateway/discussions)
+[![CI](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml/badge.svg)](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Docker Pulls](https://img.shields.io/docker/pulls/nginxinc/nginx-s3-gateway?style=flat)](https://hub.docker.com/repository/docker/nginxinc/nginx-s3-gateway/general)
+[![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](/SUPPORT.md))
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](/CODE_OF_CONDUCT.md)
 
 # NGINX S3 Gateway
 
 ## Introduction
 
-This project provides a working configuration of NGINX configured to act as 
+This project provides a working configuration of NGINX configured to act as
 an authenticating and caching gateway for to AWS S3 or another S3 compatible
 service. This allows you to proxy a private S3 bucket without requiring users
 to authenticate to it. Within the proxy layer, additional functionality can be
@@ -31,12 +31,12 @@ configured such as:
 All such functionality can be enabled within a standard NGINX configuration
 because this project is nothing other than NGINX with additional configuration
 that allows for proxying S3. It can be used as-is if the predefined
-configuration is sufficient, or it can serve as a base example for a more 
+configuration is sufficient, or it can serve as a base example for a more
 customized configuration.
 
 If the predefined configuration does not meet your needs, it is best to borrow
 from the patterns in this project and build your own configuration. For example,
-if you want to enable SSL/TLS and compression in your NGINX S3 gateway 
+if you want to enable SSL/TLS and compression in your NGINX S3 gateway
 configuration, you will need to look at other documentation because this
 project does not enable those features of NGINX.
 
@@ -46,7 +46,7 @@ This project can be run as a stand-alone container or as a Systemd service.
 Both modes use the same NGINX configuration and are functionally equal in terms
 features. However, in the case of running as a Systemd service, other services
 can be configured that additional functionality such as [certbot](https://certbot.eff.org/)
-for [Let's Encrypt](https://letsencrypt.org/) support.    
+for [Let's Encrypt](https://letsencrypt.org/) support.
 
 ## Getting Started
 
@@ -66,7 +66,7 @@ common/                          contains files used by both NGINX OSS and Plus 
 deployments/                     contains files used for deployment technologies such as
                                  CloudFormation
 docs/                            contains documentation about the project
-examples/                        contains additional `Dockerfile` examples that extend the base 
+examples/                        contains additional `Dockerfile` examples that extend the base
                                  configuration
 jsdoc                            JSDoc configuration files
 oss/                             contains files used solely in NGINX OSS configurations
@@ -74,7 +74,7 @@ plus/                            contains files used solely in NGINX Plus config
 test/                            contains automated tests for validang that the examples work
 Dockerfile.oss                   Dockerfile that configures NGINX OSS to act as a S3 gateway
 Dockerfile.plus                  Dockerfile that builds a NGINX Plus instance that is configured
-                                 equivelently to NGINX OSS - instance is configured to act as a 
+                                 equivelently to NGINX OSS - instance is configured to act as a
                                  S3 gateway with NGINX Plus additional features enabled
 Dockerfile.buildkit.plus         Dockerfile with the same configuration as Dockerfile.plus, but
                                  with support for hiding secrets using Docker's Buildkit
@@ -94,6 +94,12 @@ test.sh                          test launcher
 Refer to the [Development Guide](docs/development.md) for more information about
 extending or testing the gateway.
 
+## Contributing
+
+Please see the [contributing guide](/CONTRIBUTING.md) for guidelines on how to best contribute to this project.
+
 ## License
 
-All code include is licensed under the [Apache 2.0 license](LICENSE.txt).
+[Apache License, Version 2.0](/LICENSE)
+
+&copy; [F5, Inc.](https://www.f5.com/) 2020 - 2024
