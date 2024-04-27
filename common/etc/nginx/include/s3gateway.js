@@ -40,7 +40,7 @@ _requireEnvVars('S3_REGION');
 _requireEnvVars('AWS_SIGS_VERSION');
 _requireEnvVars('S3_STYLE');
 _requireEnvVars('S3_SERVICE');
-
+_requireEnvVars('S3_SERVICE_REMOVE_X_AMZ_HEADERS');
 
 /**
  * Flag indicating debug mode operation. If true, additional information
@@ -90,6 +90,12 @@ const INDEX_PAGE = "index.html";
 const SERVICE = process.env['S3_SERVICE'] || "s3";
 
 /**
+ * Indicate whether you want to delete the x-maz headers.
+ * @type {boolean}
+ */
+const S3_SERVICE_REMOVE_X_AMZ_HEADERS = utils.parseBoolean(process.env['S3_SERVICE_REMOVE_X_AMZ_HEADERS'] || 'true');
+
+/**
  * Transform the headers returned from S3 such that there isn't information
  * leakage about S3 and do other tasks needed for appropriate gateway output.
  * @param r {NginxHTTPRequest} HTTP request
@@ -131,7 +137,7 @@ function editHeaders(r) {
  * @returns {boolean} true if header should be removed
  */
 function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
-    if (headerName.indexOf('x-amz-', 0) >= 0) {
+    if (S3_SERVICE_REMOVE_X_AMZ_HEADERS && headerName.indexOf('x-amz-', 0) >= 0) {
         return true;
     }
 
