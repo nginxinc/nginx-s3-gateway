@@ -90,7 +90,7 @@ const INDEX_PAGE = "index.html";
 const SERVICE = process.env['S3_SERVICE'] || "s3";
 
 /**
- * Indicate whether you want to delete the x-maz headers.
+ * Indicate whether you want to delete the x-amz headers. Default remove x-amz for security reasons.
  * @type {boolean}
  */
 const S3_SERVICE_REMOVE_X_AMZ_HEADERS = utils.parseBoolean(process.env['S3_SERVICE_REMOVE_X_AMZ_HEADERS'] || 'true');
