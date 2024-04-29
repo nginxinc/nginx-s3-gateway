@@ -40,7 +40,7 @@ _requireEnvVars('S3_REGION');
 _requireEnvVars('AWS_SIGS_VERSION');
 _requireEnvVars('S3_STYLE');
 _requireEnvVars('S3_SERVICE');
-_requireEnvVars('S3_SERVICE_REMOVE_X_AMZ_HEADERS');
+
 
 /**
  * Flag indicating debug mode operation. If true, additional information
