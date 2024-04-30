@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -o errexit   # abort on nonzero exit status
 set -o pipefail  # don't hide errors within pipes
@@ -269,7 +269,7 @@ chown root:root /etc/nginx/environment
 chmod og-rwx /etc/nginx/environment
 
 cat > /usr/local/bin/template_nginx_config.sh << 'EOF'
-#!/usr/bin/env bash
+#!/bin/bash
 
 ME=$(basename $0)
 
