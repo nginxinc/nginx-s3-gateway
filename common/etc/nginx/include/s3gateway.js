@@ -77,6 +77,14 @@ const S3_STYLE = process.env['S3_STYLE'];
  * @type {Array<String>}
  * */
 const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = utils.parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
+
+/**
+ * Additional header prefixes to allow from the response before sending to the
+ * client. This is opposite to HEADER_PREFIXES_TO_STRIP.
+ * @type {Array<String>}
+ * */
+const ADDITIONAL_HEADER_PREFIXES_ALLOWED = utils.parseArray(process.env['HEADER_PREFIXES_ALLOWED']);
+
 /**
  * Default filename for index pages to be read off of the backing object store.
  * @type {string}
@@ -90,12 +98,6 @@ const INDEX_PAGE = "index.html";
 const SERVICE = process.env['S3_SERVICE'] || "s3";
 
 /**
- * Indicate whether you want to delete the x-amz headers. Default remove x-amz for security reasons.
- * @type {boolean}
- */
-const S3_SERVICE_REMOVE_X_AMZ_HEADERS = utils.parseBoolean(process.env['S3_SERVICE_REMOVE_X_AMZ_HEADERS'] || 'true');
-
-/**
  * Transform the headers returned from S3 such that there isn't information
  * leakage about S3 and do other tasks needed for appropriate gateway output.
  * @param r {NginxHTTPRequest} HTTP request
@@ -106,15 +108,19 @@ function editHeaders(r) {
         r.method === 'HEAD' &&
         _isDirectory(decodeURIComponent(r.variables.uri_path));
 
-    /* Strips all x-amz- headers from the output HTTP headers so that the
+    /* Strips all x-amz- (if x-amz- is not in ADDITIONAL_HEADER_PREFIXES_ALLOWED) headers from the output HTTP headers so that the
      * requesters to the gateway will not know you are proxying S3. */
     if ('headersOut' in r) {
         for (const key in r.headersOut) {
+            const headerName = key.toLowerCase()
             /* We delete all headers when it is a directory head request because
              * none of the information is relevant for passing on via a gateway. */
             if (isDirectoryHeadRequest) {
                 delete r.headersOut[key];
-            } else if (_isHeaderToBeStripped(key.toLowerCase(), ADDITIONAL_HEADER_PREFIXES_TO_STRIP)) {
+            } else if (
+                !_isHeaderToBeAlloweed(headerName, ADDITIONAL_HEADER_PREFIXES_ALLOWED)
+                && _isHeaderToBeStripped(headerName, ADDITIONAL_HEADER_PREFIXES_TO_STRIP)
+            ) {
                 delete r.headersOut[key];
             }
         }
@@ -134,16 +140,35 @@ function editHeaders(r) {
  * sent on to the requesting client.
  * @param headerName {string} Lowercase HTTP header name
  * @param additionalHeadersToStrip {Array<string>} array of additional headers to remove
+ * @param additionalHeadersToAllow {Array<string>} array of additional headers to allow
  * @returns {boolean} true if header should be removed
  */
 function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
-    if (S3_SERVICE_REMOVE_X_AMZ_HEADERS && headerName.indexOf('x-amz-', 0) >= 0) {
+    if (headerName.indexOf('x-amz-', 0) >= 0) {
         return true;
     }
 
     for (let i = 0; i < additionalHeadersToStrip.length; i++) {
         const headerToStrip = additionalHeadersToStrip[i];
         if (headerName.indexOf(headerToStrip, 0) >= 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Determines if a given HTTP header should be force alloweed from requesting client.
+ * @param headerName {string} Lowercase HTTP header name
+ * @param additionalHeadersToAllow {Array<string>} array of additional headers to allow
+ * @returns {boolean} true if header should be removed
+ */
+function _isHeaderToBeAlloweed(headerName, additionalHeadersToAllow) {
+
+    for (let i = 0; i < additionalHeadersToAllow.length; i++) {
+        const headerToAllow = additionalHeadersToAllow[i];
+        if (headerName.indexOf(headerToAllow, 0) >= 0) {
             return true;
         }
     }
