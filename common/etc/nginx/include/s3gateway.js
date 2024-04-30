@@ -118,7 +118,7 @@ function editHeaders(r) {
             if (isDirectoryHeadRequest) {
                 delete r.headersOut[key];
             } else if (
-                !_isHeaderToBeAlloweed(headerName, ADDITIONAL_HEADER_PREFIXES_ALLOWED)
+                !_isHeaderToBeAllowed(headerName, ADDITIONAL_HEADER_PREFIXES_ALLOWED)
                 && _isHeaderToBeStripped(headerName, ADDITIONAL_HEADER_PREFIXES_TO_STRIP)
             ) {
                 delete r.headersOut[key];
@@ -159,12 +159,12 @@ function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
 }
 
 /**
- * Determines if a given HTTP header should be force alloweed from requesting client.
+ * Determines if a given HTTP header should be force allowed from requesting client.
  * @param headerName {string} Lowercase HTTP header name
  * @param additionalHeadersToAllow {Array<string>} array of additional headers to allow
  * @returns {boolean} true if header should be removed
  */
-function _isHeaderToBeAlloweed(headerName, additionalHeadersToAllow) {
+function _isHeaderToBeAllowed(headerName, additionalHeadersToAllow) {
 
     for (let i = 0; i < additionalHeadersToAllow.length; i++) {
         const headerToAllow = additionalHeadersToAllow[i];
