@@ -142,13 +142,14 @@ function testEditHeaders() {
     }
 
     s3gateway.editHeaders(r);
-
+    
     for (const key in r.headersOut) {
         if (key.toLowerCase().indexOf("x-amz", 0) >= 0) {
             throw "x-amz header not stripped from headers correctly";
         }
     }
 }
+
 
 function testEditHeadersHeadDirectory() {
     printHeader('testEditHeadersHeadDirectory');
@@ -189,6 +190,18 @@ function testIsHeaderToBeStripped() {
     if (!s3gateway._isHeaderToBeStripped('x-goog-storage-class',
         ['x-goog'])) {
         throw "x-goog-storage-class header should be stripped";
+    }
+}
+
+function testIsHeaderToBeAllowed() {
+    printHeader('testIsHeaderToBeAllowed');
+
+    if (!s3gateway._isHeaderToBeAllowed('x-amz-abc', ['x-amz-'])) {
+        throw "x-amz-abc header should be allowed";
+    }
+
+    if (s3gateway._isHeaderToBeAllowed('x-amz-xyz',['x-amz-abc'])) {
+        throw "x-amz-xyz header should be stripped";
     }
 }
 

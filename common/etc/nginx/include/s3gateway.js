@@ -140,7 +140,6 @@ function editHeaders(r) {
  * sent on to the requesting client.
  * @param headerName {string} Lowercase HTTP header name
  * @param additionalHeadersToStrip {Array<string>} array of additional headers to remove
- * @param additionalHeadersToAllow {Array<string>} array of additional headers to allow
  * @returns {boolean} true if header should be removed
  */
 function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
