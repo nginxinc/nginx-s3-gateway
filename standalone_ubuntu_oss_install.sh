@@ -97,6 +97,7 @@ echo "Proxy Caching Time for Valid Response: ${PROXY_CACHE_VALID_OK}"
 echo "Proxy Caching Time for Not Found Response: ${PROXY_CACHE_VALID_NOTFOUND}"
 echo "Proxy Caching Time for Forbidden Response: ${PROXY_CACHE_VALID_FORBIDDEN}"
 echo "CORS Enabled: ${CORS_ENABLED}"
+echo "CORS Allow Private Network Access: ${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}"
 
 set -o nounset   # abort on unbound variable
 
