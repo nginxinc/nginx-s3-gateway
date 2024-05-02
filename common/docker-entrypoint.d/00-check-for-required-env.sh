@@ -136,3 +136,4 @@ echo "Append slash for directory enabled: ${APPEND_SLASH_FOR_POSSIBLE_DIRECTORY}
 echo "Stripping the following headers from responses: x-amz-;${HEADER_PREFIXES_TO_STRIP}"
 echo "Allow the following headers from responses (these take precendence over the above): ${HEADER_PREFIXES_ALLOWED}"
 echo "CORS Enabled: ${CORS_ENABLED}"
+echo "CORS Allow Private Network Access: ${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}"

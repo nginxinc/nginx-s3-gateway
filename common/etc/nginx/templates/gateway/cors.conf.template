@@ -11,6 +11,12 @@ if ($request_cors = "OPTIONS_1") {
     # Tell client that this pre-flight info is valid for 20 days
     #
     add_header 'Access-Control-Max-Age' 1728000;
+    #
+    # Allow/deny Private Network Access CORS requests.
+    # https://developer.chrome.com/blog/private-network-access-preflight/
+    #
+    add_header 'Access-Control-Allow-Private-Network' '${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}';
+
     add_header 'Content-Type' 'text/plain; charset=utf-8';
     add_header 'Content-Length' 0;
     return 204;
