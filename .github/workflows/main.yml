@@ -1,5 +1,5 @@
 ---
-name: CI
+name: NGINX S3 Gateway CI/CD
 on:
   push:
     branches: [main]

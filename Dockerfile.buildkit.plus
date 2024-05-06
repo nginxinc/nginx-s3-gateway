@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:155280b00ee0133250f7159b567a07d7cd03b1645714c3a7458b2287b0ca83cb
 
 ENV NGINX_PLUS_VERSION   30-2
 ENV NGINX_VERSION        1.25.1

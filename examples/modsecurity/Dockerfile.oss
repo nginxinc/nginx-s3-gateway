@@ -1,4 +1,4 @@
-FROM nginxinc/nginx-s3-gateway
+FROM nginxinc/nginx-s3-gateway@sha256:8aa48324479b3653b5936183cc97f2ca1aa9078d229042f1bca357834bd906f4
 
 ENV MODSECURITY_VERSION "v1.0.1"
 ENV OWASP_RULESET_VERSION "v3.3.0"
