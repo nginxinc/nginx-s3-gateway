@@ -1,7 +1,7 @@
 # This container image removes the existing njs package from the inherited image
 # (which could be OSS NGINX or NGINX Plus), builds njs from the latest
 # source, and installs it.
-FROM nginxinc/nginx-s3-gateway@sha256:8aa48324479b3653b5936183cc97f2ca1aa9078d229042f1bca357834bd906f4
+FROM nginx-s3-gateway
 
 RUN set -eux \
     export DEBIAN_FRONTEND=noninteractive;  \
