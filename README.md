@@ -1,7 +1,7 @@
 [![CI](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml/badge.svg)](https://github.com/nginxinc/nginx-s3-gateway/actions/workflows/main.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/nginxinc/nginx-s3-gateway/badge)](https://securityscorecards.dev/viewer/?uri=github.com/nginxinc/nginx-s3-gateway)
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](/SUPPORT.md))
+[![Community Support](https://badgen.net/badge/support/community/cyan?icon=awesome)](/SUPPORT.md)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](/CODE_OF_CONDUCT.md)
 
 # NGINX S3 Gateway
