@@ -1,5 +1,4 @@
-FROM nginxinc/nginx-s3-gateway
-
+FROM nginxinc/nginx-s3-gateway@sha256:8aa48324479b3653b5936183cc97f2ca1aa9078d229042f1bca357834bd906f4
 ENV BROTLI_VERSION "v1.0.0rc"
 
 # Build Brotli module from source because there is no repository package

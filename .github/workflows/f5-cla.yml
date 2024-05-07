@@ -1,18 +1,19 @@
+---
 name: F5 CLA
 on:
   issue_comment:
     types: [created]
   pull_request_target:
     types: [opened, closed, synchronize]
-
-permissions:
-  actions: write
-  pull-requests: write
-  statuses: write
-
+permissions: read-all
 jobs:
   f5-cla:
+    name: F5 CLA
     runs-on: ubuntu-22.04
+    permissions:
+      actions: write
+      pull-requests: write
+      statuses: write
     steps:
       - name: Run F5 Contributor License Agreement (CLA) assistant
         if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have hereby read the F5 CLA and agree to its terms') || github.event_name == 'pull_request_target'
@@ -31,7 +32,7 @@ jobs:
           remote-repository-name: 'f5-cla-data'
           path-to-signatures: 'signatures/beta/signatures.json'
           # Comma separated list of usernames for maintainers or any other individuals who should not be prompted for a CLA.
-          allowlist: 4141done, dekobon, bot*
+          allowlist: 4141done, alessfg, dekobon, bot*
           # Do not lock PRs after a merge.
           lock-pullrequest-aftermerge: false
         env:
