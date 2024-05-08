@@ -39,7 +39,6 @@ _requireEnvVars('S3_SERVER_PORT');
 _requireEnvVars('S3_REGION');
 _requireEnvVars('AWS_SIGS_VERSION');
 _requireEnvVars('S3_STYLE');
-_requireEnvVars('S3_SERVICE');
 
 
 /**
