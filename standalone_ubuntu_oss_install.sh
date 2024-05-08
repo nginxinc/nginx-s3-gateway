@@ -30,7 +30,7 @@ fi
 
 failed=0
 
-required=("S3_SERVICE" "S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
+required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 "S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION")
 
 if [ ! -z ${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI+x} ]; then
@@ -163,7 +163,7 @@ S3_SERVER=${S3_SERVER}
 # The S3 host/path method - 'virtual', 'path' or 'default'
 S3_STYLE=${S3_STYLE:-'default'}
 # Name of S3 service - 's3' or 's3express'
-S3_SERVICE=${S3_SERVICE:-'s3'}
+S3_SERVICE=${S3_SERVICE:-s3}
 # Flag (true/false) enabling AWS signatures debug output (default: false)
 DEBUG=${DEBUG:-'false'}
 # Cache size limit
