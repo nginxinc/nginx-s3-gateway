@@ -6,6 +6,8 @@
 [Running as a Systemd Service](#running-as-a-systemd-service)  
 [Running in Containers](#running-in-containers)  
 [Running Using AWS Instance Profile Credentials](#running-using-aws-instance-profile-credentials)  
+[Running on EKS with IAM roles for service accounts](#running-on-eks-with-iam-roles-for-service-accounts)  
+[Running on EKS with EKS Pod Identities](#running-on-eks-with-eks-pod-identities)  
 [Troubleshooting](#troubleshooting)  
 
 ## Configuration
@@ -469,6 +471,23 @@ spec:
             httpGet:
               path: /health
               port: http
+```
+## Running on EKS with EKS Pod Identities
+
+An alternative way to use the container image on an EKS cluster is to use a service account which can assume a role using [Pod Identities](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html).
+- Installing the [Amazon EKS Pod Identity Agent](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html) on the cluster
+- Configuring a [Kubernetes service account to assume an IAM role with EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html)
+- [Configure your pods, Deployments, etc to use the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/pod-configuration.html)
+- As soon as the pods/deployments are updated, you will see the couple of Env Variables listed below in the pods.
+  - `AWS_CONTAINER_CREDENTIALS_FULL_URI` - Contains the Uri of the EKS Pod Identity Agent that will provide the credentials 
+  - `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE`  - Contains the token which will be used to create temporary credentials using the EKS Pod Identity Agent.
+
+The minimal set of resources to deploy is the same than for [Running on EKS with IAM roles for service accounts](#running-on-eks-with-iam-roles-for-service-accounts), except there is no need to annotate the service account:
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-s3-gateway
 ```
 
 ## Troubleshooting
