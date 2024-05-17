@@ -234,7 +234,7 @@ async function testEc2CredentialRetrieval() {
         delete process.env['AWS_ACCESS_KEY_ID'];
     }
     if ('AWS_CONTAINER_CREDENTIALS_RELATIVE_URI' in process.env) {
-        delete process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];    
+        delete process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
     }
     globalThis.ngx.fetch = function (url, options) {
         if (url === 'http://169.254.169.254/latest/api/token' && options && options.method === 'PUT') {
@@ -300,13 +300,82 @@ async function testEc2CredentialRetrieval() {
     await awscred.fetchCredentials(r);
 
     if (!globalThis.credentialsIssued) {
-        throw 'Did not reach the point where EC2 credentials were issues.';
+        throw 'Did not reach the point where EC2 credentials were issued.';
+    }
+}
+
+async function testEKSPodIdentityCredentialRetrieval() {
+    printHeader('testEKSPodIdentityCredentialRetrieval');
+    if ('AWS_ACCESS_KEY_ID' in process.env) {
+        delete process.env['AWS_ACCESS_KEY_ID'];
+    }
+    if ('AWS_CONTAINER_CREDENTIALS_RELATIVE_URI' in process.env) {
+        delete process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
+    }
+    if ('AWS_WEB_IDENTITY_TOKEN_FILE' in process.env) {
+        delete process.env['AWS_WEB_IDENTITY_TOKEN_FILE'];
+    }
+    var tempDir = (process.env['TMPDIR'] ? process.env['TMPDIR'] : '/tmp');
+    var uniqId = `${new Date().getTime()}-${Math.floor(Math.random()*101)}`;
+    var tempFile = `${tempDir}/credentials-unit-test-${uniqId}.json`;
+    var testToken = 'A_TOKEN';
+    fs.writeFileSync(tempFile, testToken);
+    process.env['AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE'] = tempFile;
+    globalThis.ngx.fetch = function(url, options) {
+        console.log(' fetching eks pod identity mock credentials');
+        if (url === 'http://169.254.170.23/v1/credentials') {
+            if (options && options.headers && options.headers['Authorization'].toString() === testToken) {
+                return Promise.resolve({
+                    ok: true,
+                    json: function() {
+                        globalThis.credentialsIssued = true;
+                        return Promise.resolve({
+                            AccessKeyId: 'AN_ACCESS_KEY_ID',
+                            Expiration: '2017-05-17T15:09:54Z',
+                            AccountId: 'AN_ACCOUNT_ID',
+                            SecretAccessKey: 'A_SECRET_ACCESS_KEY',
+                            Token: 'A_SECURITY_TOKEN',
+                        });
+                    },
+                });
+            } else {
+                throw 'Invalid token passed: ' + options.headers['Authorization'];
+            }
+        } else {
+            throw 'Invalid request URL: ' + url;
+        }
+    };
+    var r = {
+        "headersOut": {
+            "Accept-Ranges": "bytes",
+            "Content-Length": 42,
+            "Content-Security-Policy": "block-all-mixed-content",
+            "Content-Type": "text/plain",
+            "X-Amz-Bucket-Region": "us-east-1",
+            "X-Amz-Request-Id": "166539E18A46500A",
+            "X-Xss-Protection": "1; mode=block"
+        },
+        log: function(msg) {
+            console.log(msg);
+        },
+        return: function(code) {
+            if (code !== 200) {
+                throw 'Expected 200 status code, got: ' + code;
+            }
+        },
+    };
+
+    await awscred.fetchCredentials(r);
+
+    if (!globalThis.credentialsIssued) {
+        throw 'Did not reach the point where EKS Pod Identity credentials were issued.';
     }
 }
 
 async function test() {
     await testEc2CredentialRetrieval();
     await testEcsCredentialRetrieval();
+    await testEKSPodIdentityCredentialRetrieval();
     testReadCredentialsWithAccessSecretKeyAndSessionTokenSet();
     testReadCredentialsFromFilePath();
     testReadCredentialsFromNonexistentPath();
