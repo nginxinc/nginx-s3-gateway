@@ -24,7 +24,7 @@ jobs:
           # Path to the CLA document.
           path-to-document: 'https://github.com/f5/.github/blob/main/CLA/cla-markdown.md'
           # Custom CLA messages.
-          custom-notsigned-prcomment: '🎉 Thank you for your contribution. It appears you have not yet signed the F5 Contributor License Agreement (CLA), which is required for your changes to be incorporated into an F5 project. Please kindly read the [F5 CLA](https://github.com/f5/.github/blob/main/CLA/cla-markdown.md) and comment the following to agree:'
+          custom-notsigned-prcomment: '🎉 Thank you for your contribution! It appears you have not yet signed the F5 Contributor License Agreement (CLA), which is required for your changes to be incorporated into an F5 Open Source Software (OSS) project. Please kindly read the [F5 CLA](https://github.com/f5/.github/blob/main/CLA/cla-markdown.md) and reply on a new comment with the following text to agree:'
           custom-pr-sign-comment: 'I have hereby read the F5 CLA and agree to its terms'
           custom-allsigned-prcomment: '✅ All required contributors have signed the F5 CLA for this PR. Thank you!'
           # Remote repository storing CLA signatures.
