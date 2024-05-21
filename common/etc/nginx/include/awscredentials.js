@@ -59,6 +59,12 @@ const EC2_IMDS_TOKEN_ENDPOINT = 'http://169.254.169.254/latest/api/token';
 const EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
 
 /**
+ * URL to EKS Pod Identity Agent credentials endpoint
+ * @type {string}
+ */
+const EKS_POD_IDENTITY_AGENT_CREDENTIALS_ENDPOINT = 'http://169.254.170.23/v1/credentials'
+
+/**
  * Offset to the expiration of credentials, when they should be considered expired and refreshed. The maximum
  * time here can be 5 minutes, the IMDS and ECS credentials endpoint will make sure that each returned set of credentials
  * is valid for at least another 5 minutes.
@@ -293,6 +299,15 @@ async function fetchCredentials(r) {
             r.return(500);
             return;
         }
+    } 
+    else if (utils.areAllEnvVarsSet('AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE')) {
+        try {
+            credentials = await _fetchEKSPodIdentityCredentials(r)
+        } catch (e) {
+            utils.debug_log(r, 'Could not assume role using EKS pod identity: ' + JSON.stringify(e));
+            r.return(500);
+            return;
+        }
     } else {
         try {
             credentials = await _fetchEC2RoleCredentials();
@@ -378,6 +393,29 @@ async function _fetchEC2RoleCredentials() {
     };
 }
 
+/**
+ * Get the credentials needed to generate AWS signatures from the EKS Pod Identity Agent
+ * endpoint.
+ *
+ * @returns {Promise<Credentials>}
+ * @private
+ */
+async function _fetchEKSPodIdentityCredentials() {
+    const token = fs.readFileSync(process.env['AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE']);
+    let resp = await ngx.fetch(EKS_POD_IDENTITY_AGENT_CREDENTIALS_ENDPOINT, {
+        headers: {
+            'Authorization': token,
+        },
+    });
+    const creds = await resp.json();
+
+    return {
+        accessKeyId: creds.AccessKeyId,
+        secretAccessKey: creds.SecretAccessKey,
+        sessionToken: creds.Token,
+        expiration: creds.Expiration,
+    };
+}
 /**
  * Get the credentials by assuming calling AssumeRoleWithWebIdentity with the environment variable
  * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and AWS_ROLE_SESSION_NAME
