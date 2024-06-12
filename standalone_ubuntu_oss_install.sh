@@ -231,12 +231,20 @@ fi
 
 set -o nounset   # abort on unbound variable
 
+
+# CORS related variable setup
 if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
 CORS_ALLOWED_ORIGIN="*"
 fi
 
+if [ "${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}" != "true" ] && [ "${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}" != "false" ]; then
+  CORS_ALLOW_PRIVATE_NETWORK_ACCESS=""
+fi
+
+
 cat >> "/etc/nginx/environment" << EOF
 CORS_ALLOWED_ORIGIN=${CORS_ALLOWED_ORIGIN}
+CORS_ALLOW_PRIVATE_NETWORK_ACCESS=${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}
 EOF
 
 # Only include these env vars if we are not using a instance profile credential
