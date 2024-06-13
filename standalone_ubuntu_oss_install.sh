@@ -237,7 +237,7 @@ if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
 CORS_ALLOWED_ORIGIN="*"
 fi
 
-if [ "${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}" != "true" ] && [ "${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}" != "false" ]; then
+if [ "${CORS_ALLOW_PRIVATE_NETWORK_ACCESS:-}" != "true" ] && [ "${CORS_ALLOW_PRIVATE_NETWORK_ACCESS:-}" != "false" ]; then
   CORS_ALLOW_PRIVATE_NETWORK_ACCESS=""
 fi
 
