@@ -350,7 +350,8 @@ runUnitTestWithOutSessionToken() {
         -v "$(pwd)/test/unit:/var/tmp"        \
         --workdir /var/tmp                    \
         -e "DEBUG=true"                       \
-        -e "S3_STYLE=virtual"                 \
+        -e "S3_STYLE=virtual-v2"                 \
+        -e "S3_SERVICE=s3"                    \
         -e "AWS_ACCESS_KEY_ID=unit_test"      \
         -e "AWS_SECRET_ACCESS_KEY=unit_test"  \
         -e "S3_BUCKET_NAME=unit_test"         \
@@ -369,7 +370,8 @@ runUnitTestWithOutSessionToken() {
         -v "$(pwd)/test/unit:/var/tmp"        \
         --workdir /var/tmp                    \
         -e "DEBUG=true"                       \
-        -e "S3_STYLE=virtual"                 \
+        -e "S3_STYLE=virtual-v2"                 \
+        -e "S3_SERVICE=s3"                    \
         -e "AWS_ACCESS_KEY_ID=unit_test"      \
         -e "AWS_SECRET_ACCESS_KEY=unit_test"  \
         -e "S3_BUCKET_NAME=unit_test"         \
@@ -395,7 +397,8 @@ runUnitTestWithSessionToken() {
         -v "$(pwd)/test/unit:/var/tmp"        \
         --workdir /var/tmp                    \
         -e "DEBUG=true"                       \
-        -e "S3_STYLE=virtual"                 \
+        -e "S3_STYLE=virtual-v2"                 \
+        -e "S3_SERVICE=s3"                    \
         -e "AWS_ACCESS_KEY_ID=unit_test"      \
         -e "AWS_SECRET_ACCESS_KEY=unit_test"  \
         -e "AWS_SESSION_TOKEN=unit_test"      \
@@ -415,7 +418,8 @@ runUnitTestWithSessionToken() {
         -v "$(pwd)/test/unit:/var/tmp"        \
         --workdir /var/tmp                    \
         -e "DEBUG=true"                       \
-        -e "S3_STYLE=virtual"                 \
+        -e "S3_STYLE=virtual-v2"                 \
+        -e "S3_SERVICE=s3"                    \
         -e "AWS_ACCESS_KEY_ID=unit_test"      \
         -e "AWS_SECRET_ACCESS_KEY=unit_test"  \
         -e "AWS_SESSION_TOKEN=unit_test"      \

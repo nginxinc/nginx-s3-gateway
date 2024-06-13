@@ -4,8 +4,5 @@ resolver ${DNS_RESOLVERS};
 upstream storage_urls {
     # Upstreams are not refreshed until NGINX configuration is reloaded.
     # NGINX Plus will dynamically reload upstreams when DNS records are changed.
-
-    # Be sure to specify the port in the S3_SERVER and be sure that port
-    # corresponds to the https/http in the proxy_pass directive.
-    server ${S3_SERVER}:${S3_SERVER_PORT};
+    server ${S3_UPSTREAM};
 }
