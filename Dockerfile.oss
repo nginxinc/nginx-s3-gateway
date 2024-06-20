@@ -2,7 +2,7 @@ FROM nginx:1.27.0@sha256:56b388b0d79c738f4cf51bbaf184a14fab19337f4819ceb2cae7d94
 
 # NJS env vars
 ENV NJS_VERSION     0.8.4
-ENV NJS_RELEASE     3~bookworm
+ENV NJS_RELEASE     2~bookworm
 
 # Proxy cache env vars
 ENV PROXY_CACHE_MAX_SIZE "10g"
