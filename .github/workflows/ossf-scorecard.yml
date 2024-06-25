@@ -1,0 +1,63 @@
+---
+# This workflow uses actions that are not certified by GitHub. They are provided by a third-party and are governed by separate terms of service, privacy policy, and support documentation.
+name: OSSF Scorecard
+on:
+  # For Branch-Protection check. Only the default branch is supported. See https://github.com/ossf/scorecard/blob/main/docs/checks.md#branch-protection.
+  branch_protection_rule:
+  push:
+    branches: [main]
+  # To guarantee Maintained check is occasionally updated. See https://github.com/ossf/scorecard/blob/main/docs/checks.md#maintained.
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+# Declare default permissions as read only.
+permissions: read-all
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-22.04
+    permissions:
+      # Needed if using Code Scanning alerts
+      security-events: write
+      # Needed for GitHub OIDC token if publish_results is true
+      id-token: write
+      # Uncomment the permissions below if installing on a private repository.
+      # contents: read
+      # actions: read
+      # issues: read # To allow GraphQL ListCommits to work
+      # pull-requests: read # To allow GraphQL ListCommits to work
+      # checks: read # To detect SAST tools
+    steps:
+      - name: Check out the codebase
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@dc50aa9510b46c811795eb24b2f1ba02a914e534 # v2.3.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # (Optional) fine-grained personal access token. Uncomment the `repo_token` line below if:
+          #   - You want to enable the Branch-Protection check on a *public* repository.
+          #   - You are installing the OSSF Scorecard on a *private* repository.
+          # To create the PAT, follow the steps in https://github.com/ossf/scorecard-action#authentication-with-fine-grained-pat-optional.
+          # repo_token: ${{ secrets.SCORECARD_TOKEN }}
+
+          # Publish the results for public repositories to enable scorecard badges. For more details, see https://github.com/ossf/scorecard-action#publishing-results.
+          # For private repositories, `publish_results` will automatically be set to `false`, regardless of the value entered here.
+          publish_results: true
+
+      # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF format to the repository Actions tab.
+      - name: Upload artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      # Upload the results to GitHub's code scanning dashboard.
+      - name: Upload SARIF results to code scanning
+        uses: github/codeql-action/upload-sarif@23acc5c183826b7a8a97bce3cecc52db901f8251 # v3.25.10
+        with:
+          sarif_file: results.sarif

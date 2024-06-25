@@ -22,7 +22,7 @@ set -e
 
 failed=0
 
-required=("S3_SERVICE" "S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
+required=("S3_BUCKET_NAME" "S3_SERVER" "S3_SERVER_PORT" "S3_SERVER_PROTO"
 "S3_REGION" "S3_STYLE" "ALLOW_DIRECTORY_LIST" "AWS_SIGS_VERSION"
 "CORS_ENABLED")
 
@@ -122,7 +122,7 @@ if [ $failed -gt 0 ]; then
 fi
 
 echo "S3 Backend Environment"
-echo "Service: ${S3_SERVICE}"
+echo "Service: ${S3_SERVICE:-s3}"
 echo "Access Key ID: ${AWS_ACCESS_KEY_ID}"
 echo "Origin: ${S3_SERVER_PROTO}://${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
 echo "Region: ${S3_REGION}"
@@ -134,4 +134,6 @@ echo "Directory Listing Path Prefix: ${DIRECTORY_LISTING_PATH_PREFIX}"
 echo "Provide Index Pages Enabled: ${PROVIDE_INDEX_PAGE}"
 echo "Append slash for directory enabled: ${APPEND_SLASH_FOR_POSSIBLE_DIRECTORY}"
 echo "Stripping the following headers from responses: x-amz-;${HEADER_PREFIXES_TO_STRIP}"
+echo "Allow the following headers from responses (these take precendence over the above): ${HEADER_PREFIXES_ALLOWED}"
 echo "CORS Enabled: ${CORS_ENABLED}"
+echo "CORS Allow Private Network Access: ${CORS_ALLOW_PRIVATE_NETWORK_ACCESS}"

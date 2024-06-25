@@ -142,13 +142,53 @@ function testEditHeaders() {
     }
 
     s3gateway.editHeaders(r);
-
+    
     for (const key in r.headersOut) {
         if (key.toLowerCase().indexOf("x-amz", 0) >= 0) {
             throw "x-amz header not stripped from headers correctly";
         }
     }
 }
+
+function testEditHeadersWithAllowedPrefixes() {
+    printHeader('testEditHeadersWithAllowedPrefixes');
+
+    process.env['HEADER_PREFIXES_ALLOWED'] = 'x-amz-'
+    const r = {
+        "headersOut": {
+            "Accept-Ranges": "bytes",
+            "Content-Length": 42,
+            "Content-Security-Policy": "block-all-mixed-content",
+            "Content-Type": "text/plain",
+            "X-Amz-Bucket-Region": "us-east-1",
+            "X-Amz-Request-Id": "166539E18A46500A",
+            "X-Xss-Protection": "1; mode=block"
+        },
+        "variables": {
+            "uri_path": "/a/c/ramen.jpg"
+        },
+    }
+
+    r.log = function(msg) {
+        console.log(msg);
+    }
+
+    s3gateway.editHeaders(r);
+    
+    let found_headers_x_amz_ = 0
+    for (const key in r.headersOut) {
+        if (key.toLowerCase().indexOf("x-amz", 0) == 0) {
+            found_headers_x_amz_++;
+        }
+    }
+
+    if (found_headers_x_amz_ != 2)
+        throw "x-amz header stripped from headers, should allow those 2 headers";
+
+    delete process.env['HEADER_PREFIXES_ALLOWED']
+        
+}
+
 
 function testEditHeadersHeadDirectory() {
     printHeader('testEditHeadersHeadDirectory');
@@ -189,6 +229,18 @@ function testIsHeaderToBeStripped() {
     if (!s3gateway._isHeaderToBeStripped('x-goog-storage-class',
         ['x-goog'])) {
         throw "x-goog-storage-class header should be stripped";
+    }
+}
+
+function testIsHeaderToBeAllowed() {
+    printHeader('testIsHeaderToBeAllowed');
+
+    if (!s3gateway._isHeaderToBeAllowed('x-amz-abc', ['x-amz-'])) {
+        throw "x-amz-abc header should be allowed";
+    }
+
+    if (s3gateway._isHeaderToBeAllowed('x-amz-xyz',['x-amz-abc'])) {
+        throw "x-amz-xyz header should be stripped";
     }
 }
 

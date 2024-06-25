@@ -39,7 +39,6 @@ _requireEnvVars('S3_SERVER_PORT');
 _requireEnvVars('S3_REGION');
 _requireEnvVars('AWS_SIGS_VERSION');
 _requireEnvVars('S3_STYLE');
-_requireEnvVars('S3_SERVICE');
 
 
 /**
@@ -77,6 +76,14 @@ const S3_STYLE = process.env['S3_STYLE'];
  * @type {Array<String>}
  * */
 const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = utils.parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
+
+/**
+ * Additional header prefixes to allow from the response before sending to the
+ * client. This is opposite to HEADER_PREFIXES_TO_STRIP.
+ * @type {Array<String>}
+ * */
+const ADDITIONAL_HEADER_PREFIXES_ALLOWED = utils.parseArray(process.env['HEADER_PREFIXES_ALLOWED']);
+
 /**
  * Default filename for index pages to be read off of the backing object store.
  * @type {string}
@@ -100,15 +107,19 @@ function editHeaders(r) {
         r.method === 'HEAD' &&
         _isDirectory(decodeURIComponent(r.variables.uri_path));
 
-    /* Strips all x-amz- headers from the output HTTP headers so that the
+    /* Strips all x-amz- (if x-amz- is not in ADDITIONAL_HEADER_PREFIXES_ALLOWED) headers from the output HTTP headers so that the
      * requesters to the gateway will not know you are proxying S3. */
     if ('headersOut' in r) {
         for (const key in r.headersOut) {
+            const headerName = key.toLowerCase()
             /* We delete all headers when it is a directory head request because
              * none of the information is relevant for passing on via a gateway. */
             if (isDirectoryHeadRequest) {
                 delete r.headersOut[key];
-            } else if (_isHeaderToBeStripped(key.toLowerCase(), ADDITIONAL_HEADER_PREFIXES_TO_STRIP)) {
+            } else if (
+                !_isHeaderToBeAllowed(headerName, ADDITIONAL_HEADER_PREFIXES_ALLOWED)
+                && _isHeaderToBeStripped(headerName, ADDITIONAL_HEADER_PREFIXES_TO_STRIP)
+            ) {
                 delete r.headersOut[key];
             }
         }
@@ -138,6 +149,24 @@ function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
     for (let i = 0; i < additionalHeadersToStrip.length; i++) {
         const headerToStrip = additionalHeadersToStrip[i];
         if (headerName.indexOf(headerToStrip, 0) >= 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Determines if a given HTTP header should be force allowed from requesting client.
+ * @param headerName {string} Lowercase HTTP header name
+ * @param additionalHeadersToAllow {Array<string>} array of additional headers to allow
+ * @returns {boolean} true if header should be removed
+ */
+function _isHeaderToBeAllowed(headerName, additionalHeadersToAllow) {
+
+    for (let i = 0; i < additionalHeadersToAllow.length; i++) {
+        const headerToAllow = additionalHeadersToAllow[i];
+        if (headerName.indexOf(headerToAllow, 0) >= 0) {
             return true;
         }
     }

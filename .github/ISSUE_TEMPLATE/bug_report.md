@@ -1,31 +1,41 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-
+title: ""
+labels: ""
+assignees: ""
 ---
 
-**Describe the bug**
+### Describe the bug
+
 A clear and concise description of what the bug is.
 
-**To Reproduce**
+### To reproduce
+
 Steps to reproduce the behavior:
-1. Start container with x/y arguments
-2. View logs on '....'
+
+1. Start container with [...] arguments
+2. View output/logs/configuration on [...]
 3. See error
 
-**Expected behavior**
+### Expected behavior
+
 A clear and concise description of what you expected to happen.
 
-**Your environment**
-* Version of the repo - a specific commit or tag
-* Version of the container used (if downloaded from Docker Hub or Github)
-* S3 backend implementation you are using (AWS, Ceph, NetApp StorageGrid, etc)
-* How you are deploying Docker/Stand-alone, etc
-* NGINX type (OSS/Plus)
-* Authentication method (IAM, IAM with Fargate, IAM with K8S, AWS Credentials, etc)
+### Your environment
 
-**Additional context**
-Add any other context about the problem here. Any log files you want to share.
+- Version of the S3 container used (when downloaded from either Docker Hub or the GitHub Container Registry)
+- Version of this project or specific commit when building your own S3 container
+- Version of NGINX Open Source or NGINX Plus (OSS/Plus)
+- Version of NGINX JavaScript
+- Target deployment platform for the S3 container
+- S3 backend implementation (AWS, Ceph, NetApp StorageGrid, etc...)
+- Authentication method (IAM, IAM with Fargate, IAM with K8S, AWS Credentials, etc...)
 
-**Sensitive Information**
-Be sure to redact any sensitive information such as your AWS authentication keys.
+### Additional context
+
+Add any other context about the problem here.
+
+### Sensitive Information
+
+Remember to redact any sensitive information such as authentication credentials or license keys.
