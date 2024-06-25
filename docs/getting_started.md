@@ -2,13 +2,13 @@
 
 ## Contents
 
-[Configuration](#configuration)  
-[Running as a Systemd Service](#running-as-a-systemd-service)  
-[Running in Containers](#running-in-containers)  
-[Running Using AWS Instance Profile Credentials](#running-using-aws-instance-profile-credentials)  
-[Running on EKS with IAM roles for service accounts](#running-on-eks-with-iam-roles-for-service-accounts)  
-[Running on EKS with EKS Pod Identities](#running-on-eks-with-eks-pod-identities)  
-[Troubleshooting](#troubleshooting)  
+[Configuration](#configuration)
+[Running as a Systemd Service](#running-as-a-systemd-service)
+[Running in Containers](#running-in-containers)
+[Running Using AWS Instance Profile Credentials](#running-using-aws-instance-profile-credentials)
+[Running on EKS with IAM roles for service accounts](#running-on-eks-with-iam-roles-for-service-accounts)
+[Running on EKS with EKS Pod Identities](#running-on-eks-with-eks-pod-identities)
+[Troubleshooting](#troubleshooting)
 
 ## Configuration
 
@@ -56,12 +56,12 @@ If you are using [AWS instance profile credentials](https://docs.aws.amazon.com/
 you will need to omit the `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN` variables from
 the configuration.
 
-When running with Docker, the above environment variables can be set in a file 
+When running with Docker, the above environment variables can be set in a file
 with the `--env-file` flag. When running as a Systemd service, the environment
 variables are specified in the `/etc/nginx/environment` file. An example of
 the format of the file can be found in the [settings.example](/settings.example)
 file.
-  
+
 There are few optional environment variables that can be used.
 
 * `AWS_ROLE_SESSION_NAME` - (optional) The value will be used for Role Session Name. The default value is nginx-s3-gateway.
@@ -98,12 +98,12 @@ All items are set to the same value:
 ### Configuring Directory Listing
 
 Listing of S3 directories ([folders](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-folders.html)) is supported when the
-`ALLOW_DIRECTORY_LIST` environment variable is set to `1`. Directory listing 
+`ALLOW_DIRECTORY_LIST` environment variable is set to `1`. Directory listing
 output can be customized by changing the
 [XSL stylesheet](https://www.w3schools.com/xml/xsl_intro.asp): [`common/etc/nginx/include/listing.xsl`](/common/etc/nginx/include/listing.xsl).
-If you are not using AWS S3 as your backend, you may see some inconsistency in 
+If you are not using AWS S3 as your backend, you may see some inconsistency in
 the behavior with how directory listing works with HEAD requests. Additionally,
-due to limitations in proxy response processing, invalid S3 folder requests will 
+due to limitations in proxy response processing, invalid S3 folder requests will
 result in log messages like:
 ```
  libxml2 error: "Extra content at the end of the document"
@@ -120,22 +120,22 @@ the path of the files returned from the listing.
 Using the `DIRECTORY_LISTING_PATH_PREFIX` environment variable will allow
 one to add that prefix in listing page's header and links.
 
-For example, if one configures to `DIRECTORY_LISTING_PATH_PREFIX='main/'` and 
-then uses HAProxy to proxy the gateway with the 
+For example, if one configures to `DIRECTORY_LISTING_PATH_PREFIX='main/'` and
+then uses HAProxy to proxy the gateway with the
 `http-request set-path %[path,regsub(^/main,/)]` setting, the architecture
-will look like the following: 
+will look like the following:
 
 ![](./img/nginx-s3-gateway-directory-listing-path-prefix.png)
 
 ### Static Site Hosting
 
 When `PROVIDE_INDEX_PAGE` environment variable is set to 1, the gateway will
-transform `/some/path/` to `/some/path/index.html` when retrieving from S3.  
-Default of "index.html" can be edited in `s3gateway.js`. 
-It will also redirect `/some/path` to `/some/path/` when S3 returns 404 on 
-`/some/path` if `APPEND_SLASH_FOR_POSSIBLE_DIRECTORY` is set. `path` has to 
-look like a possible directory, it must not start with a `.` and not have an 
-extension.  
+transform `/some/path/` to `/some/path/index.html` when retrieving from S3.
+Default of "index.html" can be edited in `s3gateway.js`.
+It will also redirect `/some/path` to `/some/path/` when S3 returns 404 on
+`/some/path` if `APPEND_SLASH_FOR_POSSIBLE_DIRECTORY` is set. `path` has to
+look like a possible directory, it must not start with a `.` and not have an
+extension.
 
 ### Hosting a Bucket as a Subfolder on an ALB
 
@@ -189,12 +189,12 @@ A sample Terraform script to provision a bucket is provided in `/deployments/s3_
 ## Running as a Systemd Service
 
 An [install script](/standalone_ubuntu_oss_install.sh) for the gateway shows
-how to install NGINX from a package repository, checkout the gateway source, 
+how to install NGINX from a package repository, checkout the gateway source,
 and configure it using the supplied environment variables.
 
 To run the script copy it to your destination system, load the environment
 variables mentioned in the [configuration section](#configuration) into memory,
-and then execute the script. The script takes one optional parameter that 
+and then execute the script. The script takes one optional parameter that
 specifies the name of the branch to download files from.
 
 For example:
@@ -206,7 +206,7 @@ sudo env $(cat settings.example) ./standalone_ubuntu_oss_install.sh
 
 ### Running the Public Open Source NGINX Container Image
 
-The latest builds of the gateway (that use open source NGINX) are available on 
+The latest builds of the gateway (that use open source NGINX) are available on
 the project's Github [package repository](https://github.com/nginxinc/nginx-s3-gateway/pkgs/container/nginx-s3-gateway%2Fnginx-oss-s3-gateway).
 
 To run with the public open source image, replace the `settings` file specified
@@ -219,7 +219,7 @@ docker run --env-file ./settings --publish 80:80 --name nginx-s3-gateway \
 If you would like to run with the latest njs version, run:
 ```
 docker run --env-file ./settings --publish 80:80 --name nginx-s3-gateway \
-    ghcr.io/nginxinc/nginx-s3-gateway/nginx-oss-s3-gateway:latest-njs-oss 
+    ghcr.io/nginxinc/nginx-s3-gateway/nginx-oss-s3-gateway:latest-njs-oss
 ```
 
 Alternatively, if you would like to pin your version to a specific point in
@@ -239,13 +239,13 @@ docker build --file Dockerfile.oss --tag nginx-s3-gateway:oss --tag nginx-s3-gat
 ```
 
 Alternatively, if you would like to use the latest version of
-[njs](https://nginx.org/en/docs/njs/), you can build an image from the latest 
+[njs](https://nginx.org/en/docs/njs/), you can build an image from the latest
 njs source by building this image after building the parent image above:
 ```
 docker build --file Dockerfile.oss --tag nginx-s3-gateway --tag nginx-s3-gateway:latest-njs-oss .
 ```
 
-After building, you can run the image by issuing the following command and 
+After building, you can run the image by issuing the following command and
 replacing the path to the `settings` file with a file containing your specific
 environment variables.
 ```
@@ -268,11 +268,7 @@ It is worth noting that due to the way the startup scripts work, even the unpriv
 
 ### Building the NGINX Plus Container Image
 
-In order to build the NGINX Plus container image, copy your NGINX Plus 
-repository keys (`nginx-repo.crt` and `nginx-repo.key`) into the 
-`plus/etc/ssl/nginx` directory before building.
-
-If you are using a version of Docker that supports Buildkit, then you can
+In order to build the NGINX Plus container image, you can
 build the image as follows in order to prevent your private keys from
 being stored in the container image.
 
@@ -280,33 +276,17 @@ To build, run the following from the project root directory:
 
 ```
 DOCKER_BUILDKIT=1 docker build \
-    --file Dockerfile.buildkit.plus \
+    --file Dockerfile.plus \
     --tag nginx-plus-s3-gateway --tag nginx-plus-s3-gateway:plus \
     --secret id=nginx-crt,src=plus/etc/ssl/nginx/nginx-repo.crt \
     --secret id=nginx-key,src=plus/etc/ssl/nginx/nginx-repo.key \
     --squash .
 ```
 
-Otherwise, if you don't have Buildkit available, then build as follows. If you
-want to remove the private keys from the image, then you may need to do a
-post-build squash operation using a utility like
-[docker-squash](https://pypi.org/project/docker-squash/).
-
-```
-docker build --file Dockerfile.plus --tag nginx-plus-s3-gateway --tag nginx-plus-s3-gateway:plus .
-``` 
-
-Alternatively, if you would like to use the latest version of
-[njs](https://nginx.org/en/docs/njs/) with NGINX Plus, you can build an image
-from the latest njs source by building this image after building the parent 
-image above:
-```
-docker build --file Dockerfile.plus --tag nginx-plus-s3-gateway --tag nginx-plus-s3-gateway:latest-njs-plus .
-```
-
 After building, you can run the image by issuing the following command and
 replacing the path to the `settings` file with a file containing your specific
 environment variables.
+
 ```
 docker run --env-file ./settings --publish 80:80 --name nginx-plus-s3-gateway \
     nginx-plus-s3-gateway:plus
@@ -316,9 +296,9 @@ docker run --env-file ./settings --publish 80:80 --name nginx-plus-s3-gateway \
 
 [AWS instance profiles](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#ec2-instance-profile)
 allow you to assign a role to a compute so that other AWS services can trust
-the instance without having to store authentication keys in the compute 
+the instance without having to store authentication keys in the compute
 instance. This is useful for the gateway because it allows us to run the
-gateway without storing an unchanging `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and 
+gateway without storing an unchanging `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and
 `AWS_SESSION_TOKEN` in a file on disk or in an easily read environment variable.
 
 Instance profiles work by providing credentials to the instance via the
@@ -334,7 +314,7 @@ instance, if we run the gateway as a Systemd service there are no additional
 steps. We just run the install script without specifying the
 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN` environment variables.
 
-However, if we want to run the gateway as a container instance on that 
+However, if we want to run the gateway as a container instance on that
 EC2 instance, then we will need to run the following command using the AWS
 CLI tool to allow the metadata endpoint to be accessed from within a container.
 
@@ -380,7 +360,7 @@ modified.
     --stack-name nginx-s3-gateway \
     --query "Stacks[0].Outputs[0].OutputValue"
   ```
-  - Upload a file to the bucket first to prevent getting a `404` when visiting 
+  - Upload a file to the bucket first to prevent getting a `404` when visiting
     the URL in your browser
   ```sh
   # i.e.
@@ -480,7 +460,7 @@ An alternative way to use the container image on an EKS cluster is to use a serv
 - Configuring a [Kubernetes service account to assume an IAM role with EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-association.html)
 - [Configure your pods, Deployments, etc to use the Service Account](https://docs.aws.amazon.com/eks/latest/userguide/pod-configuration.html)
 - As soon as the pods/deployments are updated, you will see the couple of Env Variables listed below in the pods.
-  - `AWS_CONTAINER_CREDENTIALS_FULL_URI` - Contains the Uri of the EKS Pod Identity Agent that will provide the credentials 
+  - `AWS_CONTAINER_CREDENTIALS_FULL_URI` - Contains the Uri of the EKS Pod Identity Agent that will provide the credentials
   - `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE`  - Contains the token which will be used to create temporary credentials using the EKS Pod Identity Agent.
 
 The minimal set of resources to deploy is the same than for [Running on EKS with IAM roles for service accounts](#running-on-eks-with-iam-roles-for-service-accounts), except there is no need to annotate the service account:
@@ -494,11 +474,11 @@ metadata:
 ## Troubleshooting
 
 ### Disable default `404` error message
-The default behavior of the container is to return a `404` error message for any non-`200` response code. This is implemented as a security feature to sanitize any error response from the S3 bucket being proxied. For container debugging purposes, this sanitization can be turned off by commenting out the following lines within [`default.conf.template`](https://github.com/nginxinc/nginx-s3-gateway/blob/master/common/etc/nginx/templates/default.conf.template). 
+The default behavior of the container is to return a `404` error message for any non-`200` response code. This is implemented as a security feature to sanitize any error response from the S3 bucket being proxied. For container debugging purposes, this sanitization can be turned off by commenting out the following lines within [`default.conf.template`](https://github.com/nginxinc/nginx-s3-gateway/blob/master/common/etc/nginx/templates/default.conf.template).
 ```bash
 proxy_intercept_errors on;
 error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
 ```
 
 ### Error `403 Access Denied` for AWS Accounts with MFA Enabled
-The REST authentication method used in this container does not work with AWS IAM roles that have MFA enabled for authentication. Please use AWS IAM role credentials that do not have MFA enabled. 
+The REST authentication method used in this container does not work with AWS IAM roles that have MFA enabled for authentication. Please use AWS IAM role credentials that do not have MFA enabled.
