@@ -1,6 +1,9 @@
 ARG RELEASE=bookworm
 FROM debian:${RELEASE}-slim@sha256:67f3931ad8cb1967beec602d8c0506af1e37e8d73c2a0b38b181ec5d8560d395
 
+# Persist RELEASE argument
+ARG RELEASE
+
 # NJS env vars
 ENV NGINX_VERSION=32
 ENV NGINX_PKG_RELEASE=1~${RELEASE}
@@ -38,25 +41,25 @@ RUN --mount=type=secret,id=nginx-crt,dst=nginx-repo.crt \
     && groupadd --system --gid 101 nginx \
     && useradd --system --gid nginx --no-create-home --home /nonexistent --comment "nginx user" --shell /bin/false --uid 101 nginx \
     && apt-get update \
-    && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates gnupg2 lsb-release \
+    && apt-get install --no-install-recommends --no-install-suggests -y ca-certificates gnupg1 lsb-release \
     && \
     NGINX_GPGKEYS="573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62 8540A6F18833A80E9C1653A42FD21310B49F6B46 9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3"; \
-    NGINX_GPGKEY_PATH=/usr/share/keyrings/nginx-archive-keyring.gpg; \
+    NGINX_GPGKEY_PATH=/etc/apt/keyrings/nginx-archive-keyring.gpg; \
     export GNUPGHOME="$(mktemp -d)"; \
     found=''; \
     for NGINX_GPGKEY in $NGINX_GPGKEYS; do \
-        for server in \
-            hkp://keyserver.ubuntu.com:80 \
-            pgp.mit.edu \
-        ; do \
-            echo "Fetching GPG key $NGINX_GPGKEY from $server"; \
-            gpg --keyserver "$server" --keyserver-options timeout=10 --recv-keys "$NGINX_GPGKEY" && found=yes && break; \
-        done; \
-        test -z "$found" && echo >&2 "error: failed to fetch GPG key $NGINX_GPGKEY" && exit 1; \
+    for server in \
+        hkp://keyserver.ubuntu.com:80 \
+        pgp.mit.edu \
+    ; do \
+        echo "Fetching GPG key $NGINX_GPGKEY from $server"; \
+        gpg1 --keyserver "$server" --keyserver-options timeout=10 --recv-keys "$NGINX_GPGKEY" && found=yes && break; \
+    done; \
+    test -z "$found" && echo >&2 "error: failed to fetch GPG key $NGINX_GPGKEY" && exit 1; \
     done; \
     gpg1 --export "$NGINX_GPGKEYS" > "$NGINX_GPGKEY_PATH" ; \
     rm -rf "$GNUPGHOME"; \
-    apt-get remove --purge --auto-remove -y gnupg2 && rm -rf /var/lib/apt/lists/* \
+    apt-get remove --purge --auto-remove -y gnupg1 && rm -rf /var/lib/apt/lists/* \
 # Install the latest release of NGINX Plus and/or NGINX Plus modules (written and maintained by F5)
     && nginxPackages=" \
         nginx-plus=${NGINX_VERSION}-${NGINX_PKG_RELEASE} \
