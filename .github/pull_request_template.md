@@ -4,10 +4,11 @@ Describe the use case and detail of the change. If this PR addresses an issue on
 
 ### Checklist
 
-Before creating a PR, run through this checklist and mark each as complete:
+Before creating a pull request (PR), run through this checklist and mark each as complete:
 
 - [ ] I have read the [contributing guidelines](/CONTRIBUTING.md).
 - [ ] I have signed the [F5 Contributor License Agreement (CLA)](https://github.com/f5/.github/blob/main/CLA/cla-markdown.md).
+- [ ] The PR title follows the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/).
 - [ ] If applicable, I have added tests that prove my fix is effective or that my feature works.
 - [ ] If applicable, I have checked that any relevant tests pass after adding my changes.
 - [ ] I have updated any relevant documentation (e.g. [`README.md`](/README.md)).
