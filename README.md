@@ -76,9 +76,7 @@ test/                            contains automated tests for validang that the 
 Dockerfile.oss                   Dockerfile that configures NGINX OSS to act as a S3 gateway
 Dockerfile.plus                  Dockerfile that builds a NGINX Plus instance that is configured
                                  equivelently to NGINX OSS - instance is configured to act as a
-                                 S3 gateway with NGINX Plus additional features enabled
-Dockerfile.buildkit.plus         Dockerfile with the same configuration as Dockerfile.plus, but
-                                 with support for hiding secrets using Docker's Buildkit
+                                 S3 gateway with NGINX Plus additional features enabled. The NGINX Plus license is parsed via Docker's Buildkit built-in support for secrets
 Dockerfile.latest-njs            Dockerfile that inherits from the last build of the gateway and
                                  then builds and installs the latest version of njs from source
 Dockerfile.unprivileged          Dockerfiles that inherits from the last build of the gateway and
