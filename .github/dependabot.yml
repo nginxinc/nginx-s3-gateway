@@ -13,6 +13,13 @@ updates:
       interval: weekly
       day: monday
       time: "00:00"
+    groups:
+      docker-github-actions:
+        patterns:
+          - docker/*
+      official-github-actions:
+        patterns:
+          - actions/*
   - package-ecosystem: npm
     directory: /
     schedule:
