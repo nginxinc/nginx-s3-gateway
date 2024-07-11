@@ -28,16 +28,16 @@ permissions: read-all
 jobs:
   build-oss-for-test:
     name: Build NGINX OSS image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out the codebase
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+        uses: docker/setup-buildx-action@4fd812986e6c8c2a69e18311145f9371337f27d4 # v3.4.0
 
       - name: Build and export
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
+        uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6.3.0
         with:
           file: Dockerfile.oss
           context: .
@@ -45,7 +45,7 @@ jobs:
           outputs: type=docker,dest=${{ runner.temp }}/oss.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: oss
           path: ${{ runner.temp }}/oss.tar
@@ -83,7 +83,7 @@ jobs:
           chmod +x mc
 
       - name: Download artifact
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: oss
           path: ${{ runner.temp }}
@@ -104,12 +104,12 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+        uses: docker/setup-buildx-action@4fd812986e6c8c2a69e18311145f9371337f27d4 # v3.4.0
         with:
           driver: docker
 
       - name: Download artifact
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: oss
           path: ${{ runner.temp }}
@@ -119,7 +119,7 @@ jobs:
           docker load --input ${{ runner.temp }}/oss.tar
 
       - name: Build and load oss image
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
+        uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6.3.0
         with:
           file: Dockerfile.latest-njs
           context: .
@@ -132,7 +132,7 @@ jobs:
           docker save nginx-s3-gateway:latest-njs-oss > ${{ runner.temp }}/latest-njs.tar
 
       - name: Upload artifact - latest-njs
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: latest-njs
           path: ${{ runner.temp }}/latest-njs.tar
@@ -167,7 +167,7 @@ jobs:
           chmod +x mc
 
       - name: Download artifact
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: latest-njs
           path: ${{ runner.temp }}
@@ -189,12 +189,12 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+        uses: docker/setup-buildx-action@4fd812986e6c8c2a69e18311145f9371337f27d4 # v3.4.0
         with:
           driver: docker
 
       - name: Download artifact
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: oss
           path: ${{ runner.temp }}
@@ -204,7 +204,7 @@ jobs:
           docker load --input ${{ runner.temp }}/oss.tar
 
       - name: Build and load oss image
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
+        uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6.3.0
         with:
           file: Dockerfile.unprivileged
           context: .
@@ -217,7 +217,7 @@ jobs:
           docker save nginx-s3-gateway:unprivileged-oss > ${{ runner.temp }}/unprivileged.tar
 
       - name: Upload artifact - unprivileged
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: unprivileged
           path: ${{ runner.temp }}/unprivileged.tar
@@ -252,7 +252,7 @@ jobs:
           chmod +x mc
 
       - name: Download artifact
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: unprivileged
           path: ${{ runner.temp }}
@@ -288,16 +288,16 @@ jobs:
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+        uses: docker/setup-qemu-action@5927c834f5b4fdf503fca6f4c7eccda82949e1ee # v3.1.0
 
       - name: Set up Docker Buildx for local image build and push
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+        uses: docker/setup-buildx-action@4fd812986e6c8c2a69e18311145f9371337f27d4 # v3.4.0
         with:
           driver-opts: network=host
 
       # Do an initial build of the base image and push to a local registry for downstream images because the `docker-container` driver can't find local images with `load`.
       - name: Build and push image [oss] to local registry for downstream
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
+        uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6.3.0
         with:
           file: Dockerfile.oss
           context: .
@@ -321,7 +321,7 @@ jobs:
 
       # This second invocation of the build/push should just use the existing build cache.
       - name: Build and push image [oss]
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
+        uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6.3.0
         with:
           file: Dockerfile.oss
           context: .
@@ -335,7 +335,7 @@ jobs:
             nginxinc/nginx-s3-gateway:latest
 
       - name: Build and push image [latest-njs]
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
+        uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6.3.0
         with:
           file: Dockerfile.latest-njs
           context: .
@@ -351,7 +351,7 @@ jobs:
             nginxinc/nginx-s3-gateway:latest-njs-oss
 
       - name: Build and push image [unprivileged]
-        uses: docker/build-push-action@31159d49c0d4756269a0940a750801a1ea5d7003 # v6.1.0
+        uses: docker/build-push-action@1a162644f9a7e87d8f4b053101d1d9a712edc18c # v6.3.0
         with:
           file: Dockerfile.unprivileged
           context: .

@@ -9,7 +9,7 @@ permissions: read-all
 jobs:
   f5-cla:
     name: F5 CLA
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       actions: write
       pull-requests: write
@@ -20,17 +20,17 @@ jobs:
         uses: contributor-assistant/github-action@9340315624c6e16cef1f2c63bdeb0f0c49c6f474 # v2.4.0
         with:
           # Any pull request targeting the following branch will trigger a CLA check.
-          branch: 'main'
+          branch: main
           # Path to the CLA document.
-          path-to-document: 'https://github.com/f5/.github/blob/main/CLA/cla-markdown.md'
+          path-to-document: https://github.com/f5/.github/blob/main/CLA/cla-markdown.md
           # Custom CLA messages.
           custom-notsigned-prcomment: '🎉 Thank you for your contribution! It appears you have not yet signed the F5 Contributor License Agreement (CLA), which is required for your changes to be incorporated into an F5 Open Source Software (OSS) project. Please kindly read the [F5 CLA](https://github.com/f5/.github/blob/main/CLA/cla-markdown.md) and reply on a new comment with the following text to agree:'
           custom-pr-sign-comment: 'I have hereby read the F5 CLA and agree to its terms'
           custom-allsigned-prcomment: '✅ All required contributors have signed the F5 CLA for this PR. Thank you!'
           # Remote repository storing CLA signatures.
-          remote-organization-name: 'f5'
-          remote-repository-name: 'f5-cla-data'
-          path-to-signatures: 'signatures/beta/signatures.json'
+          remote-organization-name: f5
+          remote-repository-name: f5-cla-data
+          path-to-signatures: signatures/signatures.json
           # Comma separated list of usernames for maintainers or any other individuals who should not be prompted for a CLA.
           allowlist: 4141done, alessfg, dekobon, bot*
           # Do not lock PRs after a merge.
