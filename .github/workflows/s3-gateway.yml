@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the codebase
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
@@ -45,7 +45,7 @@ jobs:
           outputs: type=docker,dest=${{ runner.temp }}/oss.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: oss
           path: ${{ runner.temp }}/oss.tar
@@ -61,14 +61,14 @@ jobs:
         path_style: [virtual, virtual-v2]
     steps:
       - name: Check out the codebase
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
 
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@2cdf405574d6ef1f33a1d12acccd3ae82f47b3f2 # v4.1.0
+        uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
@@ -101,7 +101,7 @@ jobs:
     needs: test-oss
     steps:
       - name: Check out the codebase
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
@@ -132,7 +132,7 @@ jobs:
           docker save nginx-s3-gateway:latest-njs-oss > ${{ runner.temp }}/latest-njs.tar
 
       - name: Upload artifact - latest-njs
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: latest-njs
           path: ${{ runner.temp }}/latest-njs.tar
@@ -145,14 +145,14 @@ jobs:
     needs: build-latest-njs-for-test
     steps:
       - name: Check out the codebase
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
 
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@2cdf405574d6ef1f33a1d12acccd3ae82f47b3f2 # v4.1.0
+        uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
@@ -186,7 +186,7 @@ jobs:
     needs: test-oss
     steps:
       - name: Check out the codebase
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
@@ -217,7 +217,7 @@ jobs:
           docker save nginx-s3-gateway:unprivileged-oss > ${{ runner.temp }}/unprivileged.tar
 
       - name: Upload artifact - unprivileged
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: unprivileged
           path: ${{ runner.temp }}/unprivileged.tar
@@ -230,14 +230,14 @@ jobs:
     needs: build-unprivileged-for-test
     steps:
       - name: Check out the codebase
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Install dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y curl wait-for-it
 
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@2cdf405574d6ef1f33a1d12acccd3ae82f47b3f2 # v4.1.0
+        uses: actions/cache/restore@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
@@ -281,7 +281,7 @@ jobs:
           - 5000:5000
     steps:
       - name: Check out the codebase
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
 
       - name: Get current date
         id: date
