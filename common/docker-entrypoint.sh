@@ -32,16 +32,21 @@ parseBoolean() {
 
 # This line is an addition to the NGINX Docker image's entrypoint script.
 if [ -z ${DNS_RESOLVERS+x} ]; then
-  resolvers=""
-  for ip in $(grep nameserver /etc/resolv.conf | cut -d' ' -f2 | xargs)
-  do
-    if echo "${ip}" | grep -q ':'; then
-      resolvers="$resolvers [${ip}]"
-    else
-      resolvers="$resolvers $ip"
-    fi
-  done
-  export DNS_RESOLVERS="${resolvers}"
+    resolvers=""
+
+    # This method of pulling individual nameservers from
+    # /etc/resolv.conf taken from the entrypoint script in the
+    # official docker image.
+    # https://github.com/nginxinc/docker-nginx/blob/master/entrypoint/15-local-resolvers.envsh
+    for ip in $(awk 'BEGIN{ORS=" "} $1=="nameserver" {print $2}' /etc/resolv.conf)
+    do
+        if echo "${ip}" | grep -q ':'; then
+          resolvers="$resolvers [${ip}]"
+        else
+          resolvers="$resolvers $ip"
+        fi
+    done
+    export DNS_RESOLVERS="${resolvers}"
 fi
 
 # Normalize the CORS_ENABLED environment variable to a numeric value
@@ -62,6 +67,27 @@ fi
 if [ -z "${CORS_ALLOWED_ORIGIN+x}" ]; then
   export CORS_ALLOWED_ORIGIN="*"
 fi
+
+# This is the primary logic to determine the s3 host used for the
+# upstream (the actual proxying action) as well as the `Host` header
+#
+# It is currently slightly more complex than necessary because we are transitioning
+# to a new logic which is defined by "virtual-v2". "virtual-v2" is the recommended setting
+# for all deployments.
+
+# S3_UPSTREAM needs the port specified. The port must
+# correspond to https/http in the proxy_pass directive.
+if [ "${S3_STYLE}" == "virtual-v2" ]; then
+  export S3_UPSTREAM="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+  export S3_HOST_HEADER="${S3_BUCKET_NAME}.${S3_SERVER}:${S3_SERVER_PORT}"
+elif [ "${S3_STYLE}" == "path" ]; then
+  export S3_UPSTREAM="${S3_SERVER}:${S3_SERVER_PORT}"
+  export S3_HOST_HEADER="${S3_SERVER}:${S3_SERVER_PORT}"
+else
+  export S3_UPSTREAM="${S3_SERVER}:${S3_SERVER_PORT}"
+  export S3_HOST_HEADER="${S3_BUCKET_NAME}.${S3_SERVER}"
+fi
+
 
 # Nothing is modified under this line
 

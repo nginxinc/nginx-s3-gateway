@@ -3,6 +3,8 @@
     <xsl:output method="html" encoding="utf-8" indent="yes"/>
     <xsl:strip-space elements="*" />
 
+    <xsl:param name="rootPath" />
+
     <xsl:template match="/">
         <xsl:choose>
             <xsl:when test="//*[local-name()='Contents'] or //*[local-name()='CommonPrefixes']">
@@ -36,7 +38,7 @@
                 </title>
             </head>
             <body>
-                <h1>Index of /<xsl:value-of select="$globalPrefix"/></h1>
+                <h1>Index of /<xsl:value-of select="concat($rootPath, $globalPrefix)"/></h1>
                 <hr/>
                 <table id="list">
                     <thead>
@@ -124,7 +126,8 @@
          encoded so that they form a valid link that NGINX can parse -->
     <xsl:template name="encode-uri">
         <xsl:param name="uri"/>
-        <xsl:for-each select="str:split($uri, '/')">
+        <xsl:variable name="prefixed_uri" select="concat($rootPath, $uri)" />
+        <xsl:for-each select="str:split($prefixed_uri, '/')">
             <xsl:variable name="encoded" select="str:encode-uri(., 'true', 'UTF-8')" />
             <xsl:variable name="more-encoded" select="
                 str:replace(

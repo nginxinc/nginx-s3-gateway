@@ -1,6 +1,7 @@
 js_import /etc/nginx/include/awscredentials.js;
 js_import /etc/nginx/include/s3gateway.js;
 
+
 # We include only the variables needed for the authentication signatures that
 # we plan to use.
 include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_js_vars.conf;
@@ -8,17 +9,23 @@ include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_js_vars.conf;
 # Extracts only the path from the requested URI. This strips out all query
 # parameters and anchors in order to prevent extraneous data from being sent
 # to S3.
-map $request_uri $uri_path {
+map $request_uri $uri_full_path {
     "~^(?P<path>.*?)(\?.*)*$"  $path;
 }
 
-map $S3_STYLE $s3_host_hdr {
-    virtual "${S3_BUCKET_NAME}.${S3_SERVER}";
-    path    "${S3_SERVER}:${S3_SERVER_PORT}";
-    default "${S3_BUCKET_NAME}.${S3_SERVER}";
+# Remove/replace a portion of request URL (if configured)
+map $uri_full_path $uri_path {
+	"~^$STRIP_LEADING_DIRECTORY_PATH(.*)"  $PREFIX_LEADING_DIRECTORY_PATH$1;
+    default $PREFIX_LEADING_DIRECTORY_PATH$uri_full_path;
 }
 
+# S3_HOST_HEADER is set in the startup script
+# (either ./common/docker-entrypoint.sh or ./standalone_ubuntu_oss_install.sh)
+# based on the S3_STYLE configuration option.
+js_var $s3_host ${S3_HOST_HEADER};
+
 js_var $indexIsEmpty true;
+js_var $forIndexPage true;
 # This creates the HTTP authentication header to be sent to S3
 js_set $s3auth s3gateway.s3auth;
 js_set $awsSessionToken awscredentials.sessionToken;
@@ -75,72 +82,43 @@ server {
         # CORS is implemented by returning the appropriate headers as part of
         # the response to an OPTIONS request. If you want to customize the
         # CORS response, the cors.conf.template file can be overwritten and
-        # extended to meet one's needs.
+        # extended to meet your needs.
         include /etc/nginx/conf.d/gateway/cors.conf;
 
         auth_request /aws/credentials/retrieve;
 
         # Redirect to the proper location based on the client request - either
-        # @s3, @s3Listing or @error405.
+        # @s3, @s3PreListing or @error405.
 
         js_content s3gateway.redirectToS3;
     }
 
     location /aws/credentials/retrieve {
         internal;
-        js_content s3gateway.fetchCredentials;
+        js_content awscredentials.fetchCredentials;
 
         include /etc/nginx/conf.d/gateway/js_fetch_trusted_certificate.conf;
     }
 
+    # This is the primary location that proxies the request to s3
+    # See the included s3_location_common.conf file for all logic
     location @s3 {
-        # We include only the headers needed for the authentication signatures that
-        # we plan to use.
-        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
-
-        # The CORS configuration needs to be imported in several places in order for
-        # it to be applied within different contexts.
-        include /etc/nginx/conf.d/gateway/cors.conf;
-
-        # Don't allow any headers from the client - we don't want them messing
-        # with S3 at all.
-        proxy_pass_request_headers off;
-
-        # Enable passing of the server name through TLS Server Name Indication extension.
-        proxy_ssl_server_name on;
-        proxy_ssl_name ${S3_SERVER};
-
-        # Set the Authorization header to the AWS Signatures credentials
-        proxy_set_header Authorization $s3auth;
-        proxy_set_header X-Amz-Security-Token $awsSessionToken;
-
-        # We set the host as the bucket name to inform the S3 API of the bucket
-        proxy_set_header Host $s3_host_hdr;
-
-        # Use keep alive connections in order to improve performance
-        proxy_http_version 1.1;
-        proxy_set_header Connection '';
-
-        # We strip off all of the AWS specific headers from the server so that
-        # there is nothing identifying the object as having originated in an
-        # object store.
-        js_header_filter s3gateway.editHeaders;
-
-        # Catch all errors from S3 and sanitize them so that the user can't
-        # gain intelligence about the S3 bucket being proxied.
-        proxy_intercept_errors on;
-
-        # Comment out this line to receive the error messages returned by S3
-        error_page 400 401 402 403 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
-
-        error_page 404 @trailslashControl;
-
-        proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
-
-        include /etc/nginx/conf.d/gateway/s3_location.conf;
+        include /etc/nginx/conf.d/gateway/s3_location_common.conf;
     }
 
-    location @s3Listing {
+    # Same as the primary location above but handling and caching
+    # byte range requests efficiently
+    location @s3_sliced {
+        proxy_cache s3_cache_slices;
+        proxy_cache_valid 200 302 206 ${PROXY_CACHE_VALID_OK};
+        proxy_cache_key "$request_method$host$uri$slice_range";
+
+        slice             ${PROXY_CACHE_SLICE_SIZE};
+        proxy_set_header   Range $slice_range;
+        include /etc/nginx/conf.d/gateway/s3_location_common.conf;
+    }
+
+    location @s3PreListing {
         # We include only the headers needed for the authentication signatures that
         # we plan to use.
         include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
@@ -162,7 +140,7 @@ server {
         proxy_set_header X-Amz-Security-Token $awsSessionToken;
 
         # We set the host as the bucket name to inform the S3 API of the bucket
-        proxy_set_header Host $s3_host_hdr;
+        proxy_set_header Host $s3_host;
 
         # Use keep alive connections in order to improve performance
         proxy_http_version 1.1;
@@ -176,6 +154,7 @@ server {
         # Apply XSL transformation to the XML returned from S3 directory listing
         # results such that we can output an HTML directory contents list.
         xslt_stylesheet /etc/nginx/include/listing.xsl;
+        xslt_string_param rootPath '${DIRECTORY_LISTING_PATH_PREFIX}';
         xslt_types application/xml;
 
         # We apply an output filter to the XML input received from S3 before it
@@ -193,11 +172,125 @@ server {
         # Comment out this line to receive the error messages returned by S3
         error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
 
-        proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3Uri;
+        js_content s3gateway.loadContent;
+        include /etc/nginx/conf.d/gateway/s3listing_location.conf;
+    }
+
+    location @s3Directory {
+        # We include only the headers needed for the authentication signatures that
+        # we plan to use.
+        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+
+        # Necessary for determining the correct URI to construct.
+        set $forIndexPage false;
+
+        # The CORS configuration needs to be imported in several places in order for
+        # it to be applied within different contexts.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
+        # Don't allow any headers from the client - we don't want them messing
+        # with S3 at all.
+        proxy_pass_request_headers off;
+
+        # Enable passing of the server name through TLS Server Name Indication extension.
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${S3_SERVER};
+
+        # Set the Authorization header to the AWS Signatures credentials
+        proxy_set_header Authorization $s3auth;
+        proxy_set_header X-Amz-Security-Token $awsSessionToken;
+
+        # We set the host as the bucket name to inform the S3 API of the bucket
+        proxy_set_header Host $s3_host;
+
+        # Use keep alive connections in order to improve performance
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+
+        # We strip off all of the AWS specific headers from the server so that
+        # there is nothing identifying the object as having originated in an
+        # object store.
+        js_header_filter s3gateway.editHeaders;
+
+        # Apply XSL transformation to the XML returned from S3 directory listing
+        # results such that we can output an HTML directory contents list.
+        xslt_stylesheet /etc/nginx/include/listing.xsl;
+        xslt_string_param rootPath '${DIRECTORY_LISTING_PATH_PREFIX}';
+        xslt_types application/xml;
+
+        # We apply an output filter to the XML input received from S3 before it
+        # is passed to XSLT in order to determine if the resource is not a valid
+        # S3 directory. If it isn't a valid directory, we do a dirty hack to
+        # corrupt the contents of the XML causing the XSLT to fail and thus
+        # nginx to return a 404 to the client. If you don't care about empty
+        # directory listings for invalid directories, remove this.
+        js_body_filter s3gateway.filterListResponse;
+
+        # Catch all errors from S3 and sanitize them so that the user can't
+        # gain intelligence about the S3 bucket being proxied.
+        proxy_intercept_errors on;
+
+        # Comment out this line to receive the error messages returned by S3
+        error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+
+        proxy_pass  ${S3_SERVER_PROTO}://storage_urls$s3Uri;
+        include /etc/nginx/conf.d/gateway/s3listing_location.conf;
+    }
+
+    location ~ /index.html$ {
+        # Configuration for handling locations ending with /index.html
+
+        # Necessary for determining the correct URI to construct.
+        set $forIndexPage true;
+
+        # We include only the headers needed for the authentication signatures that
+        # we plan to use.
+        include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+
+        # The CORS configuration needs to be imported in several places in order for
+        # it to be applied within different contexts.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
+        # Don't allow any headers from the client - we don't want them messing
+        # with S3 at all.
+        proxy_pass_request_headers off;
+
+        # Enable passing of the server name through TLS Server Name Indication extension.
+        proxy_ssl_server_name on;
+        proxy_ssl_name ${S3_SERVER};
+
+        # Set the Authorization header to the AWS Signatures credentials
+        proxy_set_header Authorization $s3auth;
+        proxy_set_header X-Amz-Security-Token $awsSessionToken;
+
+        # We set the host as the bucket name to inform the S3 API of the bucket
+        proxy_set_header Host $s3_host;
+
+        # Use keep alive connections in order to improve performance
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+
+        # We strip off all of the AWS specific headers from the server so that
+        # there is nothing identifying the object as having originated in an
+        # object store.
+        js_header_filter s3gateway.editHeaders;
+
+        # Catch all errors from S3 and sanitize them so that the user can't
+        # gain intelligence about the S3 bucket being proxied.
+        proxy_intercept_errors on;
+
+        # Comment out this line to receive the error messages returned by S3
+        error_page 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+
+        proxy_pass  ${S3_SERVER_PROTO}://storage_urls$s3uri;
         include /etc/nginx/conf.d/gateway/s3listing_location.conf;
     }
 
     location @error404 {
+        # The CORS configuration needs to be imported in several places in order for
+        # it to be applied within different contexts.
+        include /etc/nginx/conf.d/gateway/cors.conf;
+
         return 404;
     }
 
@@ -209,7 +302,9 @@ server {
 
     location @trailslash {
         # 302 to request without slashes
-        rewrite ^ $scheme://$http_host$request_uri/ redirect;
+        # Adding a ? to the end of the replacement param in `rewrite` prevents it from
+        # appending the query string.
+        rewrite ^ $scheme://$http_host$uri/$is_args$query_string? redirect;
     }
 
     # Provide a hint to the client on 405 errors of the acceptable request methods

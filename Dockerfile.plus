@@ -1,14 +1,20 @@
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
-ENV NGINX_PLUS_VERSION   28-1
-ENV NGINX_VERSION        1.23.2
-ENV NJS_VERSION          28+0.7.10-1
-ENV XSLT_VERSION         28-1
-
+ENV NGINX_PLUS_VERSION   30-2
+ENV NGINX_VERSION        1.25.1
+ENV NJS_VERSION          30+0.8.0-1
+ENV XSLT_VERSION         30-1
+ 
+ENV PROXY_CACHE_MAX_SIZE "10g"
+ENV PROXY_CACHE_INACTIVE "60m"
+ENV PROXY_CACHE_SLICE_SIZE "1m"
 ENV PROXY_CACHE_VALID_OK "1h"
 ENV PROXY_CACHE_VALID_NOTFOUND "1m"
 ENV PROXY_CACHE_VALID_FORBIDDEN "30s"
 ENV CORS_ENABLED 0
+ENV DIRECTORY_LISTING_PATH_PREFIX ""
+ENV STRIP_LEADING_DIRECTORY_PATH ""
+ENV PREFIX_LEADING_DIRECTORY_PATH ""
 
 COPY plus/etc/ssl /etc/ssl
 COPY plus/usr /usr
@@ -28,7 +34,10 @@ RUN set -eux \
     adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 101 nginx; \
     apt-get -qq update; \
     apt-get -qq upgrade --yes; \
-    apt-get -qq install --yes ca-certificates curl; \
+    apt-get -qq install --yes \
+      ca-certificates \
+      curl \
+      libedit2; \
     sh -a /usr/local/bin/add_nginx_plus_repo.sh; \
     rm /usr/local/bin/add_nginx_plus_repo.sh; \
     apt-get -qq update; \
@@ -39,7 +48,7 @@ RUN set -eux \
         nginx-plus-module-xslt=${XSLT_VERSION}~${DISTRO_VERSION} \
         gettext-base; \
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-    rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*; \
+    rm -rf /etc/apt/sources.list.d/nginx-plus.list /var/lib/apt/lists/* /var/tmp/* /tmp/*; \
     # forward request and error logs to docker log collector
     ln -sf /dev/stdout /var/log/nginx/access.log; \
     ln -sf /dev/stderr /var/log/nginx/error.log; \

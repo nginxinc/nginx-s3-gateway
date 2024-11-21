@@ -25,6 +25,9 @@ signature_version=$3
 allow_directory_list=$4
 index_page=$5
 append_slash=$6
+strip_leading_directory=$7
+prefix_leading_directory_path=$8
+
 test_fail_exit_code=2
 no_dep_exit_code=3
 checksum_length=32
@@ -58,16 +61,36 @@ if [ -z "${test_dir}" ]; then
   e "missing second parameter: path to test data directory"
 fi
 
-curl_cmd="$(command -v curl)"
+curl_cmd="$(command -v curl || true)"
 if ! [ -x "${curl_cmd}" ]; then
   e "required dependency not found: curl not found in the path or not executable"
   exit ${no_dep_exit_code}
 fi
+curl_cmd="${curl_cmd} --connect-timeout 3 --max-time 30 --no-progress-meter"
 
-checksum_cmd="$(command -v md5sum)"
-if ! [ -x "${curl_cmd}" ]; then
+# Allow for MacOS which does not support "md5sum"
+# but has "md5 -r" which can be substituted
+checksum_cmd="$(command -v md5sum || command -v md5 || true)"
+
+if ! [ -x "${checksum_cmd}" ]; then
   e "required dependency not found: md5sum not found in the path or not executable"
   exit ${no_dep_exit_code}
+fi
+
+
+file_convert_command="$(command -v dd || true)"
+
+if ! [ -x "${file_convert_command}" ]; then
+  e "required dependency not found: dd not found in the path or not executable"
+  exit ${no_dep_exit_code}
+fi
+
+# If we are using the `md5` executable
+# then use the -r flag which makes it behave the same as `md5sum`
+# this is done after the `-x` check for ability to execute
+# since it will not pass with the flag
+if [[ $checksum_cmd =~ \/md5$ ]]; then
+  checksum_cmd="${checksum_cmd} -r"
 fi
 
 assertHttpRequestEquals() {
@@ -93,11 +116,11 @@ assertHttpRequestEquals() {
 
   if [ "${method}" = "HEAD" ]; then
     expected_response_code="$3"
-    actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' --head "${uri}" ${extra_arg})"
+    actual_response_code="$(${curl_cmd} -o /dev/null -w '%{http_code}' --head "${uri}" ${extra_arg})"
 
     if [ "${expected_response_code}" != "${actual_response_code}" ]; then
       e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-      e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' --head '${uri}' ${extra_arg}"
+      e "curl command: ${curl_cmd} -o /dev/null -w '%{http_code}' --head '${uri}' ${extra_arg}"
       exit ${test_fail_exit_code}
     fi
   elif [ "${method}" = "GET" ]; then
@@ -107,23 +130,44 @@ assertHttpRequestEquals() {
       checksum_output="$(${checksum_cmd} "${body_data_path}")"
       expected_checksum="${checksum_output:0:${checksum_length}}"
 
-      curl_checksum_output="$(${curl_cmd} -s -X "${method}" "${uri}" ${extra_arg} | ${checksum_cmd})"
+      curl_checksum_output="$(${curl_cmd} -X "${method}" "${uri}" ${extra_arg} | ${checksum_cmd})"
       s3_file_checksum="${curl_checksum_output:0:${checksum_length}}"
 
       if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
         e "Checksum doesn't match expectation. Request [${method} ${uri}] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
-        e "curl command: ${curl_cmd} -s -X '${method}' '${uri}' ${extra_arg} | ${checksum_cmd}"
+        e "curl command: ${curl_cmd} -X '${method}' '${uri}' ${extra_arg} | ${checksum_cmd}"
         exit ${test_fail_exit_code}
       fi
     else
       expected_response_code="$3"
-      actual_response_code="$(${curl_cmd} -s -o /dev/null -w '%{http_code}' "${uri}" ${extra_arg})"
+      actual_response_code="$(${curl_cmd} -o /dev/null -w '%{http_code}' "${uri}" ${extra_arg})"
 
       if [ "${expected_response_code}" != "${actual_response_code}" ]; then
         e "Response code didn't match expectation. Request [${method} ${uri}] Expected [${expected_response_code}] Actual [${actual_response_code}]"
-        e "curl command: ${curl_cmd} -s -o /dev/null -w '%{http_code}' '${uri}' ${extra_arg}"
+        e "curl command: ${curl_cmd} -o /dev/null -w '%{http_code}' '${uri}' ${extra_arg}"
         exit ${test_fail_exit_code}
       fi
+    fi
+  # Not a real method but better than making a whole new helper or massively refactoring this one
+  elif [ "${method}" = "GET_RANGE" ]; then
+    # Call format to check for a range of byte 30 to 1000:
+    # assertHttpRequestEquals "GET_RANGE" "a.txt" "data/bucket-1/a.txt" 30 1000 "206"
+    body_data_path="${test_dir}/$3"
+    range_start="$4"
+    range_end="$5"
+    byte_count=$((range_end - range_start + 1)) # add one since we read through the last byte
+    expected_response_code="$6"
+
+    file_checksum=$(${file_convert_command} if="$body_data_path" bs=1 skip="$range_start" count="$byte_count" 2>/dev/null | ${checksum_cmd})
+    expected_checksum="${file_checksum:0:${checksum_length}}"
+
+    curl_checksum_output="$(${curl_cmd} -X "GET" -r "${range_start}"-"${range_end}" "${uri}" ${extra_arg} | ${checksum_cmd})"
+    s3_file_checksum="${curl_checksum_output:0:${checksum_length}}"
+    
+    if [ "${expected_checksum}" != "${s3_file_checksum}" ]; then
+        e "Checksum doesn't match expectation. Request [GET ${uri} Range: "${range_start}"-"${range_end}"] Expected [${expected_checksum}] Actual [${s3_file_checksum}]"
+        e "curl command: ${curl_cmd} -X "GET" -r "${range_start}"-"${range_end}" "${uri}" ${extra_arg} | ${checksum_cmd}"
+        exit ${test_fail_exit_code}
     fi
   else
     e "Method unsupported: [${method}]"
@@ -146,8 +190,20 @@ for (( i=1; i<=3; i++ )); do
 done
 set -o errexit
 
-# Ordinary filenames
+if [ -n "${prefix_leading_directory_path}" ]; then
+  assertHttpRequestEquals "GET" "/c/d.txt" "data/bucket-1/b/c/d.txt"
 
+  if [ -n "${strip_leading_directory}" ]; then
+    # When these two flags are used together, stripped value is basically
+    # replaced with the specified prefix
+    assertHttpRequestEquals "GET" "/tostrip/c/d.txt" "data/bucket-1/b/c/d.txt"
+  fi
+
+  # Exit early for this case since all tests following will fail because of the added prefix
+  exit 0
+fi
+
+# Ordinary filenames
 assertHttpRequestEquals "HEAD" "a.txt" "200"
 assertHttpRequestEquals "HEAD" "a.txt?some=param&that=should&be=stripped#aaah" "200"
 assertHttpRequestEquals "HEAD" "b/c/d.txt" "200"
@@ -155,6 +211,9 @@ assertHttpRequestEquals "HEAD" "b/c/../e.txt" "200"
 assertHttpRequestEquals "HEAD" "b/e.txt" "200"
 assertHttpRequestEquals "HEAD" "b//e.txt" "200"
 assertHttpRequestEquals "HEAD" "a/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.txt" "200"
+
+# Byte range requests
+assertHttpRequestEquals "GET_RANGE" 'a/plus%2Bplus.txt' "data/bucket-1/a/plus+plus.txt" 30 1000 "206"
 
 # We try to request URLs that are properly encoded as well as URLs that
 # are not properly encoded to understand what works and what does not.
@@ -256,6 +315,10 @@ assertHttpRequestEquals "GET" "b/c/'(1).txt" "data/bucket-1/b/c/'(1).txt"
 
 assertHttpRequestEquals "GET" "b/e.txt" "data/bucket-1/b/e.txt"
 
+if [ -n "${strip_leading_directory}" ]; then
+  assertHttpRequestEquals "GET" "/my-bucket/a.txt" "data/bucket-1/a.txt"
+fi
+
 # These URLs do not work unencoded
 assertHttpRequestEquals "GET" 'a/plus%2Bplus.txt' "data/bucket-1/a/plus+plus.txt"
 
@@ -277,6 +340,15 @@ assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir/" "data/bucket
   assertHttpRequestEquals "GET" "/statichost" "data/bucket-1/statichost/index.html"
   assertHttpRequestEquals "GET" "/statichost/noindexdir/multipledir" "data/bucket-1/statichost/noindexdir/multipledir/index.html"
   fi
+
+  if [ "${allow_directory_list}" == "1" ]; then
+    if [ "$append_slash" == "1" ]; then
+      assertHttpRequestEquals "GET" "test" "200"
+      assertHttpRequestEquals "GET" "test/" "200"
+      assertHttpRequestEquals "GET" "test?foo=bar" "200"
+      assertHttpRequestEquals "GET" "test/?foo=bar" "200"
+    fi
+  fi
 fi
 
 if [ "${allow_directory_list}" == "1" ]; then
@@ -288,7 +360,9 @@ if [ "${allow_directory_list}" == "1" ]; then
   assertHttpRequestEquals "GET" "%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D1%8B/" "200"
   assertHttpRequestEquals "GET" "системы/" "200"
   if [ "$append_slash" == "1" ]; then
-    assertHttpRequestEquals "GET" "b" "302"
+    if [ "${index_page}" == "0" ]; then
+      assertHttpRequestEquals "GET" "b" "302"
+    fi
   else
     assertHttpRequestEquals "GET" "b" "404"
   fi

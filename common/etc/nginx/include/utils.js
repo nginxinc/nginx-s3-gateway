@@ -15,17 +15,42 @@
  */
 
 /**
+ * @module utils
+ * @alias Utils
+ */
+
+/**
  * Flag indicating debug mode operation. If true, additional information
  * about signature generation will be logged.
  * @type {boolean}
  */
-const DEBUG = parseBoolean(process.env['S3_DEBUG']);
+const DEBUG = parseBoolean(process.env['DEBUG']);
 
+
+/**
+ * Checks to see if all the elements of the passed array are present as keys
+ * in the running process' environment variables. Alternatively, if a single
+ * string is passed, it will check for the presence of that string.
+ * @param envVars {Array<String>|string} array of expected keys or single expected key
+ * @returns {boolean} true if all keys are set as environment variables
+ */
+function areAllEnvVarsSet(envVars) {
+    if (envVars instanceof Array) {
+        const envVarsLen = envVars.length;
+        for (let i = 0; i < envVarsLen; i++) {
+            if (!process.env[envVars[i]]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return envVars in process.env;
+}
 
 /**
  * Parses a string delimited by semicolons into an array of values
  * @param string {string|null} value representing a array of strings
- * @returns {Array} a list of values
+ * @returns {Array<String>} a list of values
  */
 function parseArray(string) {
     if (string == null || !string || string === ';') {
@@ -65,7 +90,7 @@ function parseBoolean(string) {
 /**
  * Outputs a log message to the request logger if debug messages are enabled.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param msg {string} message to log
  */
 function debug_log(r, msg) {
@@ -127,11 +152,28 @@ function getEightDigitDate(timestamp) {
         padWithLeadingZeros(day,2));
 }
 
+
+/**
+ * Checks to see if the given environment variable is present. If not, an error
+ * is thrown.
+ * @param envVarName {string} environment variable to check for
+ * @private
+ */
+function requireEnvVar(envVarName) {
+    const isSet = envVarName in process.env;
+
+    if (!isSet) {
+        throw('Required environment variable ' + envVarName + ' is missing');
+    }
+}
+
 export default {
+    areAllEnvVarsSet,
     debug_log,
     getAmzDatetime,
     getEightDigitDate,
     padWithLeadingZeros,
     parseArray,
-    parseBoolean
+    parseBoolean,
+    requireEnvVar
 }

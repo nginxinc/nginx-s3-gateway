@@ -14,20 +14,33 @@
  *  limitations under the License.
  */
 
+/**
+ * @module s3gateway
+ * @alias S3Gateway
+ */
+
+/**
+ * @typedef {Object} S3ReqParams
+ * @property {string} uri - URI to use for S3 request
+ * @property {string|undefined} httpDate - RFC2616 timestamp used to sign the request
+ * @property {string|undefined} host - S3 host to use for request
+ * @property {string|undefined} queryParams - query parameters to use with S3 request
+ */
+
 import awscred from "./awscredentials.js";
 import awssig2 from "./awssig2.js";
 import awssig4 from "./awssig4.js";
 import utils from "./utils.js";
 
-_require_env_var('S3_BUCKET_NAME');
-_require_env_var('S3_SERVER');
-_require_env_var('S3_SERVER_PROTO');
-_require_env_var('S3_SERVER_PORT');
-_require_env_var('S3_REGION');
-_require_env_var('AWS_SIGS_VERSION');
-_require_env_var('S3_STYLE');
+_requireEnvVars('S3_BUCKET_NAME');
+_requireEnvVars('S3_SERVER');
+_requireEnvVars('S3_SERVER_PROTO');
+_requireEnvVars('S3_SERVER_PORT');
+_requireEnvVars('S3_REGION');
+_requireEnvVars('AWS_SIGS_VERSION');
+_requireEnvVars('S3_STYLE');
+_requireEnvVars('S3_SERVICE');
 
-const fs = require('fs');
 
 /**
  * Flag indicating debug mode operation. If true, additional information
@@ -35,50 +48,51 @@ const fs = require('fs');
  * @type {boolean}
  */
 const ALLOW_LISTING = utils.parseBoolean(process.env['ALLOW_DIRECTORY_LIST']);
+/**
+ * Flag indicating if index pages should be provided for directories.
+ * @type {boolean}
+ * */
 const PROVIDE_INDEX_PAGE = utils.parseBoolean(process.env['PROVIDE_INDEX_PAGE']);
+/**
+ * Flag that when enabled checks if requesting a folder is without trailing slash, and return 302
+ * appending a slash to it when using for static site hosting.
+ * @type {boolean}
+ * */
 const APPEND_SLASH = utils.parseBoolean(process.env['APPEND_SLASH_FOR_POSSIBLE_DIRECTORY']);
+/**
+ * Flag indicating if 404 should be returned when requesting an empty bucket.
+ * @type {boolean}
+ * */
 const FOUR_O_FOUR_ON_EMPTY_BUCKET = utils.parseBoolean(process.env['FOUR_O_FOUR_ON_EMPTY_BUCKET']);
+/**
+ * Flag indicating why type of S3 URI to use. Valid values are 'virtual' and
+ * 'path'. If not set, 'virtual' is assumed.
+ * @type {string}
+ * */
 const S3_STYLE = process.env['S3_STYLE'];
-
+/**
+ * Additional header prefixes to strip from the response before sending to the
+ * client. This is useful for removing headers that may contain sensitive
+ * information.
+ * @type {Array<String>}
+ * */
 const ADDITIONAL_HEADER_PREFIXES_TO_STRIP = utils.parseArray(process.env['HEADER_PREFIXES_TO_STRIP']);
-
 /**
  * Default filename for index pages to be read off of the backing object store.
  * @type {string}
- */
+ * */
 const INDEX_PAGE = "index.html";
-
-/**
- * The current moment as a timestamp. This timestamp will be used across
- * functions in order for there to be no variations in signatures.
- * @type {Date}
- */
-const NOW = new Date();
 
 /**
  * Constant defining the service requests are being signed for.
  * @type {string}
  */
-const SERVICE = 's3';
-
-/**
- * Constant base URI to fetch credentials together with the credentials relative URI, see
- * https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html for more details.
- * @type {string}
- */
-const ECS_CREDENTIAL_BASE_URI = 'http://169.254.170.2';
-
-/**
- * @type {string}
- */
-const EC2_IMDS_TOKEN_ENDPOINT = 'http://169.254.169.254/latest/api/token';
-
-const EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
+const SERVICE = process.env['S3_SERVICE'] || "s3";
 
 /**
  * Transform the headers returned from S3 such that there isn't information
  * leakage about S3 and do other tasks needed for appropriate gateway output.
- * @param r HTTP request
+ * @param r {NginxHTTPRequest} HTTP request
  */
 function editHeaders(r) {
     const isDirectoryHeadRequest =
@@ -113,7 +127,7 @@ function editHeaders(r) {
  * Determines if a given HTTP header should be removed before being
  * sent on to the requesting client.
  * @param headerName {string} Lowercase HTTP header name
- * @param additionalHeadersToStrip {Array[string]} array of additional headers to remove
+ * @param additionalHeadersToStrip {Array<string>} array of additional headers to remove
  * @returns {boolean} true if header should be removed
  */
 function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
@@ -135,42 +149,24 @@ function _isHeaderToBeStripped(headerName, additionalHeadersToStrip) {
  * Outputs the timestamp used to sign the request, so that it can be added to
  * the 'Date' header and sent by NGINX.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
  * @returns {string} RFC2616 timestamp
  */
 function s3date(r) {
-    return NOW.toUTCString();
-}
-
-/**
- * Outputs the timestamp used to sign the request, so that it can be added to
- * the 'x-amz-date' header and sent by NGINX. The output format is
- * ISO 8601: YYYYMMDD'T'HHMMSS'Z'.
- * @see {@link https://docs.aws.amazon.com/general/latest/gr/sigv4-date-handling.html | Handling dates in Signature Version 4}
- *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @returns {string} ISO 8601 timestamp
- */
-function awsHeaderDate(r) {
-    return utils.getAmzDatetime(NOW, utils.getEightDigitDate(NOW));
+    return awscred.Now().toUTCString();
 }
 
 /**
  * Creates an AWS authentication signature based on the global settings and
  * the passed request parameter.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @returns {string} AWS authentication signature
  */
 function s3auth(r) {
     const bucket = process.env['S3_BUCKET_NAME'];
     const region = process.env['S3_REGION'];
-    let server;
-    if (S3_STYLE === 'path') {
-        server = process.env['S3_SERVER'] + ':' + process.env['S3_SERVER_PORT'];
-    } else {
-        server = process.env['S3_SERVER'];
-    }
+    const host = r.variables.s3_host;
     const sigver = process.env['AWS_SIGS_VERSION'];
 
     let signature;
@@ -180,8 +176,8 @@ function s3auth(r) {
         let req = _s3ReqParamsForSigV2(r, bucket);
         signature = awssig2.signatureV2(r, req.uri, req.httpDate, credentials);
     } else {
-        let req = _s3ReqParamsForSigV4(r, bucket, server);
-        signature = awssig4.signatureV4(r, NOW, region, SERVICE,
+        let req = _s3ReqParamsForSigV4(r, bucket, host);
+        signature = awssig4.signatureV4(r, awscred.Now(), region, SERVICE,
             req.uri, req.queryParams, req.host, credentials);
     }
 
@@ -189,12 +185,12 @@ function s3auth(r) {
 }
 
 /**
- * Generate some of request parameters for AWS signature version 2
+ * Generate request parameters for AWS signature version 2
  *
  * @see {@link https://docs.aws.amazon.com/AmazonS3/latest/userguide/auth-request-sig-v2.html | AWS signature version 2}
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param bucket {string} S3 bucket associated with request
- * @returns s3ReqParams {object} s3ReqParams object (host, method, uri, queryParams)
+ * @returns {S3ReqParams} s3ReqParams object (host, method, uri, queryParams)
  * @private
  */
 function _s3ReqParamsForSigV2(r, bucket) {
@@ -205,10 +201,10 @@ function _s3ReqParamsForSigV2(r, bucket) {
      * Thus, we can't put the path /dir1/ in the string to sign. */
     let uri = _isDirectory(r.variables.uri_path) ? '/' : r.variables.uri_path;
     // To return index pages + index.html
-    if (PROVIDE_INDEX_PAGE && _isDirectory(r.variables.uri_path)){
+    if (utils.parseBoolean(r.variables.forIndexPage) && _isDirectory(r.variables.uri_path)){
         uri = r.variables.uri_path + INDEX_PAGE
     }
- 
+
     return {
         uri: '/' + bucket + uri,
         httpDate: s3date(r)
@@ -216,22 +212,21 @@ function _s3ReqParamsForSigV2(r, bucket) {
 }
 
 /**
- * Generate some of request parameters for AWS signature version 4
+ * Generate request parameters for AWS signature version 4
  *
  * @see {@link https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html | AWS V4 Signing Process}
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param bucket {string} S3 bucket associated with request
- * @param server {string} S3 host associated with request
- * @returns s3ReqParams {object} s3ReqParams object (host, uri, queryParams)
+ * @param host {string} S3 host associated with request
+ * @returns {S3ReqParams} s3ReqParams object (host, uri, queryParams)
  * @private
  */
-function _s3ReqParamsForSigV4(r, bucket, server) {
-    let host = server;
-    if (S3_STYLE === 'virtual' || S3_STYLE === 'default' || S3_STYLE === undefined) {
-        host = bucket + '.' + host;
-    }
+function _s3ReqParamsForSigV4(r, bucket, host) {
     const baseUri = s3BaseUri(r);
-    const queryParams = _s3DirQueryParams(r.variables.uri_path, r.method);
+    const computed_url = !utils.parseBoolean(r.variables.forIndexPage)
+        ? r.variables.uri_path
+        : r.variables.uri_path + INDEX_PAGE;
+    const queryParams = _s3DirQueryParams(computed_url, r.method);
     let uri;
     if (queryParams.length > 0) {
         if (baseUri.length > 0) {
@@ -254,7 +249,7 @@ function _s3ReqParamsForSigV4(r, bucket, server) {
  * path style S3 URIs to be created that do not use a subdomain to specify
  * the bucket name.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
  * @returns {string} start of the file path for the S3 object URI
  */
 function s3BaseUri(r) {
@@ -274,7 +269,7 @@ function s3BaseUri(r) {
 /**
  * Returns the s3 path given the incoming request
  *
- * @param r HTTP request
+ * @param r {NginxHTTPRequest} HTTP request
  * @returns {string} uri for s3 request
  */
 function s3uri(r) {
@@ -283,7 +278,7 @@ function s3uri(r) {
     let path;
 
     // Create query parameters only if directory listing is enabled.
-    if (ALLOW_LISTING) {
+    if (ALLOW_LISTING && !utils.parseBoolean(r.variables.forIndexPage)) {
         const queryParams = _s3DirQueryParams(uriPath, r.method);
         if (queryParams.length > 0) {
             path = basePath + '?' + queryParams;
@@ -318,7 +313,7 @@ function _s3DirQueryParams(uriPath, method) {
 
     /* Return if static website. We don't want to list the files in the
        directory, we want to append the index page and get the fil. */
-    if (PROVIDE_INDEX_PAGE){
+    if (uriPath.endsWith(INDEX_PAGE)){
         return '';
     }
 
@@ -339,7 +334,7 @@ function _s3DirQueryParams(uriPath, method) {
  * a read (GET/HEAD) request, then we reject the request outright by returning
  * a HTTP 405 error with a list of allowed methods.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  */
 function redirectToS3(r) {
     // This is a read-only S3 gateway, so we do not support any other methods
@@ -352,25 +347,62 @@ function redirectToS3(r) {
     const uriPath = r.variables.uri_path;
     const isDirectoryListing = ALLOW_LISTING && _isDirectory(uriPath);
 
-    if (isDirectoryListing && r.method === 'GET') {
-        r.internalRedirect("@s3Listing");
-    } else if ( PROVIDE_INDEX_PAGE == true ) {
+    if (isDirectoryListing && (r.method === 'GET' || r.method === 'HEAD')) {
+        r.internalRedirect("@s3PreListing");
+    } else if (PROVIDE_INDEX_PAGE === true) {
         r.internalRedirect("@s3");
-    } else if ( !ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath == "/" ) {
+    } else if (!ALLOW_LISTING && !PROVIDE_INDEX_PAGE && uriPath === "/") {
        r.internalRedirect("@error404");
     } else {
-        r.internalRedirect("@s3");
+        if (r.headersIn["Range"]) {
+            r.internalRedirect("@s3_sliced");
+        } else {
+           r.internalRedirect("@s3"); 
+        }
+        
     }
 }
 
 function trailslashControl(r) {
     if (APPEND_SLASH) {
+        // For the purposes of understanding whether this is a directory,
+        // consider the uri without query params or anchors
+        const path = r.variables.uri_path.split(/[?#]/)[0];
+
         const hasExtension = /\/[^.\/]+\.[^.]+$/;
-        if (!hasExtension.test(r.variables.uri_path)  && !_isDirectory(r.variables.uri_path)){
+        if (!hasExtension.test(path)  && !_isDirectory(path)){
             return r.internalRedirect("@trailslash");
         }
     }
         r.internalRedirect("@error404");
+}
+
+/**
+ * Checks if there is an index.html file in the directory.
+ * Redirects appropriately. Before that, it checks if
+ * directory listing is enforced or not.
+ *
+ * @param {Object} r - The HTTP request object.
+ */
+async function loadContent(r) {
+    if (!PROVIDE_INDEX_PAGE) {
+        r.internalRedirect("@s3Directory");
+        return;
+    }
+    const uri = s3uri(r);
+    let reply = await ngx.fetch(
+        `http://127.0.0.1:80${uri}`
+    );
+
+    if (reply.status === 200) {
+        utils.debug_log(r, `Found index file, redirecting to: ${uri}`);
+        r.internalRedirect(uri);
+    } else if (reply.status === 404) {
+        // As there was no index file found, just list the contents of the directory
+        r.internalRedirect("@s3Directory");
+    } else {
+        r.internalRedirect("@error500");
+    }
 }
 
 /**
@@ -381,9 +413,9 @@ function trailslashControl(r) {
  *
  * If anyone finds a better way to do this, please submit a PR.
  *
- * @param r {Request} HTTP request object (not used, but required for NGINX configuration)
- * @param data chunked data buffer
- * @param flags contains field that indicates that a chunk is last
+ * @param r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
+ * @param data {NjsStringOrBuffer} chunked data buffer
+ * @param flags {NginxHTTPSendBufferOptions} contains field that indicates that a chunk is last
  */
 function filterListResponse(r, data, flags) {
     if (FOUR_O_FOUR_ON_EMPTY_BUCKET) {
@@ -451,16 +483,9 @@ function _escapeURIPath(uri) {
  * @private
  */
 function _isDirectory(path) {
-    if (path === undefined) {
-        return false;
-    }
-    const len = path.length;
+    if (!path) return false;
 
-    if (len < 1) {
-        return false;
-    }
-
-    return path.charAt(len - 1) === '/';
+    return path.slice(-1) === '/';
 }
 
 /**
@@ -469,241 +494,15 @@ function _isDirectory(path) {
  * @param envVarName {string} environment variable to check for
  * @private
  */
-function _require_env_var(envVarName) {
+function _requireEnvVars(envVarName) {
     const isSet = envVarName in process.env;
 
     if (!isSet) {
-        throw('Required environment variable ' + envVarName + ' is missing');
+        throw(`Required environment variable ${envVarName} is missing`);
     }
-}
-
-/**
- * Offset to the expiration of credentials, when they should be considered expired and refreshed. The maximum
- * time here can be 5 minutes, the IMDS and ECS credentials endpoint will make sure that each returned set of credentials
- * is valid for at least another 5 minutes.
- *
- * To make sure we always refresh the credentials instead of retrieving the same again, keep credentials until 4:30 minutes
- * before they really expire.
- *
- * @type {number}
- */
-const maxValidityOffsetMs = 4.5 * 60 * 1000;
-
-/**
- * Get the credentials needed to create AWS signatures in order to authenticate
- * to S3. If the gateway is being provided credentials via a instance profile
- * credential as provided over the metadata endpoint, this function will:
- * 1. Try to read the credentials from cache
- * 2. Determine if the credentials are stale
- * 3. If the cached credentials are missing or stale, it gets new credentials
- *    from the metadata endpoint.
- * 4. If new credentials were pulled, it writes the credentials back to the
- *    cache.
- *
- * If the gateway is not using instance profile credentials, then this function
- * quickly exits.
- *
- * @param r {Request} HTTP request object
- * @returns {Promise<void>}
- */
-async function fetchCredentials(r) {
-    /* If we are not using an AWS instance profile to set our credentials we
-       exit quickly and don't write a credentials file. */
-    if (process.env['S3_ACCESS_KEY_ID'] && process.env['S3_SECRET_KEY']) {
-        r.return(200);
-        return;
-    }
-
-    let current;
-
-    try {
-        current = awscred.readCredentials(r);
-    } catch (e) {
-        utils.debug_log(r, `Could not read credentials: ${e}`);
-        r.return(500);
-        return;
-    }
-
-    if (current) {
-        // If AWS returns a Unix timestamp it will be in seconds, but in Date constructor we should provide timestamp in milliseconds
-        // In some situations (including EC2 and Fargate) current.expiration will be an RFC 3339 string - see https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#instance-metadata-security-credentials
-        const expireAt = typeof current.expiration == 'number' ? current.expiration * 1000 : current.expiration
-        const exp = new Date(expireAt).getTime() - maxValidityOffsetMs;
-        if (NOW.getTime() < exp) {
-            r.return(200);
-            return;
-        }
-    }
-
-    let credentials;
-
-    utils.debug_log(r, 'Cached credentials are expired or not present, requesting new ones');
-
-    if (process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']) {
-        const uri = ECS_CREDENTIAL_BASE_URI + process.env['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'];
-        try {
-            credentials = await _fetchEcsRoleCredentials(uri);
-        } catch (e) {
-            utils.debug_log(r, 'Could not load ECS task role credentials: ' + JSON.stringify(e));
-            r.return(500);
-            return;
-        }
-    }
-    else if(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']) {
-        try {
-            credentials = await _fetchWebIdentityCredentials(r)
-        } catch(e) {
-            utils.debug_log(r, 'Could not assume role using web identity: ' + JSON.stringify(e));
-            r.return(500);
-            return;
-        }
-    } else {
-        try {
-            credentials = await _fetchEC2RoleCredentials();
-        } catch (e) {
-            utils.debug_log(r, 'Could not load EC2 task role credentials: ' + JSON.stringify(e));
-            r.return(500);
-            return;
-        }
-    }
-    try {
-        awscred.writeCredentials(r, credentials);
-    } catch (e) {
-        utils.debug_log(r, `Could not write credentials: ${e}`);
-        r.return(500);
-        return;
-    }
-    r.return(200);
-}
-
-/**
- * Get the credentials needed to generate AWS signatures from the ECS
- * (Elastic Container Service) metadata endpoint.
- *
- * @param credentialsUri {string} endpoint to get credentials from
- * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
- * @private
- */
-async function _fetchEcsRoleCredentials(credentialsUri) {
-    const resp = await ngx.fetch(credentialsUri);
-    if (!resp.ok) {
-        throw 'Credentials endpoint response was not ok.';
-    }
-    const creds = await resp.json();
-
-    return {
-        accessKeyId: creds.AccessKeyId,
-        secretAccessKey: creds.SecretAccessKey,
-        sessionToken: creds.Token,
-        expiration: creds.Expiration,
-    };
-}
-
-/**
- * Get the credentials needed to generate AWS signatures from the EC2
- * metadata endpoint.
- *
- * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
- * @private
- */
-async function _fetchEC2RoleCredentials() {
-    const tokenResp = await ngx.fetch(EC2_IMDS_TOKEN_ENDPOINT, {
-        headers: {
-            'x-aws-ec2-metadata-token-ttl-seconds': '21600',
-        },
-        method: 'PUT',
-    });
-    const token = await tokenResp.text();
-    let resp = await ngx.fetch(EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT, {
-        headers: {
-            'x-aws-ec2-metadata-token': token,
-        },
-    });
-    /* This _might_ get multiple possible roles in other scenarios, however,
-       EC2 supports attaching one role only.It should therefore be safe to take
-       the whole output, even given IMDS _might_ (?) be able to return multiple
-       roles. */
-    const credName = await resp.text();
-    if (credName === "") {
-        throw 'No credentials available for EC2 instance';
-    }
-    resp = await ngx.fetch(EC2_IMDS_SECURITY_CREDENTIALS_ENDPOINT + credName, {
-        headers: {
-            'x-aws-ec2-metadata-token': token,
-        },
-    });
-    const creds = await resp.json();
-
-    return {
-        accessKeyId: creds.AccessKeyId,
-        secretAccessKey: creds.SecretAccessKey,
-        sessionToken: creds.Token,
-        expiration: creds.Expiration,
-    };
-}
-
-/**
- * Get the credentials by assuming calling AssumeRoleWithWebIdentity with the environment variable
- * values ROLE_ARN, AWS_WEB_IDENTITY_TOKEN_FILE and HOSTNAME
- *
- * @returns {Promise<{accessKeyId: (string), secretAccessKey: (string), sessionToken: (string), expiration: (string)}>}
- * @private
- */
-async function _fetchWebIdentityCredentials(r) {
-    const arn = process.env['AWS_ROLE_ARN'];
-    const name = process.env['HOSTNAME'] || 'nginx-s3-gateway';
-
-    let sts_endpoint = process.env['STS_ENDPOINT'];
-    if (!sts_endpoint) {
-        /* On EKS, the ServiceAccount can be annotated with
-           'eks.amazonaws.com/sts-regional-endpoints' to control
-           the usage of regional endpoints. We are using the same standard
-           environment variable here as the AWS SDK. This is with the exception
-           of replacing the value `legacy` with `global` to match what EKS sets
-           the variable to.
-           See: https://docs.aws.amazon.com/sdkref/latest/guide/feature-sts-regionalized-endpoints.html
-           See: https://docs.aws.amazon.com/eks/latest/userguide/configure-sts-endpoint.html */
-        const sts_regional = process.env['AWS_STS_REGIONAL_ENDPOINTS'] || 'global';
-        if (sts_regional === 'regional') {
-            /* STS regional endpoints can be derived from the region's name.
-               See: https://docs.aws.amazon.com/general/latest/gr/sts.html */
-            const region = process.env['AWS_REGION'];
-            if (region) {
-                sts_endpoint = `https://sts.${region}.amazonaws.com`;
-            } else {
-                throw 'Missing required AWS_REGION env variable';
-            }
-        } else {
-            // This is the default global endpoint
-            sts_endpoint = 'https://sts.amazonaws.com';
-        }
-    }
-
-    const token = fs.readFileSync(process.env['AWS_WEB_IDENTITY_TOKEN_FILE']);
-
-    const params = `Version=2011-06-15&Action=AssumeRoleWithWebIdentity&RoleArn=${arn}&RoleSessionName=${name}&WebIdentityToken=${token}`;
-
-    const response = await ngx.fetch(sts_endpoint + "?" + params, {
-        headers: {
-            "Accept": "application/json"
-        },
-        method: 'GET',
-    });
-
-    const resp = await response.json();
-    const creds = resp.AssumeRoleWithWebIdentityResponse.AssumeRoleWithWebIdentityResult.Credentials;
-
-    return {
-        accessKeyId: creds.AccessKeyId,
-        secretAccessKey: creds.SecretAccessKey,
-        sessionToken: creds.SessionToken,
-        expiration: creds.Expiration,
-    };
 }
 
 export default {
-    awsHeaderDate,
-    fetchCredentials,
     s3date,
     s3auth,
     s3uri,
@@ -711,6 +510,7 @@ export default {
     redirectToS3,
     editHeaders,
     filterListResponse,
+    loadContent,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.
     _s3ReqParamsForSigV2,

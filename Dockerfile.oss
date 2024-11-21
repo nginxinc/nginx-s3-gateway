@@ -1,12 +1,18 @@
-FROM nginx:1.23.3
+FROM nginx:1.25.3
 
-ENV NGINX_VERSION "1.23.3"
-ENV NJS_VERSION   0.7.10
+ENV NGINX_VERSION "1.25.3"
+ENV NJS_VERSION   "0.8.2"
 
+ENV PROXY_CACHE_MAX_SIZE "10g"
+ENV PROXY_CACHE_INACTIVE "60m"
+ENV PROXY_CACHE_SLICE_SIZE "1m"
 ENV PROXY_CACHE_VALID_OK "1h"
 ENV PROXY_CACHE_VALID_NOTFOUND "1m"
 ENV PROXY_CACHE_VALID_FORBIDDEN "30s"
 ENV CORS_ENABLED 0
+ENV DIRECTORY_LISTING_PATH_PREFIX ""
+ENV STRIP_LEADING_DIRECTORY_PATH ""
+ENV PREFIX_LEADING_DIRECTORY_PATH ""
 
 # We modify the nginx base image by:
 # 1. Adding configuration files needed for proxying private S3 buckets
@@ -26,10 +32,12 @@ RUN set -eux \
     mkdir -p /var/cache/nginx/s3_proxy; \
     chown nginx:nginx /var/cache/nginx/s3_proxy; \
     chmod -R -v +x /docker-entrypoint.sh /docker-entrypoint.d/*.sh; \
-    echo "deb https://nginx.org/packages/mainline/debian/ $(echo $PKG_RELEASE | cut -f2 -d~) nginx" >> /etc/apt/sources.list.d/nginx.list; \
+    echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/mainline/debian/ $(echo $PKG_RELEASE | cut -f2 -d~) nginx" >> /etc/apt/sources.list.d/nginx.list; \
     apt-get update; \
     apt-get install --no-install-recommends --no-install-suggests --yes \
-      curl nginx-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE}; \
+      curl \
+      libedit2 \
+      nginx-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE}; \
     apt-get remove --purge --auto-remove --yes; \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/nginx.list
 

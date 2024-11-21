@@ -1,0 +1,44 @@
+# We include only the headers needed for the authentication signatures that
+# we plan to use.
+include /etc/nginx/conf.d/gateway/v${AWS_SIGS_VERSION}_headers.conf;
+
+# The CORS configuration needs to be imported in several places in order for
+# it to be applied within different contexts.
+include /etc/nginx/conf.d/gateway/cors.conf;
+
+# Don't allow any headers from the client - we don't want them messing
+# with S3 at all.
+proxy_pass_request_headers off;
+
+# Enable passing of the server name through TLS Server Name Indication extension.
+proxy_ssl_server_name on;
+proxy_ssl_name ${S3_SERVER};
+
+# Set the Authorization header to the AWS Signatures credentials
+proxy_set_header Authorization $s3auth;
+proxy_set_header X-Amz-Security-Token $awsSessionToken;
+
+# We set the host as the bucket name to inform the S3 API of the bucket
+proxy_set_header Host $s3_host;
+
+# Use keep alive connections in order to improve performance
+proxy_http_version 1.1;
+proxy_set_header Connection '';
+
+# We strip off all of the AWS specific headers from the server so that
+# there is nothing identifying the object as having originated in an
+# object store.
+js_header_filter s3gateway.editHeaders;
+
+# Catch all errors from S3 and sanitize them so that the user can't
+# gain intelligence about the S3 bucket being proxied.
+proxy_intercept_errors on;
+
+# Comment out this line to receive the error messages returned by S3
+error_page 400 401 402 403 405 406 407 408 409 410 411 412 413 414 415 416 417 418 420 422 423 424 426 428 429 431 444 449 450 451 500 501 502 503 504 505 506 507 508 509 510 511 =404 @error404;
+
+error_page 404 @trailslashControl;
+
+proxy_pass ${S3_SERVER_PROTO}://storage_urls$s3uri;
+
+include /etc/nginx/conf.d/gateway/s3_location.conf;

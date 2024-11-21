@@ -1,0 +1,16 @@
+# Settings for S3 cache
+
+proxy_cache_path /var/cache/nginx/s3_proxy
+levels=1:2
+keys_zone=s3_cache:10m
+max_size=$PROXY_CACHE_MAX_SIZE
+inactive=$PROXY_CACHE_INACTIVE
+use_temp_path=off;
+
+
+proxy_cache_path /var/cache/nginx/s3_proxy_slices
+levels=1:2
+keys_zone=s3_cache_slices:10m
+max_size=$PROXY_CACHE_MAX_SIZE
+inactive=$PROXY_CACHE_INACTIVE
+use_temp_path=off;

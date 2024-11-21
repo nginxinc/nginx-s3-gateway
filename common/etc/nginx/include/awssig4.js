@@ -14,15 +14,15 @@
  *  limitations under the License.
  */
 
-import utils from "./utils.js";
+/**
+ * @module awssig4
+ * @alias AwsSig4
+ */
+
+import awscred from "./awscredentials.js";
+import utils   from "./utils.js";
 
 const mod_hmac = require('crypto');
-
-/**
- * Constant checksum for an empty HTTP body.
- * @type {string}
- */
-const EMPTY_PAYLOAD_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 
 /**
  * Constant defining the headers being signed.
@@ -30,31 +30,30 @@ const EMPTY_PAYLOAD_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495
  */
 const DEFAULT_SIGNED_HEADERS = 'host;x-amz-content-sha256;x-amz-date';
 
-
 /**
  * Create HTTP Authorization header for authenticating with an AWS compatible
  * v4 API.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param timestamp {Date} timestamp associated with request (must fall within a skew)
  * @param region {string} API region associated with request
  * @param service {string} service code (for example, s3, lambda)
  * @param uri {string} The URI-encoded version of the absolute path component URL to create a canonical request
  * @param queryParams {string} The URL-encoded query string parameters to create a canonical request
  * @param host {string} HTTP host header value
- * @param credentials {object} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
+ * @param credentials {Credentials} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
  * @returns {string} HTTP Authorization header value
  */
 function signatureV4(r, timestamp, region, service, uri, queryParams, host, credentials) {
     const eightDigitDate = utils.getEightDigitDate(timestamp);
     const amzDatetime = utils.getAmzDatetime(timestamp, eightDigitDate);
-    const canonicalRequest = _buildCanonicalRequest(
+    const canonicalRequest = _buildCanonicalRequest(r,
         r.method, uri, queryParams, host, amzDatetime, credentials.sessionToken);
     const signature = _buildSignatureV4(r, amzDatetime, eightDigitDate,
         credentials, region, service, canonicalRequest);
     const authHeader = 'AWS4-HMAC-SHA256 Credential='
         .concat(credentials.accessKeyId, '/', eightDigitDate, '/', region, '/', service, '/aws4_request,',
-            'SignedHeaders=', _signedHeaders(credentials.sessionToken), ',Signature=', signature);
+            'SignedHeaders=', _signedHeaders(r, credentials.sessionToken), ',Signature=', signature);
 
     utils.debug_log(r, 'AWS v4 Auth header: [' + authHeader + ']');
 
@@ -73,12 +72,14 @@ function signatureV4(r, timestamp, region, service, uri, queryParams, host, cred
  * @returns {string} string with concatenated request parameters
  * @private
  */
-function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, sessionToken) {
+function _buildCanonicalRequest(r,
+    method, uri, queryParams, host, amzDatetime, sessionToken) {
+    const payloadHash = awsHeaderPayloadHash(r);
     let canonicalHeaders = 'host:' + host + '\n' +
-        'x-amz-content-sha256:' + EMPTY_PAYLOAD_HASH + '\n' +
-        'x-amz-date:' + amzDatetime + '\n';
+                           'x-amz-content-sha256:' + payloadHash + '\n' +
+                           'x-amz-date:' + amzDatetime + '\n';
 
-    if (sessionToken) {
+    if (sessionToken && sessionToken.length > 0) {
         canonicalHeaders += 'x-amz-security-token:' + sessionToken + '\n'
     }
 
@@ -86,9 +87,8 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
     canonicalRequest += uri + '\n';
     canonicalRequest += queryParams + '\n';
     canonicalRequest += canonicalHeaders + '\n';
-    canonicalRequest += _signedHeaders(sessionToken) + '\n';
-    canonicalRequest += EMPTY_PAYLOAD_HASH;
-
+    canonicalRequest += _signedHeaders(r, sessionToken) + '\n';
+    canonicalRequest += payloadHash;
     return canonicalRequest;
 }
 
@@ -96,7 +96,7 @@ function _buildCanonicalRequest(method, uri, queryParams, host, amzDatetime, ses
  * Creates a signature for use authenticating against an AWS compatible API.
  *
  * @see {@link https://docs.aws.amazon.com/general/latest/gr/signature-version-4.html | AWS V4 Signing Process}
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param amzDatetime {string} ISO8601 timestamp string to sign request with
  * @param eightDigitDate {string} date in the form of 'YYYYMMDD'
  * @param creds {object} AWS credentials
@@ -119,7 +119,7 @@ function _buildSignatureV4(
     const stringToSign = _buildStringToSign(
         amzDatetime, eightDigitDate, region, service, canonicalRequestHash);
 
-        utils.debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
+    utils.debug_log(r, 'AWS v4 Auth Signing String: [' + stringToSign + ']');
 
     let kSigningHash;
 
@@ -190,13 +190,14 @@ function _buildStringToSign(amzDatetime, eightDigitDate, region, service, canoni
  * Creates a string containing the headers that need to be signed as part of v4
  * signature authentication.
  *
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param sessionToken {string|undefined} AWS session token if present
  * @returns {string} semicolon delimited string of the headers needed for signing
  * @private
  */
-function _signedHeaders(sessionToken) {
+function _signedHeaders(r, sessionToken) {
     let headers = DEFAULT_SIGNED_HEADERS;
-    if (sessionToken) {
+    if (sessionToken && sessionToken.length > 0) {
         headers += ';x-amz-security-token';
     }
     return headers;
@@ -232,8 +233,8 @@ function _buildSigningKeyHash(kSecret, eightDigitDate, region, service) {
  * the eight digit date string and the second element contains a JSON string
  * of the kSigningHash.
  *
- * @param cached input string to parse
- * @returns {string[]|*[]} array containing eight digit date and kSigningHash or empty
+ * @param cached {string} input string to parse
+ * @returns {Array<string>} array containing eight digit date and kSigningHash or empty
  * @private
  */
 function _splitCachedValues(cached) {
@@ -250,8 +251,39 @@ function _splitCachedValues(cached) {
     return [eightDigitDate, kSigningHash]
 }
 
+/**
+ * Outputs the timestamp used to sign the request, so that it can be added to
+ * the 'x-amz-date' header and sent by NGINX. The output format is
+ * ISO 8601: YYYYMMDD'T'HHMMSS'Z'.
+ * @see {@link https://docs.aws.amazon.com/general/latest/gr/sigv4-date-handling.html | Handling dates in Signature Version 4}
+ *
+ * @param _r {NginxHTTPRequest} HTTP request object (not used, but required for NGINX configuration)
+ * @returns {string} ISO 8601 timestamp
+ */
+function awsHeaderDate(_r) {
+    return utils.getAmzDatetime(
+        awscred.Now(),
+        utils.getEightDigitDate(awscred.Now())
+    );
+}
+
+/**
+ * Return a payload hash in the header
+ *
+ * @param r {NginxHTTPRequest} HTTP request object
+ * @returns {string} payload hash
+ */
+function awsHeaderPayloadHash(r) {
+    const reqBody = r.variables.request_body ? r.variables.request_body: '';
+    const payloadHash = mod_hmac.createHash('sha256', 'utf8')
+        .update(reqBody)
+        .digest('hex');
+    return payloadHash;
+}
 
 export default {
+    awsHeaderDate,
+    awsHeaderPayloadHash,
     signatureV4,
     // These functions do not need to be exposed, but they are exposed so that
     // unit tests can run against them.

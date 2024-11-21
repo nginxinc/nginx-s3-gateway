@@ -17,7 +17,6 @@
  */
 
 import awssig2 from "include/awssig2.js";
-import s3gateway from "include/s3gateway.js";
 
 
 function _runSignatureV2(r) {
@@ -32,12 +31,10 @@ function _runSignatureV2(r) {
         accessKeyId:accessKey, secretAccessKey: secret, sessionToken: null
     };
 
-    // TODO: Generate request parameters without using s3gateway to only test 
-    //       awssig2.js for the purpose of common library.
     const httpDate = timestamp.toUTCString();
     const expected = 'AWS test-access-key-1:VviSS4cFhUC6eoB4CYqtRawzDrc=';
-    let req = s3gateway._s3ReqParamsForSigV2(r, bucket);
-    let signature = awssig2.signatureV2(r, req.uri, httpDate, creds);
+    const req_uri = '/'.concat(bucket, r.variables.uri_path);
+    let signature = awssig2.signatureV2(r, req_uri, httpDate, creds);
 
     if (signature !== expected) {
         throw 'V2 signature hash was not created correctly.\n' +

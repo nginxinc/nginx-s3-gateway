@@ -14,6 +14,11 @@
  *  limitations under the License.
  */
 
+/**
+ * @module awssig2
+ * @alias AwsSig2
+ */
+
 import utils from "./utils.js";
 
 const mod_hmac = require('crypto');
@@ -22,10 +27,10 @@ const mod_hmac = require('crypto');
  * Create HTTP Authorization header for authenticating with an AWS compatible
  * v2 API.
  *
- * @param r {Request} HTTP request object
+ * @param r {NginxHTTPRequest} HTTP request object
  * @param uri {string} The URI-encoded version of the absolute path component URL to create a request
  * @param httpDate {string} RFC2616 timestamp used to sign the request
- * @param credentials {object} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
+ * @param credentials {Credentials} Credential object with AWS credentials in it (AccessKeyId, SecretAccessKey, SessionToken)
  * @returns {string} HTTP Authorization header value
  */
 function signatureV2(r, uri, httpDate, credentials) {
@@ -39,7 +44,6 @@ function signatureV2(r, uri, httpDate, credentials) {
 
     return `AWS ${credentials.accessKeyId}:${signature}`;
 }
-
 
 export default {
     signatureV2
