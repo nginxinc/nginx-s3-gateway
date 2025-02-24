@@ -45,7 +45,7 @@ jobs:
           outputs: type=docker,dest=${{ runner.temp }}/oss.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: oss
           path: ${{ runner.temp }}/oss.tar
@@ -68,7 +68,7 @@ jobs:
 
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/restore@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
@@ -132,7 +132,7 @@ jobs:
           docker save nginx-s3-gateway:latest-njs-oss > ${{ runner.temp }}/latest-njs.tar
 
       - name: Upload artifact - latest-njs
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: latest-njs
           path: ${{ runner.temp }}/latest-njs.tar
@@ -152,7 +152,7 @@ jobs:
 
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/restore@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
@@ -217,7 +217,7 @@ jobs:
           docker save nginx-s3-gateway:unprivileged-oss > ${{ runner.temp }}/unprivileged.tar
 
       - name: Upload artifact - unprivileged
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: unprivileged
           path: ${{ runner.temp }}/unprivileged.tar
@@ -237,7 +237,7 @@ jobs:
 
       - name: Restore cached binaries
         id: cache-binaries-restore
-        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        uses: actions/cache/restore@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
         with:
           path: .bin
           key: ${{ runner.os }}-binaries
