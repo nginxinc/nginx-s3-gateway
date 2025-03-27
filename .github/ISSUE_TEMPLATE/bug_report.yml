@@ -1,0 +1,71 @@
+---
+name: 🐛 Bug report
+description: Create a report to help us improve
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+        Before you continue filling out this report, please take a moment to check that your bug has not been [already reported on GitHub][issue search] 🙌
+
+        Remember to redact any sensitive information such as authentication credentials and/or license keys!
+
+        **Note:** If you are seeking community support or have a question, please consider starting a new thread via [GitHub discussions][discussions] or the [NGINX Community forum][forum].
+
+        [issue search]: ../search?q=is%3Aissue&type=issues
+
+        [discussions]: ../discussions
+        [forum]: https://community.nginx.org
+
+  - type: textarea
+    id: overview
+    attributes:
+      label: Bug Overview
+      description: A clear and concise overview of the bug.
+      placeholder: When I do "X", "Y" happens instead of "Z".
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: When I do "X", I expect "Z" to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce the Bug
+      description: Detail the series of steps required to reproduce the bug.
+      placeholder: When I run "X" using [...], "X" fails with "Y" error message. If I check the terminal outputs and/or logs, I see the following info.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Please provide details about your environment.
+      value: |
+        - Version of the S3 container used (when downloaded from either Docker Hub or the GitHub Container Registry)
+        - Version of this project or specific commit when building your own S3 container
+        - Version of NGINX Open Source or NGINX Plus (OSS/Plus)
+        - Version of NGINX JavaScript
+        - Target deployment platform for the S3 container
+        - S3 backend implementation (AWS, Ceph, NetApp StorageGrid, etc...)
+        - Authentication method (IAM, IAM with Fargate, IAM with K8S, AWS Credentials, etc...)
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here.
+      placeholder: Feel free to add any other context/information/screenshots/etc... that you think might be relevant to this issue in here.
