@@ -4,11 +4,11 @@ name: OSSF Scorecard
 on:
   # For Branch-Protection check. Only the default branch is supported. See https://github.com/ossf/scorecard/blob/main/docs/checks.md#branch-protection.
   branch_protection_rule:
-  push:
-    branches: [main]
   # To guarantee Maintained check is occasionally updated. See https://github.com/ossf/scorecard/blob/main/docs/checks.md#maintained.
   schedule:
     - cron: "0 0 * * 1"
+  push:
+    branches: [main, master]
   workflow_dispatch:
 # Declare default permissions as read only.
 permissions: read-all
@@ -16,12 +16,14 @@ jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-24.04
+    # Delete the conditional below if you are using the OSSF Scorecard on a private repository.
+    if: ${{ github.event.repository.private == false }}
     permissions:
-      # Needed if using Code Scanning alerts
+      # Needed if using Code Scanning alerts.
       security-events: write
-      # Needed for GitHub OIDC token if publish_results is true
+      # Needed for GitHub OIDC token if publish_results is true.
       id-token: write
-      # Uncomment the permissions below if installing on a private repository.
+      # Uncomment the permissions below if you are using the OSSF Scorecard on a private repository.
       # contents: read
       # actions: read
       # issues: read # To allow GraphQL ListCommits to work
@@ -38,9 +40,7 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          # (Optional) fine-grained personal access token. Uncomment the `repo_token` line below if:
-          #   - You want to enable the Branch-Protection check on a *public* repository.
-          #   - You are installing the OSSF Scorecard on a *private* repository.
+          # (Optional) fine-grained personal access token. Uncomment the `repo_token` line below if you want to enable the Branch-Protection or Webhooks check on a *private* repository.
           # To create the PAT, follow the steps in https://github.com/ossf/scorecard-action#authentication-with-fine-grained-pat-optional.
           # repo_token: ${{ secrets.SCORECARD_TOKEN }}
 
