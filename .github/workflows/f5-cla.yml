@@ -33,7 +33,7 @@ jobs:
           path-to-signatures: signatures/signatures.json
           # Comma separated list of usernames for maintainers or any other individuals who should not be prompted for a CLA.
           # NOTE: You will want to edit the usernames to suit your project needs.
-          allowlist: 4141done, alessfg, dekobon, bot*
+          allowlist: bot*
           # Do not lock PRs after a merge.
           lock-pullrequest-aftermerge: false
         env:
