@@ -14,7 +14,6 @@ body:
         **Note:** If you are seeking community support or have a question, please consider starting a new thread via [GitHub discussions][discussions] or the [NGINX Community forum][forum].
 
         [issue search]: https://github.com/nginx/nginx-s3-gateway/issues
-
         [discussions]: https://github.com/nginx/nginx-s3-gateway/discussions
         [forum]: https://community.nginx.org
 

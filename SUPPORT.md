@@ -36,10 +36,6 @@ at <https://mailman.nginx.org/mailman3/lists/>!
 Please see the [contributing guide](/CONTRIBUTING.md) or the [Getting Started](/README.md#getting-started) guide, for
 guidelines on how to best contribute to this project.
 
-<!-- ## Commercial Support
-
-Commercial support for this project may be available. Please get in touch with [NGINX sales](https://www.f5.com/products/get-f5/) or check your contract details for more information! -->
-
 ## Community Support
 
 This project does **not** offer commercial support. Community support is offered on a best effort basis through either

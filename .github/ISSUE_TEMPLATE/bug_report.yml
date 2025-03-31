@@ -16,7 +16,6 @@ body:
         **Note:** If you are seeking community support or have a question, please consider starting a new thread via [GitHub discussions][discussions] or the [NGINX Community forum][forum].
 
         [issue search]: https://github.com/nginx/nginx-s3-gateway/issues
-
         [discussions]: https://github.com/nginx/nginx-s3-gateway/discussions
         [forum]: https://community.nginx.org
 
@@ -53,13 +52,13 @@ body:
       label: Environment Details
       description: Please provide details about your environment.
       value: |
-        - Version of the S3 container used (when downloaded from either Docker Hub or the GitHub Container Registry)
-        - Version of this project or specific commit when building your own S3 container
-        - Version of NGINX Open Source or NGINX Plus (OSS/Plus)
-        - Version of NGINX JavaScript
-        - Target deployment platform for the S3 container
-        - S3 backend implementation (AWS, Ceph, NetApp StorageGrid, etc...)
-        - Authentication method (IAM, IAM with Fargate, IAM with K8S, AWS Credentials, etc...)
+        - Version of the S3 container used (DockerHub/GCR):
+        - Commit/Tag (If Building from Source):
+        - Version of NGINX Open Source or NGINX Plus: [OSS/Plus]
+        - Version of NGINX JavaScript:
+        - Target deployment platforms [e.g. AWS/GCP/local cluster/etc...]:
+        - S3 backend implementation: [e.g. AWS, Ceph, NetApp StorageGrid, etc...]
+        - Authentication method: [IAM, IAM with Fargate, IAM with K8S, AWS Credentials, etc...]
     validations:
       required: true
 
