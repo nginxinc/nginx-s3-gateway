@@ -42,7 +42,7 @@ body:
     attributes:
       label: Steps to Reproduce the Bug
       description: Detail the series of steps required to reproduce the bug.
-      placeholder: When I run "X" using [...], "X" fails with "Y" error message. If I check the terminal outputs and/or logs, I see the following info.
+      placeholder: When I use the NGINX S3 gateway using "X", the NGINX S3 gateway fails with "Y" error message. If I check the terminal outputs and/or logs, I see the following info.
     validations:
       required: true
 
