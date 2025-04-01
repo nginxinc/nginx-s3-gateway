@@ -22,7 +22,7 @@ body:
     attributes:
       label: Feature Overview
       description: A clear and concise description of what the feature request is.
-      placeholder: I would like this project to be able to do "X".
+      placeholder: I would like the NGINX S3 gateway to be able to do "X".
     validations:
       required: true
 
