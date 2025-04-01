@@ -53,7 +53,7 @@ body:
       description: Please provide details about your environment.
       value: |
         - Version of the S3 container used: [DockerHub/GCR]
-        - Commit/Tag (If Building from Source):
+        - Commit/Tag (if building the NGINX S3 gateway from source):
         - Version of NGINX Open Source or NGINX Plus: [OSS/Plus]
         - Version of NGINX JavaScript:
         - Target deployment platforms [e.g. AWS/GCP/local cluster/etc...]:
