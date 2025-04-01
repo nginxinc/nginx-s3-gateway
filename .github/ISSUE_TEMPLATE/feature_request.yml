@@ -31,7 +31,7 @@ body:
     attributes:
       label: Alternatives Considered
       description: Detail any potential alternative solutions/workarounds you've used or considered.
-      placeholder: I have done/might be able to do "X" in this project by doing "Y".
+      placeholder: I have done/might be able to do "X" with the NGINX S3 gateway by doing "Y".
 
   - type: textarea
     id: context
