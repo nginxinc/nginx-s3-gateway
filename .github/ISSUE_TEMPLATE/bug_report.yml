@@ -52,7 +52,7 @@ body:
       label: Environment Details
       description: Please provide details about your environment.
       value: |
-        - Version of the S3 container used (DockerHub/GCR):
+        - Version of the S3 container used: [DockerHub/GCR]
         - Commit/Tag (If Building from Source):
         - Version of NGINX Open Source or NGINX Plus: [OSS/Plus]
         - Version of NGINX JavaScript:
