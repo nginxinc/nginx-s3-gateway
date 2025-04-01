@@ -58,7 +58,7 @@ body:
         - Version of NGINX JavaScript: [0.8.8/0.8.7/etc...]
         - Target deployment platforms [e.g. AWS/GCP/local cluster/etc...]:
         - S3 backend implementation: [e.g. AWS, Ceph, NetApp StorageGrid, etc...]
-        - Authentication method: [IAM, IAM with Fargate, IAM with K8S, AWS Credentials, etc...]
+        - Authentication method: [e.g. IAM, IAM with Fargate, IAM with K8S, AWS Credentials, etc...]
     validations:
       required: true
 
