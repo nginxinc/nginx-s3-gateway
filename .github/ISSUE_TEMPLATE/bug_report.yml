@@ -24,7 +24,7 @@ body:
     attributes:
       label: Bug Overview
       description: A clear and concise overview of the bug.
-      placeholder: When I do "X", "Y" happens instead of "Z".
+      placeholder: When I do "X" with the NGINX S3 gateway, "Y" happens instead of "Z".
     validations:
       required: true
 
