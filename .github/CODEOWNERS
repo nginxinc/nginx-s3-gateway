@@ -2,4 +2,4 @@
 # Main global owner #
 #####################
 
-*
+* @nginx/s3-gateway
