@@ -14,9 +14,7 @@ The following is a set of guidelines for contributing to this project. We really
 
 ## Getting Started
 
-Follow the instructions on the README's [Getting Started Guide](/README.md#Getting-Started) section to get this project up and running.
-
-<!-- ### Project Structure (OPTIONAL) -->
+Refer to the [Getting Started Guide](docs/getting_started.md) for how to build and run the gateway.
 
 ## Contributing
 
